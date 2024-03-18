@@ -1,8 +1,16 @@
 [package]
 name = "predictosaurus"
 version = "0.1.0"
+description = "Uncertainty aware haplotype based genomic variant effect prediction"
+license = "MIT"
+authors = ["Felix Wiegand <felix.wiegand@tu-dortmund.de>", "Johannes Köster <johannes.koester@tu-dortmund.de>"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+clap = { version = "4.5.3", features = ["derive"] }
+clap_derive = "4.5.3"#
+rust-htslib = "0.46.0"
+anyhow = "1.0.81"
+

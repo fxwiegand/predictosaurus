@@ -1,0 +1,8 @@
+##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
+##INFO=<ID=PROB_EVENT1,Number=1,Type=Float,Description="Posterior probability for EVENT1">
+##INFO=<ID=PROB_EVENT2,Number=1,Type=Float,Description="Posterior probability for EVENT2">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+chr1	100	.	A	G	30	PASS	PROB_EVENT1=0.85;PROB_EVENT2=0.15
+chr1	200	.	T	C	40	PASS	PROB_EVENT1=0.70;PROB_EVENT2=0.30
+chr2	150	.	G	A	25	PASS	PROB_EVENT1=0.60;PROB_EVENT2=0.40
