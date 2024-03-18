@@ -12,9 +12,9 @@ pub(crate) fn extract_event_names(bcf_file: &Path) -> Vec<String> {
         if let rust_htslib::bcf::HeaderRecord::Info { key: _, values, .. } = record {
             for info in values.values() {
                 // Check if the INFO field starts with "PROB_"
-                if info.starts_with("PROB_") {
+                if let Some(stripped) = info.strip_prefix("PROB_") {
                     // Extract the event name from the INFO field key
-                    let event_name = info["PROB_".len()..].to_string();
+                    let event_name = stripped.to_string();
                     event_names.push(event_name);
                 }
             }
