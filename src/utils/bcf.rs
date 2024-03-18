@@ -5,7 +5,7 @@ pub(crate) fn extract_event_names(bcf_file: &Path) -> Vec<String> {
     let mut event_names = Vec::new();
 
     // Open BCF file
-    let reader = Reader::from_path(&bcf_file).expect("Failed to open BCF file");
+    let reader = Reader::from_path(bcf_file).expect("Failed to open BCF file");
 
     // Iterate over header records
     for record in reader.header().header_records() {

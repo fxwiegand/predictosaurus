@@ -14,7 +14,7 @@ fn main() -> Result<()> {
     let observations_file = args.observations;
 
     let mut calls_reader = Reader::from_path(&calls_file)?;
-    let mut observations_reader = Reader::from_path(&observations_file)?;
+    let mut observations_reader = Reader::from_path(observations_file)?;
 
     let _event_names = extract_event_names(&calls_file);
 
