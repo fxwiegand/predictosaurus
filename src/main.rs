@@ -3,6 +3,8 @@ use crate::utils::bcf::extract_event_names;
 use anyhow::Result;
 use clap::Parser;
 use rust_htslib::bcf::{Read, Reader};
+use varlociraptor::calling::variants::preprocessing::read_observations;
+use varlociraptor::utils::collect_variants::collect_variants;
 
 mod cli;
 mod utils;
@@ -21,8 +23,11 @@ fn main() -> Result<()> {
     for (calls_record, observations_record) in
         calls_reader.records().zip(observations_reader.records())
     {
-        let calls_record = calls_record?;
-        let observations_record = observations_record?;
+        let mut calls_record = calls_record?;
+        let mut observations_record = observations_record?;
+
+        let _variants = collect_variants(&mut calls_record, true, None)?;
+        let _observations = read_observations(&mut observations_record)?;
 
         // Process records from both files together
         println!("Calls record: {:?}", calls_record);
