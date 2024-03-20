@@ -26,12 +26,11 @@ fn main() -> Result<()> {
         let mut calls_record = calls_record?;
         let mut observations_record = observations_record?;
 
-        let _variants = collect_variants(&mut calls_record, true, None)?;
-        let _observations = read_observations(&mut observations_record)?;
+        let variants = collect_variants(&mut calls_record, false, None)?;
+        // let observations = read_observations(&mut observations_record)?;
 
-        // Process records from both files together
-        println!("Calls record: {:?}", calls_record);
-        println!("Observations record: {:?}", observations_record);
+        dbg!(&variants);
+        // dbg!(observations.pileup);
     }
 
     Ok(())
