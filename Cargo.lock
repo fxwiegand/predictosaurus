@@ -1140,6 +1140,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itertools-num"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1634,8 +1643,11 @@ name = "predictosaurus"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bio",
  "clap 4.5.3",
  "clap_derive",
+ "itertools 0.12.1",
+ "petgraph",
  "rust-htslib",
  "varlociraptor",
 ]

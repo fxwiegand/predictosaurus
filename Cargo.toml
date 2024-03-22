@@ -12,5 +12,8 @@ edition = "2021"
 clap = { version = "4.5.3", features = ["derive"] }
 clap_derive = "4.5.3"#
 rust-htslib = "0.43.1"
+bio = "1.5.0"
 anyhow = "1.0.81"
 varlociraptor = { git = "https://github.com/fxwiegand/varlociraptor.git", branch = "patch-3" }
+petgraph = "0.6.4"
+itertools = "0.12.1"
