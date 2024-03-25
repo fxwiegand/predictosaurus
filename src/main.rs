@@ -68,7 +68,7 @@ fn main() -> Result<()> {
     }
 
     for (_, nodes) in supporting_reads {
-        for node_tuple in nodes.into_iter().combinations(2) {
+        for node_tuple in nodes.into_iter().sorted().dedup().combinations(2) {
             let edge = variant_graph.find_edge(node_tuple[0], node_tuple[1]);
             if let Some(edge) = edge {
                 let edge = variant_graph.edge_weight_mut(edge).unwrap();
@@ -82,7 +82,7 @@ fn main() -> Result<()> {
         }
     }
 
-    println!("{:?}", Dot::with_config(&variant_graph, &[Config::EdgeNoLabel]));
+    println!("{:?}", Dot::with_config(&variant_graph, &[Config::EdgeIndexLabel]));
 
     Ok(())
 }
