@@ -1,18 +1,18 @@
 use crate::cli::Predictosaurus;
-use crate::graph::{Edge, Node, NodeType};
+use crate::graph::{node_distance, Edge, Node, NodeType};
 use crate::utils::bcf::extract_event_names;
 use anyhow::Result;
 use bio::stats::bayesian::bayes_factors::evidence::KassRaftery;
 use bio::stats::bayesian::bayes_factors::BayesFactor;
 use clap::Parser;
+use itertools::Itertools;
+use petgraph::dot::{Config, Dot};
 use petgraph::Directed;
 use petgraph::Graph;
 use rust_htslib::bcf::{Read, Reader};
 use std::collections::HashMap;
 use varlociraptor::calling::variants::preprocessing::read_observations;
 use varlociraptor::utils::collect_variants::collect_variants;
-use itertools::Itertools;
-use petgraph::dot::{Config, Dot};
 
 mod cli;
 mod graph;
@@ -43,10 +43,12 @@ fn main() -> Result<()> {
         let variants = collect_variants(&mut calls_record, false, None)?;
         let observations = read_observations(&mut observations_record)?;
 
-        let var_node = Node::from_observations(variants.first().unwrap(), &observations, NodeType::Var);
+        let var_node =
+            Node::from_observations(variants.first().unwrap(), &observations, NodeType::Var);
         let var_node_index = variant_graph.add_node(var_node);
 
-        let ref_node = Node::from_observations(variants.first().unwrap(), &observations, NodeType::Ref);
+        let ref_node =
+            Node::from_observations(variants.first().unwrap(), &observations, NodeType::Ref);
         let ref_node_index = variant_graph.add_node(ref_node);
 
         for observation in observations.pileup.read_observations() {
@@ -55,12 +57,16 @@ fn main() -> Result<()> {
             match evidence {
                 KassRaftery::Strong | KassRaftery::VeryStrong => {
                     // Read supports variant
-                    let entry = supporting_reads.entry(observation.fragment_id).or_insert(Vec::new());
+                    let entry = supporting_reads
+                        .entry(observation.fragment_id)
+                        .or_insert(Vec::new());
                     entry.push(var_node_index);
                 }
                 KassRaftery::None | KassRaftery::Barely | KassRaftery::Positive => {
                     // Read supports reference
-                    let entry = supporting_reads.entry(observation.fragment_id).or_insert(Vec::new());
+                    let entry = supporting_reads
+                        .entry(observation.fragment_id)
+                        .or_insert(Vec::new());
                     entry.push(ref_node_index);
                 }
             }
@@ -68,7 +74,13 @@ fn main() -> Result<()> {
     }
 
     for (_, nodes) in supporting_reads {
-        for node_tuple in nodes.into_iter().sorted().dedup().combinations(2) {
+        for node_tuple in nodes
+            .into_iter()
+            .sorted()
+            .dedup()
+            .combinations(2)
+            .filter(|v| node_distance(&v[0].index(), &v[1].index()) <= 1)
+        {
             let edge = variant_graph.find_edge(node_tuple[0], node_tuple[1]);
             if let Some(edge) = edge {
                 let edge = variant_graph.edge_weight_mut(edge).unwrap();
@@ -82,7 +94,10 @@ fn main() -> Result<()> {
         }
     }
 
-    println!("{:?}", Dot::with_config(&variant_graph, &[Config::EdgeIndexLabel]));
+    println!(
+        "{:?}",
+        Dot::with_config(&variant_graph, &[Config::EdgeNoLabel])
+    );
 
     Ok(())
 }
