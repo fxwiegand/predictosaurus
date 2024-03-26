@@ -15,16 +15,17 @@ pub(crate) struct Node {
 }
 
 impl Node {
-    pub(crate) fn from_observations(
-        record: &Record,
+    pub(crate) fn from_records(
+        calls_record: &Record,
+        observations_record: &Record,
         tags: &Vec<String>,
         node_type: NodeType,
     ) -> Self {
-        let vaf = record.info(b"AF").float().expect("No AF tag found in record").unwrap()[0];
+        let vaf = calls_record.format(b"AF").float().unwrap()[0][0];
         Node {
             node_type,
-            vaf,
-            probs: EventProbs::from_record(&record, &tags),
+            vaf: vaf.to_owned(),
+            probs: EventProbs::from_record(&calls_record, &tags),
         }
     }
 }
@@ -34,7 +35,12 @@ struct  EventProbs(HashMap<String, f32>);
 
 impl EventProbs {
     fn from_record(record: &Record, tags: &Vec<String>) -> Self {
-        unimplemented!()
+        let mut probs = HashMap::new();
+        for tag in tags {
+            let prob = record.info(tag.as_bytes()).float().unwrap().unwrap()[0];
+            probs.insert(tag.to_string(), prob);
+        }
+        EventProbs(probs)
     }
 }
 
@@ -57,6 +63,7 @@ pub(crate) fn node_distance(node1: &usize, node2: &usize) -> usize {
 mod tests {
     use super::*;
     use petgraph::{Directed, Graph};
+    use rust_htslib::bcf::{Read, Reader};
 
     #[test]
     fn test_node_distance() {
@@ -78,5 +85,17 @@ mod tests {
         assert_eq!(distance_4, 1);
         let distance_5 = node_distance(&node1.index(), &node3.index());
         assert_eq!(distance_5, 1);
+    }
+
+    #[test]
+    fn test_event_probs_from_record() {
+        let mut reader = Reader::from_path("tests/resources/calls.bcf").unwrap();
+        let record = reader.records().next().unwrap().unwrap();
+        let tags = vec!["PROB_ABSENT".to_string(), "PROB_PRESENT".to_string(), "PROB_ARTIFACT".to_string()];
+        let event_probs = EventProbs::from_record(&record, &tags);
+        assert_eq!(event_probs.0.len(), 3);
+        assert_eq!(event_probs.0.get("PROB_ABSENT").unwrap(), &0.036097374);
+        assert_eq!(event_probs.0.get("PROB_PRESENT").unwrap(), &20.82111);
+        assert_eq!(event_probs.0.get("PROB_ARTIFACT").unwrap(), &f32::INFINITY);
     }
 }

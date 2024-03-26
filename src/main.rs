@@ -11,6 +11,7 @@ use petgraph::Directed;
 use petgraph::Graph;
 use rust_htslib::bcf::{Read, Reader};
 use std::collections::HashMap;
+use std::fmt::format;
 use std::string::String;
 use varlociraptor::calling::variants::preprocessing::read_observations;
 use varlociraptor::utils::collect_variants::collect_variants;
@@ -26,9 +27,11 @@ fn main() -> Result<()> {
     let observations_file = args.observations;
 
     let mut calls_reader = Reader::from_path(&calls_file)?;
-    let mut observations_reader = Reader::from_path(observations_file)?;
+    let mut observations_reader = Reader::from_path(&observations_file)?;
 
-    let _event_names = extract_event_names(&calls_file);
+    let event_names = extract_event_names(&calls_file);
+
+    let tags = event_names.iter().map(|event| format!("PROB_{event}")).collect();
 
     let mut supporting_reads = HashMap::new();
 
@@ -48,14 +51,12 @@ fn main() -> Result<()> {
         let ref_allele = String::from_utf8(alleles[0].to_vec()).unwrap();
         let alt_allele = String::from_utf8(alleles[1].to_vec()).unwrap();
 
-        let tags = vec![];
-
         let var_node =
-            Node::from_observations(&observations_record, &tags, NodeType::Var(alt_allele));
+            Node::from_records(&calls_record, &observations_record, &tags, NodeType::Var(alt_allele));
         let var_node_index = variant_graph.add_node(var_node);
 
         let ref_node =
-            Node::from_observations(&observations_record, &tags, NodeType::Ref(ref_allele));
+            Node::from_records(&calls_record, &observations_record, &tags, NodeType::Ref(ref_allele));
         let ref_node_index = variant_graph.add_node(ref_node);
 
         for observation in observations.pileup.read_observations() {
