@@ -11,6 +11,7 @@ use petgraph::Directed;
 use petgraph::Graph;
 use rust_htslib::bcf::{Read, Reader};
 use std::collections::HashMap;
+use std::string::String;
 use varlociraptor::calling::variants::preprocessing::read_observations;
 use varlociraptor::utils::collect_variants::collect_variants;
 
@@ -43,12 +44,18 @@ fn main() -> Result<()> {
         let variants = collect_variants(&mut calls_record, false, None)?;
         let observations = read_observations(&mut observations_record)?;
 
+        let alleles = calls_record.alleles();
+        let ref_allele = String::from_utf8(alleles[0].to_vec()).unwrap();
+        let alt_allele = String::from_utf8(alleles[1].to_vec()).unwrap();
+
+        let tags = vec![];
+
         let var_node =
-            Node::from_observations(variants.first().unwrap(), &observations, NodeType::Var);
+            Node::from_observations(&observations_record, &tags, NodeType::Var(alt_allele));
         let var_node_index = variant_graph.add_node(var_node);
 
         let ref_node =
-            Node::from_observations(variants.first().unwrap(), &observations, NodeType::Ref);
+            Node::from_observations(&observations_record, &tags, NodeType::Ref(ref_allele));
         let ref_node_index = variant_graph.add_node(ref_node);
 
         for observation in observations.pileup.read_observations() {
@@ -95,8 +102,8 @@ fn main() -> Result<()> {
     }
 
     println!(
-        "{:?}",
-        Dot::with_config(&variant_graph, &[Config::EdgeNoLabel])
+        "digraph {{ {:?} }}",
+        Dot::with_config(&variant_graph, &[Config::GraphContentOnly])
     );
 
     Ok(())
