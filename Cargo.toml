@@ -17,6 +17,8 @@ anyhow = "1.0.81"
 varlociraptor = { git = "https://github.com/fxwiegand/varlociraptor.git", branch = "patch-3" }
 petgraph = "0.6.4"
 itertools = "0.12.1"
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.115"
 
 [profile.release]
 lto = "fat"

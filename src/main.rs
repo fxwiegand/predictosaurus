@@ -11,7 +11,6 @@ use petgraph::Directed;
 use petgraph::Graph;
 use rust_htslib::bcf::{Read, Reader};
 use std::collections::HashMap;
-use std::fmt::format;
 use std::string::String;
 use varlociraptor::calling::variants::preprocessing::read_observations;
 use varlociraptor::utils::collect_variants::collect_variants;
@@ -25,6 +24,9 @@ fn main() -> Result<()> {
 
     let calls_file = args.calls;
     let observations_file = args.observations;
+    let alignment_properties_file = args.alignment_properties;
+
+    let _max_read_length = utils::AlignmentProperties::from_file(&alignment_properties_file)?.max_read_length;
 
     let mut calls_reader = Reader::from_path(&calls_file)?;
     let mut observations_reader = Reader::from_path(&observations_file)?;

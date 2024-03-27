@@ -12,4 +12,8 @@ pub(crate) struct Predictosaurus {
     /// Path to the observations file
     #[clap(short, long)]
     pub(crate) observations: PathBuf,
+
+    /// Path to the alignment properties file
+    #[clap(short, long)]
+    pub(crate) alignment_properties: PathBuf,
 }
