@@ -1,17 +1,17 @@
-use std::collections::HashMap;
-use std::path::PathBuf;
-use bio::stats::bayesian::bayes_factors::evidence::KassRaftery;
-use bio::stats::bayesian::BayesFactor;
-use petgraph::{Directed, Graph};
-use rust_htslib::bcf::{Read, Reader, Record};
-use varlociraptor::calling::variants::preprocessing::{Observations, read_observations};
-use varlociraptor::utils::collect_variants::collect_variants;
 use crate::utils::bcf::extract_event_names;
 use anyhow::Result;
+use bio::stats::bayesian::bayes_factors::evidence::KassRaftery;
+use bio::stats::bayesian::BayesFactor;
 use itertools::Itertools;
 use petgraph::graph::NodeIndex;
+use petgraph::{Directed, Graph};
+use rust_htslib::bcf::{Read, Reader, Record};
+use std::collections::HashMap;
+use std::path::PathBuf;
+use varlociraptor::calling::variants::preprocessing::{read_observations, Observations};
+use varlociraptor::utils::collect_variants::collect_variants;
 
-pub(crate) struct VariantGraph(pub(crate) Graph::<Node, Edge, Directed>);
+pub(crate) struct VariantGraph(pub(crate) Graph<Node, Edge, Directed>);
 
 impl VariantGraph {
     pub(crate) fn new(calls_file: &PathBuf, observations_file: &PathBuf) -> Result<Self> {
@@ -20,7 +20,10 @@ impl VariantGraph {
 
         let event_names = extract_event_names(&calls_file);
 
-        let tags = event_names.iter().map(|event| format!("PROB_{event}")).collect();
+        let tags = event_names
+            .iter()
+            .map(|event| format!("PROB_{event}"))
+            .collect();
 
         let mut supporting_reads = HashMap::new();
 
@@ -28,7 +31,7 @@ impl VariantGraph {
 
         // Idea: Iterate in batches of records that have a near position. This means whenever the next variant is more than for example 1000bp away, we can stop the batch - write out the existing graph - and start a new one.
         for (calls_record, observations_record) in
-        calls_reader.records().zip(observations_reader.records())
+            calls_reader.records().zip(observations_reader.records())
         {
             let mut calls_record = calls_record?;
             let mut observations_record = observations_record?;
@@ -40,12 +43,20 @@ impl VariantGraph {
             let ref_allele = String::from_utf8(alleles[0].to_vec())?;
             let alt_allele = String::from_utf8(alleles[1].to_vec())?;
 
-            let var_node =
-                Node::from_records(&calls_record, &observations_record, &tags, NodeType::Var(alt_allele));
+            let var_node = Node::from_records(
+                &calls_record,
+                &observations_record,
+                &tags,
+                NodeType::Var(alt_allele),
+            );
             let var_node_index = variant_graph.add_node(var_node);
 
-            let ref_node =
-                Node::from_records(&calls_record, &observations_record, &tags, NodeType::Ref(ref_allele));
+            let ref_node = Node::from_records(
+                &calls_record,
+                &observations_record,
+                &tags,
+                NodeType::Ref(ref_allele),
+            );
             let ref_node_index = variant_graph.add_node(ref_node);
 
             for observation in observations.pileup.read_observations() {
@@ -75,7 +86,10 @@ impl VariantGraph {
         Ok(variant_graph)
     }
 
-    pub(crate) fn create_edges(&mut self, supporting_reads: HashMap<Option<u64>, Vec<NodeIndex>>) -> Result<()> {
+    pub(crate) fn create_edges(
+        &mut self,
+        supporting_reads: HashMap<Option<u64>, Vec<NodeIndex>>,
+    ) -> Result<()> {
         for (_, nodes) in supporting_reads {
             for node_tuple in nodes
                 .into_iter()
@@ -130,7 +144,7 @@ impl Node {
 }
 
 #[derive(Debug, Clone)]
-struct  EventProbs(HashMap<String, f32>);
+struct EventProbs(HashMap<String, f32>);
 
 impl EventProbs {
     fn from_record(record: &Record, tags: &Vec<String>) -> Self {
@@ -190,7 +204,11 @@ mod tests {
     fn test_event_probs_from_record() {
         let mut reader = Reader::from_path("tests/resources/calls.bcf").unwrap();
         let record = reader.records().next().unwrap().unwrap();
-        let tags = vec!["PROB_ABSENT".to_string(), "PROB_PRESENT".to_string(), "PROB_ARTIFACT".to_string()];
+        let tags = vec![
+            "PROB_ABSENT".to_string(),
+            "PROB_PRESENT".to_string(),
+            "PROB_ARTIFACT".to_string(),
+        ];
         let event_probs = EventProbs::from_record(&record, &tags);
         assert_eq!(event_probs.0.len(), 3);
         assert_eq!(event_probs.0.get("PROB_ABSENT").unwrap(), &0.036097374);

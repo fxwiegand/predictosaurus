@@ -1,6 +1,6 @@
-use std::path::PathBuf;
-use serde::Deserialize;
 use anyhow::Result;
+use serde::Deserialize;
+use std::path::PathBuf;
 
 pub(crate) mod bcf;
 
@@ -31,7 +31,10 @@ mod tests {
 
     #[test]
     fn test_alignment_properties_from_file() {
-        let properties = AlignmentProperties::from_file(&PathBuf::from("tests/resources/alignment-properties.json")).unwrap();
+        let properties = AlignmentProperties::from_file(&PathBuf::from(
+            "tests/resources/alignment-properties.json",
+        ))
+        .unwrap();
         assert_eq!(properties.max_read_length, 100);
     }
 }
