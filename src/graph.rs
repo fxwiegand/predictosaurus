@@ -197,4 +197,13 @@ mod tests {
         assert_eq!(event_probs.0.get("PROB_PRESENT").unwrap(), &20.82111);
         assert_eq!(event_probs.0.get("PROB_ARTIFACT").unwrap(), &f32::INFINITY);
     }
+
+    #[test]
+    fn test_variant_graph() {
+        let calls_file = PathBuf::from("tests/resources/test_calls.vcf");
+        let observations_file = PathBuf::from("tests/resources/test_observations.vcf");
+        let variant_graph = VariantGraph::new(&calls_file, &observations_file).unwrap();
+        assert_eq!(variant_graph.0.node_count(), 8);
+        assert_eq!(variant_graph.0.edge_count(), 3);
+    }
 }
