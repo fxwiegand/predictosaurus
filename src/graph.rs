@@ -8,17 +8,18 @@ use petgraph::{Directed, Graph};
 use rust_htslib::bcf::{Read, Reader, Record};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use varlociraptor::calling::variants::preprocessing::{read_observations, Observations};
+use petgraph::dot::{Config, Dot};
+use varlociraptor::calling::variants::preprocessing::{read_observations};
 use varlociraptor::utils::collect_variants::collect_variants;
 
 pub(crate) struct VariantGraph(pub(crate) Graph<Node, Edge, Directed>);
 
 impl VariantGraph {
     pub(crate) fn new(calls_file: &PathBuf, observations_file: &PathBuf) -> Result<Self> {
-        let mut calls_reader = Reader::from_path(&calls_file)?;
-        let mut observations_reader = Reader::from_path(&observations_file)?;
+        let mut calls_reader = Reader::from_path(calls_file)?;
+        let mut observations_reader = Reader::from_path(observations_file)?;
 
-        let event_names = extract_event_names(&calls_file);
+        let event_names = extract_event_names(calls_file);
 
         let tags = event_names
             .iter()
@@ -36,7 +37,7 @@ impl VariantGraph {
             let mut calls_record = calls_record?;
             let mut observations_record = observations_record?;
 
-            let variants = collect_variants(&mut calls_record, false, None)?;
+            let _variants = collect_variants(&mut calls_record, false, None)?;
             let observations = read_observations(&mut observations_record)?;
 
             let alleles = calls_record.alleles();
@@ -112,15 +113,24 @@ impl VariantGraph {
         }
         Ok(())
     }
+
+    pub(crate) fn to_dot(&self) -> String {
+        format!(
+            "digraph {{ {:?} }}",
+            Dot::with_config(&self.0, &[Config::GraphContentOnly])
+        )
+    }
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // TODO: Remove this attribute when graph is properly serialized
 pub(crate) enum NodeType {
     Var(String),
     Ref(String),
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // TODO: Remove this attribute when graph is properly serialized
 pub(crate) struct Node {
     node_type: NodeType,
     vaf: f32,
@@ -130,7 +140,7 @@ pub(crate) struct Node {
 impl Node {
     pub(crate) fn from_records(
         calls_record: &Record,
-        observations_record: &Record,
+        _observations_record: &Record,
         tags: &Vec<String>,
         node_type: NodeType,
     ) -> Self {
@@ -138,12 +148,13 @@ impl Node {
         Node {
             node_type,
             vaf: vaf.to_owned(),
-            probs: EventProbs::from_record(&calls_record, &tags),
+            probs: EventProbs::from_record(calls_record, tags),
         }
     }
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // TODO: Remove this attribute when graph is properly serialized
 struct EventProbs(HashMap<String, f32>);
 
 impl EventProbs {

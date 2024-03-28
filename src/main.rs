@@ -2,10 +2,6 @@ use crate::cli::Predictosaurus;
 use crate::graph::VariantGraph;
 use anyhow::Result;
 use clap::Parser;
-use itertools::Itertools;
-use petgraph::dot::{Config, Dot};
-use rust_htslib::bcf::{Read, Reader};
-
 mod cli;
 mod graph;
 mod utils;
@@ -22,10 +18,7 @@ fn main() -> Result<()> {
 
     let variant_graph = VariantGraph::new(&calls_file, &observations_file)?;
 
-    println!(
-        "digraph {{ {:?} }}",
-        Dot::with_config(&variant_graph.0, &[Config::GraphContentOnly])
-    );
+    println!("{}", variant_graph.to_dot());
 
     Ok(())
 }
