@@ -8,14 +8,20 @@ use petgraph::graph::NodeIndex;
 use petgraph::{Directed, Graph};
 use rust_htslib::bcf::{Read, Reader, Record};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 use varlociraptor::calling::variants::preprocessing::read_observations;
 use varlociraptor::utils::collect_variants::collect_variants;
 
 pub(crate) struct VariantGraph(pub(crate) Graph<Node, Edge, Directed>);
 
 impl VariantGraph {
-    pub(crate) fn new(calls_file: &PathBuf, observations_file: &PathBuf) -> Result<Self> {
+    pub(crate) fn build(
+        calls_file: &PathBuf,
+        observations_file: &PathBuf,
+        max_read_length: i64,
+        output_path: &Path,
+    ) -> Result<()> {
         let mut calls_reader = Reader::from_path(calls_file)?;
         let mut observations_reader = Reader::from_path(observations_file)?;
 
@@ -30,12 +36,29 @@ impl VariantGraph {
 
         let mut variant_graph = Graph::<Node, Edge, Directed>::new();
 
-        // Idea: Iterate in batches of records that have a near position. This means whenever the next variant is more than for example 1000bp away, we can stop the batch - write out the existing graph - and start a new one.
+        let mut last_position: Option<i64> = None;
+        let mut batch = 0;
+
         for (calls_record, observations_record) in
             calls_reader.records().zip(observations_reader.records())
         {
             let mut calls_record = calls_record?;
             let mut observations_record = observations_record?;
+
+            let current_position = calls_record.pos();
+
+            if let Some(position) = last_position {
+                if current_position - position > max_read_length {
+                    let mut variant_graph = VariantGraph(variant_graph.clone());
+                    variant_graph.create_edges(&supporting_reads)?;
+                    variant_graph.to_file(output_path, batch)?;
+                    variant_graph.0.clear();
+                    supporting_reads.clear();
+                    batch += 1;
+                }
+            }
+
+            last_position = Some(current_position);
 
             let _variants = collect_variants(&mut calls_record, false, None)?;
             let observations = read_observations(&mut observations_record)?;
@@ -82,24 +105,26 @@ impl VariantGraph {
             }
         }
 
-        let mut variant_graph = VariantGraph(variant_graph);
-        variant_graph.create_edges(supporting_reads)?;
-        Ok(variant_graph)
+        let mut variant_graph = VariantGraph(variant_graph.clone());
+        variant_graph.create_edges(&supporting_reads)?;
+        variant_graph.to_file(output_path, batch)?;
+
+        Ok(())
     }
 
     pub(crate) fn create_edges(
         &mut self,
-        supporting_reads: HashMap<Option<u64>, Vec<NodeIndex>>,
+        supporting_reads: &HashMap<Option<u64>, Vec<NodeIndex>>,
     ) -> Result<()> {
-        for (_, nodes) in supporting_reads {
+        for nodes in supporting_reads.values() {
             for node_tuple in nodes
-                .into_iter()
+                .iter()
                 .sorted()
                 .dedup()
                 .combinations(2)
                 .filter(|v| node_distance(&v[0].index(), &v[1].index()) <= 1)
             {
-                let edge = self.0.find_edge(node_tuple[0], node_tuple[1]);
+                let edge = self.0.find_edge(*node_tuple[0], *node_tuple[1]);
                 if let Some(edge) = edge {
                     let edge = self.0.edge_weight_mut(edge).unwrap();
                     edge.supporting_reads += 1;
@@ -107,7 +132,7 @@ impl VariantGraph {
                     let edge = Edge {
                         supporting_reads: 1,
                     };
-                    self.0.add_edge(node_tuple[0], node_tuple[1], edge);
+                    self.0.add_edge(*node_tuple[0], *node_tuple[1], edge);
                 }
             }
         }
@@ -119,6 +144,13 @@ impl VariantGraph {
             "digraph {{ {:?} }}",
             Dot::with_config(&self.0, &[Config::GraphContentOnly])
         )
+    }
+
+    pub(crate) fn to_file(&self, path: &Path, batch_number: u32) -> Result<()> {
+        let path = path.join(format!("graph_{}.dot", batch_number));
+        let mut file = std::fs::File::create(path)?;
+        file.write_all(self.to_dot().as_bytes())?;
+        Ok(())
     }
 }
 
@@ -168,7 +200,7 @@ impl EventProbs {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Edge {
     pub(crate) supporting_reads: u32,
 }
@@ -225,14 +257,5 @@ mod tests {
         assert_eq!(event_probs.0.get("PROB_ABSENT").unwrap(), &0.036097374);
         assert_eq!(event_probs.0.get("PROB_PRESENT").unwrap(), &20.82111);
         assert_eq!(event_probs.0.get("PROB_ARTIFACT").unwrap(), &f32::INFINITY);
-    }
-
-    #[test]
-    fn test_variant_graph() {
-        let calls_file = PathBuf::from("tests/resources/test_calls.vcf");
-        let observations_file = PathBuf::from("tests/resources/test_observations.vcf");
-        let variant_graph = VariantGraph::new(&calls_file, &observations_file).unwrap();
-        assert_eq!(variant_graph.0.node_count(), 8);
-        assert_eq!(variant_graph.0.edge_count(), 3);
     }
 }

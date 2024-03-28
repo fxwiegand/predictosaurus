@@ -7,7 +7,7 @@ pub(crate) mod bcf;
 #[derive(Debug, Deserialize)]
 pub(crate) struct AlignmentProperties {
     #[serde(rename = "max_read_len")]
-    pub(crate) max_read_length: u32,
+    pub(crate) max_read_length: i64,
 }
 
 impl AlignmentProperties {
