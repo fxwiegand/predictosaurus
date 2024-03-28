@@ -3,13 +3,13 @@ use anyhow::Result;
 use bio::stats::bayesian::bayes_factors::evidence::KassRaftery;
 use bio::stats::bayesian::BayesFactor;
 use itertools::Itertools;
+use petgraph::dot::{Config, Dot};
 use petgraph::graph::NodeIndex;
 use petgraph::{Directed, Graph};
 use rust_htslib::bcf::{Read, Reader, Record};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use petgraph::dot::{Config, Dot};
-use varlociraptor::calling::variants::preprocessing::{read_observations};
+use varlociraptor::calling::variants::preprocessing::read_observations;
 use varlociraptor::utils::collect_variants::collect_variants;
 
 pub(crate) struct VariantGraph(pub(crate) Graph<Node, Edge, Directed>);
