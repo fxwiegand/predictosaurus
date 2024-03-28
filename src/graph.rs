@@ -36,7 +36,7 @@ impl VariantGraph {
 
         let mut variant_graph = Graph::<Node, Edge, Directed>::new();
 
-        // TODO: This approahc is trivial - This needs to be improved in the following way:
+        // TODO: This approach is trivial - This needs to be improved in the following way:
         // 1. Check if any of the fragment IDs of the current records observation are present in the supporting reads
         // 2. If they are we need to continue with the current badge since a read exists that supports both variants
         // 3. If they are not we need to create a new batch since there is no read that supports both variants so there wont be any edge between them
