@@ -2423,8 +2423,9 @@ dependencies = [
 
 [[package]]
 name = "varlociraptor"
-version = "8.4.5"
-source = "git+https://github.com/fxwiegand/varlociraptor.git?branch=patch-3#7d1c0573f583dbfc01a60d8eeef68e6b3ea24c7e"
+version = "8.4.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d980d1585fccec7cc8a4bc391066b41edc044a8e6a107a71440346e1896e7ac"
 dependencies = [
  "GSL",
  "anyhow",
