@@ -265,6 +265,8 @@ mod tests {
         VariantGraph::build(&calls_file, &observations_file, &tmp).unwrap();
         let output = tmp.join("graph_0.dot");
         assert!(output.exists());
-        fs::remove_file(output).unwrap();
+        let contents = fs::read_to_string(&output).unwrap();
+        assert_eq!(contents.lines().count(), 12);
+        fs::remove_file(&output).unwrap();
     }
 }
