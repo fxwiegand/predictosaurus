@@ -214,10 +214,10 @@ pub(crate) fn node_distance(node1: &usize, node2: &usize) -> usize {
 // test node distance
 #[cfg(test)]
 mod tests {
-    use std::fs;
     use super::*;
     use petgraph::{Directed, Graph};
     use rust_htslib::bcf::{Read, Reader};
+    use std::fs;
 
     #[test]
     fn test_node_distance() {
