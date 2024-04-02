@@ -47,7 +47,11 @@ impl VariantGraph {
             let observations = observations.pileup.read_observations();
             let fragment_ids: HashSet<_> = observations.iter().map(|o| o.fragment_id).collect();
 
-            if !fragment_ids.iter().any(|id|supporting_reads.contains_key(id)) && !supporting_reads.is_empty() {
+            if !fragment_ids
+                .iter()
+                .any(|id| supporting_reads.contains_key(id))
+                && !supporting_reads.is_empty()
+            {
                 let mut batch_graph = VariantGraph(variant_graph.clone());
                 batch_graph.create_edges(&supporting_reads)?;
                 batch_graph.to_file(output_path, batch)?;
