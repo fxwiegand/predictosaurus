@@ -7,7 +7,7 @@ use petgraph::dot::{Config, Dot};
 use petgraph::graph::NodeIndex;
 use petgraph::{Directed, Graph};
 use rust_htslib::bcf::{Read, Reader, Record};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use varlociraptor::calling::variants::preprocessing::read_observations;
@@ -19,7 +19,6 @@ impl VariantGraph {
     pub(crate) fn build(
         calls_file: &PathBuf,
         observations_file: &PathBuf,
-        max_read_length: i64,
         output_path: &Path,
     ) -> Result<()> {
         let mut calls_reader = Reader::from_path(calls_file)?;
@@ -35,14 +34,6 @@ impl VariantGraph {
         let mut supporting_reads = HashMap::new();
 
         let mut variant_graph = Graph::<Node, Edge, Directed>::new();
-
-        // TODO: This approach is trivial - This needs to be improved in the following way:
-        // 1. Check if any of the fragment IDs of the current records observation are present in the supporting reads
-        // 2. If they are we need to continue with the current badge since a read exists that supports both variants
-        // 3. If they are not we need to create a new batch since there is no read that supports both variants so there wont be any edge between them
-        // 4. This also means we can completely remove the max-read-length parameter and the alignment properties file
-
-        let mut last_position: Option<i64> = None;
         let mut batch = 0;
 
         for (calls_record, observations_record) in
@@ -51,23 +42,19 @@ impl VariantGraph {
             let mut calls_record = calls_record?;
             let mut observations_record = observations_record?;
 
-            let current_position = calls_record.pos();
-
-            if let Some(position) = last_position {
-                if current_position - position > max_read_length {
-                    let mut variant_graph = VariantGraph(variant_graph.clone());
-                    variant_graph.create_edges(&supporting_reads)?;
-                    variant_graph.to_file(output_path, batch)?;
-                    variant_graph.0.clear();
-                    supporting_reads.clear();
-                    batch += 1;
-                }
-            }
-
-            last_position = Some(current_position);
-
             let _variants = collect_variants(&mut calls_record, false, None)?;
             let observations = read_observations(&mut observations_record)?;
+            let observations = observations.pileup.read_observations();
+            let fragment_ids: HashSet<_> = observations.iter().map(|o| o.fragment_id).collect();
+
+            if !fragment_ids.iter().any(|id|supporting_reads.contains_key(id)) && !supporting_reads.is_empty() {
+                let mut batch_graph = VariantGraph(variant_graph.clone());
+                batch_graph.create_edges(&supporting_reads)?;
+                batch_graph.to_file(output_path, batch)?;
+                variant_graph.clear();
+                supporting_reads.clear();
+                batch += 1;
+            }
 
             let alleles = calls_record.alleles();
             let ref_allele = String::from_utf8(alleles[0].to_vec())?;
@@ -89,7 +76,7 @@ impl VariantGraph {
             );
             let ref_node_index = variant_graph.add_node(ref_node);
 
-            for observation in observations.pileup.read_observations() {
+            for observation in observations {
                 let evidence = BayesFactor::new(observation.prob_alt, observation.prob_ref)
                     .evidence_kass_raftery();
                 match evidence {

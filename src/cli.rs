@@ -13,10 +13,6 @@ pub(crate) struct Predictosaurus {
     #[clap(short, long)]
     pub(crate) observations: PathBuf,
 
-    /// Path to the alignment properties file
-    #[clap(short, long)]
-    pub(crate) alignment_properties: PathBuf,
-
     /// Path to the output file
     #[clap(long, default_value = ".")]
     pub(crate) output: PathBuf,
