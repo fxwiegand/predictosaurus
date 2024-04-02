@@ -214,6 +214,7 @@ pub(crate) fn node_distance(node1: &usize, node2: &usize) -> usize {
 // test node distance
 #[cfg(test)]
 mod tests {
+    use std::fs;
     use super::*;
     use petgraph::{Directed, Graph};
     use rust_htslib::bcf::{Read, Reader};
@@ -254,5 +255,16 @@ mod tests {
         assert_eq!(event_probs.0.get("PROB_ABSENT").unwrap(), &0.036097374);
         assert_eq!(event_probs.0.get("PROB_PRESENT").unwrap(), &20.82111);
         assert_eq!(event_probs.0.get("PROB_ARTIFACT").unwrap(), &f32::INFINITY);
+    }
+
+    #[test]
+    fn test_build_graph() {
+        let calls_file = PathBuf::from("tests/resources/test_calls.vcf");
+        let observations_file = PathBuf::from("tests/resources/test_observations.vcf");
+        let tmp = PathBuf::from("/tmp/");
+        VariantGraph::build(&calls_file, &observations_file, &tmp).unwrap();
+        let output = tmp.join("graph_0.dot");
+        assert!(output.exists());
+        fs::remove_file(output).unwrap();
     }
 }
