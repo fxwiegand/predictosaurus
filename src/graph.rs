@@ -20,7 +20,7 @@ pub(crate) struct VariantGraph(pub(crate) Graph<Node, Edge, Directed>);
 impl VariantGraph {
     pub(crate) fn build(
         calls_file: &PathBuf,
-        observation_files: &Vec<ObservationFile>,
+        observation_files: &[ObservationFile],
         output_path: &Path,
     ) -> Result<()> {
         let mut calls_reader = Reader::from_path(calls_file)?;
@@ -78,7 +78,7 @@ impl VariantGraph {
 
             if !fragment_ids
                 .iter()
-                .any(|id| supporting_reads.keys().find(|(_, k)| k == id ).is_some())
+                .any(|id| supporting_reads.keys().any(|(_, k)| k == id))
                 && !supporting_reads.is_empty()
             {
                 let mut batch_graph = VariantGraph(variant_graph.clone());
