@@ -13,6 +13,8 @@ fn main() -> Result<()> {
     let observations_file = args.observations;
     let output_file = args.output;
 
+    utils::create_output_dir(&output_file)?;
+
     VariantGraph::build(&calls_file, &observations_file, &output_file)?;
 
     Ok(())
