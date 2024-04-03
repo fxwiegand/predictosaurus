@@ -1,7 +1,7 @@
+use clap_derive::Parser;
 use serde::{Deserialize, Deserializer};
 use std::path::PathBuf;
 use std::str::FromStr;
-use clap_derive::Parser;
 
 /// Uncertainty aware haplotype based genomic variant effect prediction
 #[derive(Parser, Debug)]

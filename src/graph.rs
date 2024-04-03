@@ -70,11 +70,17 @@ impl VariantGraph {
                 .collect::<HashMap<_, _>>();
 
             let _variants = collect_variants(&mut calls_record, false, None)?;
-            let observations = observations_records.iter_mut().map(|(sample, record)| {
-                let observations = read_observations(record).unwrap();
-                (sample, observations.pileup.read_observations().clone())
-            }).collect::<HashMap<_, _>>();
-            let fragment_ids: HashSet<_> = observations.values().flat_map(|v| v.iter().map(|o| o.fragment_id)).collect();
+            let observations = observations_records
+                .iter_mut()
+                .map(|(sample, record)| {
+                    let observations = read_observations(record).unwrap();
+                    (sample, observations.pileup.read_observations().clone())
+                })
+                .collect::<HashMap<_, _>>();
+            let fragment_ids: HashSet<_> = observations
+                .values()
+                .flat_map(|v| v.iter().map(|o| o.fragment_id))
+                .collect();
 
             if !fragment_ids
                 .iter()
@@ -131,7 +137,6 @@ impl VariantGraph {
                     }
                 }
             }
-
         }
 
         let mut variant_graph = VariantGraph(variant_graph.clone());
