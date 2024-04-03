@@ -1,3 +1,4 @@
+use crate::cli::ObservationFile;
 use crate::utils::bcf::extract_event_names;
 use anyhow::Result;
 use bio::stats::bayesian::bayes_factors::evidence::KassRaftery;
@@ -12,17 +13,39 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use varlociraptor::calling::variants::preprocessing::read_observations;
 use varlociraptor::utils::collect_variants::collect_variants;
+use varlociraptor::variants::evidence::observations::read_observation::ProcessedReadObservation;
 
 pub(crate) struct VariantGraph(pub(crate) Graph<Node, Edge, Directed>);
 
 impl VariantGraph {
     pub(crate) fn build(
         calls_file: &PathBuf,
-        observations_file: &PathBuf,
+        observation_files: &Vec<ObservationFile>,
         output_path: &Path,
     ) -> Result<()> {
         let mut calls_reader = Reader::from_path(calls_file)?;
-        let mut observations_reader = Reader::from_path(observations_file)?;
+        let mut observation_readers: HashMap<_, _> = observation_files
+            .iter()
+            .map(|o| (o.sample.to_string(), Reader::from_path(&o.path).unwrap()))
+            .collect();
+        let mut observations_records = observation_readers
+            .iter_mut()
+            .map(|(sample, reader)| (sample.clone(), reader.records()))
+            .collect::<HashMap<_, _>>();
+
+        let samples = calls_reader
+            .header()
+            .samples()
+            .iter()
+            .map(|s| std::str::from_utf8(s).unwrap())
+            .collect_vec();
+        for sample in samples {
+            assert!(
+                observation_files.iter().any(|o| o.sample == sample),
+                "Sample {} in calls file not found in observation files",
+                sample
+            );
+        }
 
         let event_names = extract_event_names(calls_file);
 
@@ -36,20 +59,26 @@ impl VariantGraph {
         let mut variant_graph = Graph::<Node, Edge, Directed>::new();
         let mut batch = 0;
 
-        for (calls_record, observations_record) in
-            calls_reader.records().zip(observations_reader.records())
-        {
+        for calls_record in calls_reader.records() {
             let mut calls_record = calls_record?;
-            let mut observations_record = observations_record?;
+            let mut observations_records = observations_records
+                .iter_mut()
+                .map(|(sample, records)| {
+                    let record = records.next().unwrap().unwrap();
+                    (sample, record)
+                })
+                .collect::<HashMap<_, _>>();
 
             let _variants = collect_variants(&mut calls_record, false, None)?;
-            let observations = read_observations(&mut observations_record)?;
-            let observations = observations.pileup.read_observations();
-            let fragment_ids: HashSet<_> = observations.iter().map(|o| o.fragment_id).collect();
+            let observations = observations_records.iter_mut().map(|(sample, record)| {
+                let observations = read_observations(record).unwrap();
+                (sample, observations.pileup.read_observations().clone())
+            }).collect::<HashMap<_, _>>();
+            let fragment_ids: HashSet<_> = observations.values().flat_map(|v| v.iter().map(|o| o.fragment_id)).collect();
 
             if !fragment_ids
                 .iter()
-                .any(|id| supporting_reads.contains_key(id))
+                .any(|id| supporting_reads.keys().find(|(_, k)| k == id ).is_some())
                 && !supporting_reads.is_empty()
             {
                 let mut batch_graph = VariantGraph(variant_graph.clone());
@@ -66,7 +95,7 @@ impl VariantGraph {
 
             let var_node = Node::from_records(
                 &calls_record,
-                &observations_record,
+                &observations,
                 &tags,
                 NodeType::Var(alt_allele),
             );
@@ -74,32 +103,35 @@ impl VariantGraph {
 
             let ref_node = Node::from_records(
                 &calls_record,
-                &observations_record,
+                &observations,
                 &tags,
                 NodeType::Ref(ref_allele),
             );
             let ref_node_index = variant_graph.add_node(ref_node);
 
-            for observation in observations {
-                let evidence = BayesFactor::new(observation.prob_alt, observation.prob_ref)
-                    .evidence_kass_raftery();
-                match evidence {
-                    KassRaftery::Strong | KassRaftery::VeryStrong => {
-                        // Read supports variant
-                        let entry = supporting_reads
-                            .entry(observation.fragment_id)
-                            .or_insert(Vec::new());
-                        entry.push(var_node_index);
-                    }
-                    KassRaftery::None | KassRaftery::Barely | KassRaftery::Positive => {
-                        // Read supports reference
-                        let entry = supporting_reads
-                            .entry(observation.fragment_id)
-                            .or_insert(Vec::new());
-                        entry.push(ref_node_index);
+            for (sample, observations) in observations {
+                for observation in observations {
+                    let evidence = BayesFactor::new(observation.prob_alt, observation.prob_ref)
+                        .evidence_kass_raftery();
+                    match evidence {
+                        KassRaftery::Strong | KassRaftery::VeryStrong => {
+                            // Read supports variant
+                            let entry = supporting_reads
+                                .entry((sample.to_string(), observation.fragment_id))
+                                .or_insert(Vec::new());
+                            entry.push(var_node_index);
+                        }
+                        KassRaftery::None | KassRaftery::Barely | KassRaftery::Positive => {
+                            // Read supports reference
+                            let entry = supporting_reads
+                                .entry((sample.to_string(), observation.fragment_id))
+                                .or_insert(Vec::new());
+                            entry.push(ref_node_index);
+                        }
                     }
                 }
             }
+
         }
 
         let mut variant_graph = VariantGraph(variant_graph.clone());
@@ -109,9 +141,10 @@ impl VariantGraph {
         Ok(())
     }
 
+    // TODO: Annotate edges by sample
     pub(crate) fn create_edges(
         &mut self,
-        supporting_reads: &HashMap<Option<u64>, Vec<NodeIndex>>,
+        supporting_reads: &HashMap<(String, Option<u64>), Vec<NodeIndex>>,
     ) -> Result<()> {
         for nodes in supporting_reads.values() {
             for node_tuple in nodes
@@ -158,6 +191,7 @@ pub(crate) enum NodeType {
     Ref(String),
 }
 
+// TODO: Annotate VAF per sample
 #[derive(Debug, Clone)]
 #[allow(dead_code)] // TODO: Remove this attribute when graph is properly serialized
 pub(crate) struct Node {
@@ -169,7 +203,7 @@ pub(crate) struct Node {
 impl Node {
     pub(crate) fn from_records(
         calls_record: &Record,
-        _observations_record: &Record,
+        _observations_record: &HashMap<&&String, Vec<ProcessedReadObservation>>,
         tags: &Vec<String>,
         node_type: NodeType,
     ) -> Self {
@@ -261,8 +295,12 @@ mod tests {
     fn test_build_graph() {
         let calls_file = PathBuf::from("tests/resources/test_calls.vcf");
         let observations_file = PathBuf::from("tests/resources/test_observations.vcf");
+        let observations = vec![ObservationFile {
+            path: observations_file,
+            sample: "sample".to_string(),
+        }];
         let tmp = PathBuf::from("/tmp/");
-        VariantGraph::build(&calls_file, &observations_file, &tmp).unwrap();
+        VariantGraph::build(&calls_file, &observations, &tmp).unwrap();
         let output = tmp.join("graph_0.dot");
         assert!(output.exists());
         let contents = fs::read_to_string(&output).unwrap();

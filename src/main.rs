@@ -10,12 +10,12 @@ fn main() -> Result<()> {
     let args = Predictosaurus::parse();
 
     let calls_file = args.calls;
-    let observations_file = args.observations;
+    let observation_files = args.observations;
     let output_file = args.output;
 
     utils::create_output_dir(&output_file)?;
 
-    VariantGraph::build(&calls_file, &observations_file, &output_file)?;
+    VariantGraph::build(&calls_file, &observation_files, &output_file)?;
 
     Ok(())
 }
