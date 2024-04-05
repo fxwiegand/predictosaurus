@@ -37,11 +37,11 @@ impl VariantGraph {
             .header()
             .samples()
             .iter()
-            .map(|s| std::str::from_utf8(s).unwrap())
+            .map(|s| String::from_utf8(s.to_vec()).unwrap())
             .collect_vec();
-        for sample in samples {
+        for sample in &samples {
             assert!(
-                observation_files.iter().any(|o| o.sample == sample),
+                observation_files.iter().any(|o| o.sample == *sample),
                 "Sample {} in calls file not found in observation files",
                 sample
             );
@@ -104,6 +104,7 @@ impl VariantGraph {
                 &observations,
                 &tags,
                 NodeType::Var(alt_allele),
+                &samples,
             );
             let var_node_index = variant_graph.add_node(var_node);
 
@@ -112,6 +113,7 @@ impl VariantGraph {
                 &observations,
                 &tags,
                 NodeType::Ref(ref_allele),
+                &samples,
             );
             let ref_node_index = variant_graph.add_node(ref_node);
 
@@ -146,12 +148,11 @@ impl VariantGraph {
         Ok(())
     }
 
-    // TODO: Annotate edges by sample
     pub(crate) fn create_edges(
         &mut self,
         supporting_reads: &HashMap<(String, Option<u64>), Vec<NodeIndex>>,
     ) -> Result<()> {
-        for nodes in supporting_reads.values() {
+        for ((sample, _), nodes) in supporting_reads {
             for node_tuple in nodes
                 .iter()
                 .sorted()
@@ -162,10 +163,13 @@ impl VariantGraph {
                 let edge = self.0.find_edge(*node_tuple[0], *node_tuple[1]);
                 if let Some(edge) = edge {
                     let edge = self.0.edge_weight_mut(edge).unwrap();
-                    edge.supporting_reads += 1;
+                    edge.supporting_reads
+                        .entry(sample.to_string())
+                        .and_modify(|v| *v += 1)
+                        .or_insert(1);
                 } else {
                     let edge = Edge {
-                        supporting_reads: 1,
+                        supporting_reads: HashMap::from([(sample.to_string(), 1)]),
                     };
                     self.0.add_edge(*node_tuple[0], *node_tuple[1], edge);
                 }
@@ -201,7 +205,7 @@ pub(crate) enum NodeType {
 #[allow(dead_code)] // TODO: Remove this attribute when graph is properly serialized
 pub(crate) struct Node {
     node_type: NodeType,
-    vaf: f32,
+    vaf: HashMap<String, f32>,
     probs: EventProbs,
 }
 
@@ -211,11 +215,16 @@ impl Node {
         _observations_record: &HashMap<&&String, Vec<ProcessedReadObservation>>,
         tags: &Vec<String>,
         node_type: NodeType,
+        samples: &[String],
     ) -> Self {
-        let vaf = calls_record.format(b"AF").float().unwrap()[0][0];
+        let vafs = calls_record.format(b"AF").float().unwrap()[0];
         Node {
             node_type,
-            vaf: vaf.to_owned(),
+            vaf: samples
+                .iter()
+                .zip(vafs.iter())
+                .map(|(s, v)| (s.to_string(), *v))
+                .collect(),
             probs: EventProbs::from_record(calls_record, tags),
         }
     }
@@ -238,7 +247,7 @@ impl EventProbs {
 
 #[derive(Debug, Clone)]
 pub(crate) struct Edge {
-    pub(crate) supporting_reads: u32,
+    pub(crate) supporting_reads: HashMap<String, u32>,
 }
 
 pub(crate) fn node_distance(node1: &usize, node2: &usize) -> usize {
