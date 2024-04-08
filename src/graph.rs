@@ -217,13 +217,13 @@ impl Node {
         node_type: NodeType,
         samples: &[String],
     ) -> Self {
-        let vafs = calls_record.format(b"AF").float().unwrap()[0];
+        let vafs = calls_record.format(b"AF").float().unwrap();
         Node {
             node_type,
             vaf: samples
                 .iter()
                 .zip(vafs.iter())
-                .map(|(s, v)| (s.to_string(), *v))
+                .map(|(s, v)| (s.to_string(), v[0]))
                 .collect(),
             probs: EventProbs::from_record(calls_record, tags),
         }
