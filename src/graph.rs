@@ -79,13 +79,14 @@ impl VariantGraph {
                 .collect::<HashMap<_, _>>();
             let fragment_ids: HashSet<_> = observations
                 .iter()
-                .flat_map(|(s,v)| v.iter().map(move |o| (s, o.fragment_id)))
+                .flat_map(|(s, v)| v.iter().map(move |o| (s, o.fragment_id)))
                 .collect();
 
-            if !fragment_ids
-                .iter()
-                .any(|(sample, fragment_id)| supporting_reads.keys().any(|(s, f): &(_,_)| s == ***sample && f == fragment_id))
-                && !supporting_reads.is_empty()
+            if !fragment_ids.iter().any(|(sample, fragment_id)| {
+                supporting_reads
+                    .keys()
+                    .any(|(s, f): &(_, _)| s == ***sample && f == fragment_id)
+            }) && !supporting_reads.is_empty()
             {
                 let mut batch_graph = VariantGraph(variant_graph.clone());
                 batch_graph.create_edges(&supporting_reads)?;
