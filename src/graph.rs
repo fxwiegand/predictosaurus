@@ -154,13 +154,10 @@ impl VariantGraph {
         supporting_reads: &HashMap<(String, Option<u64>), Vec<NodeIndex>>,
     ) -> Result<()> {
         for ((sample, _), nodes) in supporting_reads {
-            for node_tuple in nodes
-                .iter()
-                .sorted()
-                .dedup()
-                .combinations(2)
-                .filter(|v| node_distance(&v[0].index(), &v[1].index()) <= 1)
-            {
+            for node_tuple in nodes.iter().sorted().dedup().combinations(2).filter(|v| {
+                node_distance(&v[0].index(), &v[1].index()) <= 1
+                    || nodes_in_between(&v[0].index(), &v[1].index(), &nodes) == 0
+            }) {
                 let edge = self.0.find_edge(*node_tuple[0], *node_tuple[1]);
                 if let Some(edge) = edge {
                     let edge = self.0.edge_weight_mut(edge).unwrap();
@@ -258,6 +255,10 @@ pub(crate) fn node_distance(node1: &usize, node2: &usize) -> usize {
     } else {
         (distance + 1) / 2
     }
+}
+
+pub(crate) fn nodes_in_between(node1: &usize, node2: &usize, nodes: &Vec<NodeIndex>) -> usize {
+    unimplemented!()
 }
 
 // test node distance
