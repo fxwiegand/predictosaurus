@@ -156,7 +156,7 @@ impl VariantGraph {
         for ((sample, _), nodes) in supporting_reads {
             for node_tuple in nodes.iter().sorted().dedup().combinations(2).filter(|v| {
                 node_distance(&v[0].index(), &v[1].index()) <= 1
-                    || nodes_in_between(&v[0].index(), &v[1].index(), &nodes) == 0
+                    || nodes_in_between(&v[0].index(), &v[1].index(), nodes) == 0
             }) {
                 let edge = self.0.find_edge(*node_tuple[0], *node_tuple[1]);
                 if let Some(edge) = edge {
@@ -257,8 +257,13 @@ pub(crate) fn node_distance(node1: &usize, node2: &usize) -> usize {
     }
 }
 
-pub(crate) fn nodes_in_between(node1: &usize, node2: &usize, nodes: &Vec<NodeIndex>) -> usize {
-    unimplemented!()
+pub(crate) fn nodes_in_between(node1: &usize, node2: &usize, nodes: &[NodeIndex]) -> usize {
+    nodes
+        .iter()
+        .filter(|n| n.index() < *node2 && *node1 < n.index())
+        .filter(|n| node_distance(node1, &n.index()) != 0)
+        .filter(|n| node_distance(&n.index(), node2) != 0)
+        .count()
 }
 
 // test node distance
