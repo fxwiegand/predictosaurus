@@ -275,6 +275,22 @@ mod tests {
     use std::fs;
 
     #[test]
+    fn test_nodes_in_between() {
+        let mut graph = Graph::<u32, Edge, Directed>::new();
+        let weight = 1;
+        let node0 = graph.add_node(weight.clone());
+        let node1 = graph.add_node(weight.clone());
+        let _node2 = graph.add_node(weight.clone());
+        let node3 = graph.add_node(weight.clone());
+        let node4 = graph.add_node(weight.clone());
+        let node5 = graph.add_node(weight.clone());
+
+        let nodes = vec![node0, node1, node3, node4, node5];
+        let nodes_in_between = nodes_in_between(&node0.index(), &node5.index(), &nodes);
+        assert_eq!(nodes_in_between, 1);
+    }
+
+    #[test]
     fn test_node_distance() {
         let mut graph = Graph::<u32, Edge, Directed>::new();
         let weight = 1;
