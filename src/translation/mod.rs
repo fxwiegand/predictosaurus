@@ -21,12 +21,21 @@ mod tests {
     #[test]
     fn test_dna_to_protein() -> Result<()> {
         assert_eq!(
-            dna_to_protein(b"ATGCGCGTAA")?.to_string(),
+            dna_to_protein(b"ATGCGCGTA")?.to_string(),
             "MetArgVal".to_string()
         );
         assert_eq!(
-            dna_to_protein(b"ATGCGCGTAAATGCGCGTAA")?.to_string(),
+            dna_to_protein(b"ATGCGCGTAAATGCGCGT")?.to_string(),
             "MetArgValAsnAlaArg".to_string()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_dna_to_protein_with_incomplete_codon() -> Result<()> {
+        assert_eq!(
+            dna_to_protein(b"ATGCGCGT")?.to_string(),
+            "MetArg".to_string()
         );
         Ok(())
     }
