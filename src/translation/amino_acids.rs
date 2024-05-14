@@ -103,6 +103,10 @@ impl AminoAcid {
             AminoAcid::Stop => "Stop",
         }
     }
+
+    pub(crate) fn is_stop(&self) -> bool {
+        matches!(self, AminoAcid::Stop)
+    }
 }
 
 #[cfg(test)]
