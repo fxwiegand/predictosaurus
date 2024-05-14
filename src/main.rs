@@ -4,6 +4,8 @@ use anyhow::Result;
 use clap::Parser;
 mod cli;
 mod graph;
+mod transcription;
+mod translation;
 mod utils;
 
 fn main() -> Result<()> {
