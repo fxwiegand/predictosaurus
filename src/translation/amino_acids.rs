@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use anyhow::Result;
 
 pub(crate) struct Protein {
@@ -15,6 +16,12 @@ impl Protein {
             .map(|amino_acid| amino_acid.abbreviation())
             .collect::<Vec<&str>>()
             .join("")
+    }
+}
+
+impl Display for Protein {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_string())
     }
 }
 
