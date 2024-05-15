@@ -40,8 +40,10 @@ mod tests {
 
     #[test]
     fn test_transcribe_dna_with_invalid_characters() -> Result<()> {
-        match transcribe_dna_to_rna(b"\
-        ") {
+        match transcribe_dna_to_rna(
+            b"\
+        ",
+        ) {
             Err(e) => assert_eq!(e.to_string(), "Invalid nucleotide in DNA sequence: B"),
             _ => panic!("Expected an error"),
         }

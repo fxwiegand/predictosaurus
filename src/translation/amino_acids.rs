@@ -1,5 +1,5 @@
-use std::fmt::Display;
 use anyhow::Result;
+use std::fmt::Display;
 
 /// A protein consisting of a sequence of amino acids
 pub(crate) struct Protein {

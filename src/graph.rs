@@ -198,7 +198,7 @@ pub(crate) enum NodeType {
     Ref(String),
 }
 
-// TODO: Annotate VAF per sample
+// TODO: Add position to node - use that to calculate distance instead of relying on graph structure. Example: Two variants at the same position but different alleles should be considered as different nodes.
 #[derive(Debug, Clone)]
 #[allow(dead_code)] // TODO: Remove this attribute when graph is properly serialized
 pub(crate) struct Node {

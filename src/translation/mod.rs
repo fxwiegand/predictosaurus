@@ -14,8 +14,8 @@ pub(crate) fn dna_to_protein(dna: &[u8]) -> Result<Protein> {
         .map(|codon| amino_acids::AminoAcid::from_codon(&[*codon.0, *codon.1, *codon.2]))
         .take_while(|result| match result {
             Ok(amino_acid) => *amino_acid != amino_acids::AminoAcid::Stop,
-            Err(_) => unreachable!("Invalid codon")
-        } )
+            Err(_) => unreachable!("Invalid codon"),
+        })
         .collect::<Result<Vec<amino_acids::AminoAcid>>>()?;
     Ok(Protein::new(protein))
 }
