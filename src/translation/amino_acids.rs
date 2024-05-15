@@ -11,20 +11,19 @@ impl Protein {
     pub(crate) fn new(sequence: Vec<AminoAcid>) -> Protein {
         Protein { sequence }
     }
-
-    /// Converts the protein to a string consisting of the amino acid abbreviations
-    pub(crate) fn to_string(&self) -> String {
-        self.sequence
-            .iter()
-            .map(|amino_acid| amino_acid.abbreviation())
-            .collect::<Vec<&str>>()
-            .join("")
-    }
 }
 
 impl Display for Protein {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.to_string())
+        write!(
+            f,
+            "{}",
+            self.sequence
+                .iter()
+                .map(|amino_acid| amino_acid.abbreviation())
+                .collect::<Vec<&str>>()
+                .join("")
+        )
     }
 }
 
