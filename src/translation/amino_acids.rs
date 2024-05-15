@@ -1,15 +1,18 @@
 use std::fmt::Display;
 use anyhow::Result;
 
+/// A protein consisting of a sequence of amino acids
 pub(crate) struct Protein {
     pub(crate) sequence: Vec<AminoAcid>,
 }
 
 impl Protein {
+    /// Creates a new protein from a sequence of amino acids
     pub(crate) fn new(sequence: Vec<AminoAcid>) -> Protein {
         Protein { sequence }
     }
 
+    /// Converts the protein to a string consisting of the amino acid abbreviations
     pub(crate) fn to_string(&self) -> String {
         self.sequence
             .iter()
@@ -25,6 +28,7 @@ impl Display for Protein {
     }
 }
 
+/// Amino acids and stop
 #[derive(Debug, PartialEq)]
 pub(crate) enum AminoAcid {
     Alanine,
@@ -51,6 +55,7 @@ pub(crate) enum AminoAcid {
 }
 
 impl AminoAcid {
+    /// Converts a codon to an amino acid or stop codon. Returns an error if the codon is invalid.
     pub(crate) fn from_codon(codon: &[u8]) -> Result<AminoAcid> {
         match codon {
             b"GCU" | b"GCC" | b"GCA" | b"GCG" => Ok(AminoAcid::Alanine),
@@ -78,6 +83,7 @@ impl AminoAcid {
         }
     }
 
+    /// Returns the 3 letter abbreviation of the amino acid
     fn abbreviation(&self) -> &str {
         match self {
             AminoAcid::Alanine => "Ala",
@@ -104,6 +110,7 @@ impl AminoAcid {
         }
     }
 
+    /// Returns true if the amino acid is a stop codon
     pub(crate) fn is_stop(&self) -> bool {
         matches!(self, AminoAcid::Stop)
     }
