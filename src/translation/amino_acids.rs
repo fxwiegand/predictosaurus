@@ -208,10 +208,10 @@ mod tests {
 
     #[test]
     fn test_invalid_codons() {
-        assert!(matches!(AminoAcid::from_codon(b"XXX"), Err(_)));
-        assert!(matches!(AminoAcid::from_codon(b"XYZ"), Err(_)));
-        assert!(matches!(AminoAcid::from_codon(b"UGX"), Err(_)));
-        assert!(matches!(AminoAcid::from_codon(b"ACX"), Err(_)));
+        assert!(AminoAcid::from_codon(b"XXX").is_err());
+        assert!(AminoAcid::from_codon(b"XYZ").is_err());
+        assert!(AminoAcid::from_codon(b"UGX").is_err());
+        assert!(AminoAcid::from_codon(b"ACX").is_err());
     }
 
     #[test]

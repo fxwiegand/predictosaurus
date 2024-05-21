@@ -165,7 +165,7 @@ impl VariantGraph {
         &mut self,
         supporting_reads: &HashMap<(String, Option<u64>), Vec<NodeIndex>>,
     ) -> Result<()> {
-        for ((sample, _), &ref nodes) in supporting_reads {
+        for ((sample, _), nodes) in supporting_reads {
             let weights = self.0.clone();
             for node_tuple in nodes.iter().sorted().dedup().combinations(2).filter(|v| {
                 node_distance(
@@ -329,7 +329,7 @@ mod tests {
         let node4 = graph.add_node(weight_3.clone());
         let node5 = graph.add_node(weight_3.clone());
 
-        let nodes = vec![node0, node1, node3, node4, node5]
+        let nodes = [node0, node1, node3, node4, node5]
             .iter()
             .map(|n| &graph.node_weight(*n).unwrap().index)
             .collect_vec();
@@ -372,7 +372,7 @@ mod tests {
             index: 3,
         };
         let node4 = graph.add_node(weight_3.clone());
-        let node5 = graph.add_node(weight_3.clone());
+        let _node5 = graph.add_node(weight_3.clone());
 
         let distance = node_distance(
             &graph.node_weight(node0).unwrap().index,
