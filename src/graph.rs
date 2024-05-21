@@ -58,9 +58,12 @@ impl VariantGraph {
 
         let mut variant_graph = Graph::<Node, Edge, Directed>::new();
         let mut batch = 0;
+        let mut index = 0;
+        let mut last_position = -1;
 
         for calls_record in calls_reader.records() {
             let mut calls_record = calls_record?;
+            let position = calls_record.pos();
             let mut observations_records = observations_records
                 .iter_mut()
                 .map(|(sample, records)| {
@@ -106,17 +109,22 @@ impl VariantGraph {
                 &tags,
                 NodeType::Var(alt_allele),
                 &samples,
+                index,
             );
             let var_node_index = variant_graph.add_node(var_node);
-
-            let ref_node = Node::from_records(
-                &calls_record,
-                &observations,
-                &tags,
-                NodeType::Ref(ref_allele),
-                &samples,
-            );
-            let ref_node_index = variant_graph.add_node(ref_node);
+            let mut ref_node_index = None;
+            if last_position != position {
+                let ref_node = Node::from_records(
+                    &calls_record,
+                    &observations,
+                    &tags,
+                    NodeType::Ref(ref_allele),
+                    &samples,
+                    index,
+                );
+                ref_node_index = Some(variant_graph.add_node(ref_node));
+                index += 1;
+            }
 
             for (sample, observations) in observations {
                 for observation in observations {
@@ -135,11 +143,15 @@ impl VariantGraph {
                             let entry = supporting_reads
                                 .entry((sample.to_string(), observation.fragment_id))
                                 .or_insert(Vec::new());
-                            entry.push(ref_node_index);
+                            if let Some(index) = ref_node_index {
+                                entry.push(index);
+                            }
                         }
                     }
                 }
             }
+
+            last_position = position;
         }
 
         let mut variant_graph = VariantGraph(variant_graph.clone());
@@ -153,10 +165,21 @@ impl VariantGraph {
         &mut self,
         supporting_reads: &HashMap<(String, Option<u64>), Vec<NodeIndex>>,
     ) -> Result<()> {
-        for ((sample, _), nodes) in supporting_reads {
+        for ((sample, _), &ref nodes) in supporting_reads {
+            let weights = self.0.clone();
             for node_tuple in nodes.iter().sorted().dedup().combinations(2).filter(|v| {
-                node_distance(&v[0].index(), &v[1].index()) <= 1
-                    || nodes_in_between(&v[0].index(), &v[1].index(), nodes) == 0
+                node_distance(
+                    &weights.node_weight(*v[0]).unwrap().index,
+                    &weights.node_weight(*v[1]).unwrap().index,
+                ) <= 1
+                    || nodes_in_between(
+                        &weights.node_weight(*v[0]).unwrap().index,
+                        &weights.node_weight(*v[1]).unwrap().index,
+                        nodes
+                            .iter()
+                            .map(|n| &weights.node_weight(*n).unwrap().index)
+                            .collect_vec(),
+                    ) == 0
             }) {
                 let edge = self.0.find_edge(*node_tuple[0], *node_tuple[1]);
                 if let Some(edge) = edge {
@@ -198,13 +221,14 @@ pub(crate) enum NodeType {
     Ref(String),
 }
 
-// TODO: Add position to node - use that to calculate distance instead of relying on graph structure. Example: Two variants at the same position but different alleles should be considered as different nodes.
 #[derive(Debug, Clone)]
 #[allow(dead_code)] // TODO: Remove this attribute when graph is properly serialized
 pub(crate) struct Node {
     node_type: NodeType,
     vaf: HashMap<String, f32>,
     probs: EventProbs,
+    pos: i64,
+    index: u32,
 }
 
 impl Node {
@@ -214,6 +238,7 @@ impl Node {
         tags: &Vec<String>,
         node_type: NodeType,
         samples: &[String],
+        index: u32,
     ) -> Self {
         let vafs = calls_record.format(b"AF").float().unwrap();
         Node {
@@ -224,6 +249,8 @@ impl Node {
                 .map(|(s, v)| (s.to_string(), v[0]))
                 .collect(),
             probs: EventProbs::from_record(calls_record, tags),
+            pos: calls_record.pos(),
+            index,
         }
     }
 }
@@ -248,21 +275,16 @@ pub(crate) struct Edge {
     pub(crate) supporting_reads: HashMap<String, u32>,
 }
 
-pub(crate) fn node_distance(node1: &usize, node2: &usize) -> usize {
-    let distance = (*node1 as isize - *node2 as isize).unsigned_abs();
-    if node1 % 2 == 0 {
-        distance / 2
-    } else {
-        (distance + 1) / 2
-    }
+pub(crate) fn node_distance(node1: &u32, node2: &u32) -> u32 {
+    node2 - node1
 }
 
-pub(crate) fn nodes_in_between(node1: &usize, node2: &usize, nodes: &[NodeIndex]) -> usize {
+pub(crate) fn nodes_in_between(node1: &u32, node2: &u32, nodes: Vec<&u32>) -> usize {
     nodes
         .iter()
-        .filter(|n| n.index() < *node2 && *node1 < n.index())
-        .filter(|n| node_distance(node1, &n.index()) != 0)
-        .filter(|n| node_distance(&n.index(), node2) != 0)
+        .filter(|n| n < &&node2 && &&node1 < n)
+        .filter(|n| node_distance(node1, n) != 0)
+        .filter(|n| node_distance(n, node2) != 0)
         .count()
 }
 
@@ -276,39 +298,106 @@ mod tests {
 
     #[test]
     fn test_nodes_in_between() {
-        let mut graph = Graph::<u32, Edge, Directed>::new();
-        let weight = 1;
-        let node0 = graph.add_node(weight.clone());
-        let node1 = graph.add_node(weight.clone());
-        let _node2 = graph.add_node(weight.clone());
-        let node3 = graph.add_node(weight.clone());
-        let node4 = graph.add_node(weight.clone());
-        let node5 = graph.add_node(weight.clone());
+        let mut graph = Graph::<Node, Edge, Directed>::new();
+        let vaf = HashMap::new();
+        let ep = EventProbs(HashMap::new());
+        let weight_1 = Node {
+            node_type: NodeType::Ref("".to_string()),
+            vaf: vaf.clone(),
+            probs: ep.clone(),
+            pos: 1,
+            index: 1,
+        };
+        let node0 = graph.add_node(weight_1.clone());
+        let node1 = graph.add_node(weight_1.clone());
+        let weight_2 = Node {
+            node_type: NodeType::Ref("".to_string()),
+            vaf: vaf.clone(),
+            probs: ep.clone(),
+            pos: 4,
+            index: 2,
+        };
+        let _node2 = graph.add_node(weight_2.clone());
+        let node3 = graph.add_node(weight_2.clone());
+        let weight_3 = Node {
+            node_type: NodeType::Ref("".to_string()),
+            vaf: vaf.clone(),
+            probs: ep.clone(),
+            pos: 5,
+            index: 3,
+        };
+        let node4 = graph.add_node(weight_3.clone());
+        let node5 = graph.add_node(weight_3.clone());
 
-        let nodes = vec![node0, node1, node3, node4, node5];
-        let nodes_in_between = nodes_in_between(&node0.index(), &node5.index(), &nodes);
+        let nodes = vec![node0, node1, node3, node4, node5]
+            .iter()
+            .map(|n| &graph.node_weight(*n).unwrap().index)
+            .collect_vec();
+        let nodes_in_between = nodes_in_between(
+            &graph.node_weight(node0).unwrap().index,
+            &graph.node_weight(node5).unwrap().index,
+            nodes,
+        );
         assert_eq!(nodes_in_between, 1);
     }
 
     #[test]
     fn test_node_distance() {
-        let mut graph = Graph::<u32, Edge, Directed>::new();
-        let weight = 1;
-        let node0 = graph.add_node(weight.clone());
-        let node1 = graph.add_node(weight.clone());
-        let node2 = graph.add_node(weight.clone());
-        let node3 = graph.add_node(weight.clone());
-        let node4 = graph.add_node(weight.clone());
+        let mut graph = Graph::<Node, Edge, Directed>::new();
+        let vaf = HashMap::new();
+        let ep = EventProbs(HashMap::new());
+        let weight_1 = Node {
+            node_type: NodeType::Ref("".to_string()),
+            vaf: vaf.clone(),
+            probs: ep.clone(),
+            pos: 1,
+            index: 1,
+        };
+        let node0 = graph.add_node(weight_1.clone());
+        let node1 = graph.add_node(weight_1.clone());
+        let weight_2 = Node {
+            node_type: NodeType::Ref("".to_string()),
+            vaf: vaf.clone(),
+            probs: ep.clone(),
+            pos: 4,
+            index: 2,
+        };
+        let node2 = graph.add_node(weight_2.clone());
+        let node3 = graph.add_node(weight_2.clone());
+        let weight_3 = Node {
+            node_type: NodeType::Ref("".to_string()),
+            vaf: vaf.clone(),
+            probs: ep.clone(),
+            pos: 5,
+            index: 3,
+        };
+        let node4 = graph.add_node(weight_3.clone());
+        let node5 = graph.add_node(weight_3.clone());
 
-        let distance = node_distance(&node0.index(), &node2.index());
+        let distance = node_distance(
+            &graph.node_weight(node0).unwrap().index,
+            &graph.node_weight(node2).unwrap().index,
+        );
         assert_eq!(distance, 1);
-        let distance_2 = node_distance(&node0.index(), &node1.index());
+        let distance_2 = node_distance(
+            &graph.node_weight(node0).unwrap().index,
+            &graph.node_weight(node1).unwrap().index,
+        );
         assert_eq!(distance_2, 0);
-        let distance_3 = node_distance(&node1.index(), &node4.index());
+        let distance_3 = node_distance(
+            &graph.node_weight(node1).unwrap().index,
+            &graph.node_weight(node4).unwrap().index,
+        );
         assert_eq!(distance_3, 2);
-        let distance_4 = node_distance(&node3.index(), &node4.index());
+        let distance_4 = node_distance(
+            &graph.node_weight(node3).unwrap().index,
+            &graph.node_weight(node4).unwrap().index,
+        );
         assert_eq!(distance_4, 1);
-        let distance_5 = node_distance(&node1.index(), &node3.index());
+        let distance_5 = node_distance(
+            &graph.node_weight(node1).unwrap().index,
+            &graph.node_weight(node3).unwrap().index,
+        );
         assert_eq!(distance_5, 1);
     }
 
