@@ -15,6 +15,10 @@ pub(crate) struct Predictosaurus {
     #[clap(short, long)]
     pub(crate) observations: Vec<ObservationFile>,
 
+    /// Path to the gff file containing the features of interest.
+    #[clap(short, long)]
+    pub(crate) features: PathBuf,
+
     /// Path to the output file
     #[clap(long, default_value = ".")]
     pub(crate) output: PathBuf,

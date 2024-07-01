@@ -21,8 +21,7 @@ impl VariantGraph {
     pub(crate) fn build(
         calls_file: &PathBuf,
         observation_files: &[ObservationFile],
-        output_path: &Path,
-    ) -> Result<()> {
+    ) -> Result<VariantGraph> {
         let mut calls_reader = Reader::from_path(calls_file)?;
         let mut observation_readers: HashMap<_, _> = observation_files
             .iter()
@@ -57,7 +56,6 @@ impl VariantGraph {
         let mut supporting_reads = HashMap::new();
 
         let mut variant_graph = Graph::<Node, Edge, Directed>::new();
-        let mut batch = 0;
         let mut index = 0;
         let mut last_position = -1;
 
@@ -84,20 +82,6 @@ impl VariantGraph {
                 .iter()
                 .flat_map(|(s, v)| v.iter().map(move |o| (s, o.fragment_id)))
                 .collect();
-
-            if !fragment_ids.iter().any(|(sample, fragment_id)| {
-                supporting_reads
-                    .keys()
-                    .any(|(s, f): &(_, _)| s == ***sample && f == fragment_id)
-            }) && !supporting_reads.is_empty()
-            {
-                let mut batch_graph = VariantGraph(variant_graph.clone());
-                batch_graph.create_edges(&supporting_reads)?;
-                batch_graph.to_file(output_path, batch)?;
-                variant_graph.clear();
-                supporting_reads.clear();
-                batch += 1;
-            }
 
             let alleles = calls_record.alleles();
             let ref_allele = String::from_utf8(alleles[0].to_vec())?;
@@ -156,9 +140,8 @@ impl VariantGraph {
 
         let mut variant_graph = VariantGraph(variant_graph.clone());
         variant_graph.create_edges(&supporting_reads)?;
-        variant_graph.to_file(output_path, batch)?;
 
-        Ok(())
+        Ok(variant_graph)
     }
 
     pub(crate) fn create_edges(
@@ -206,8 +189,8 @@ impl VariantGraph {
         )
     }
 
-    pub(crate) fn to_file(&self, path: &Path, batch_number: u32) -> Result<()> {
-        let path = path.join(format!("graph_{}.dot", batch_number));
+    pub(crate) fn to_file(&self, path: &Path) -> Result<()> {
+        let path = path.join("graph.dot");
         let mut file = std::fs::File::create(path)?;
         file.write_all(self.to_dot().as_bytes())?;
         Ok(())
