@@ -408,12 +408,7 @@ mod tests {
             path: observations_file,
             sample: "sample".to_string(),
         }];
-        let tmp = PathBuf::from("/tmp/");
-        VariantGraph::build(&calls_file, &observations, &tmp).unwrap();
-        let output = tmp.join("graph_0.dot");
-        assert!(output.exists());
-        let contents = fs::read_to_string(&output).unwrap();
-        assert_eq!(contents.lines().count(), 12);
-        fs::remove_file(&output).unwrap();
+        let variant_graph = VariantGraph::build(&calls_file, &observations);
+        assert!(variant_graph.is_ok());
     }
 }
