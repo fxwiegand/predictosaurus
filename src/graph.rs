@@ -1,4 +1,5 @@
 use crate::cli::ObservationFile;
+use crate::impact::Impact;
 use crate::utils::bcf::extract_event_names;
 use anyhow::Result;
 use bio::stats::bayesian::bayes_factors::evidence::KassRaftery;
@@ -197,7 +198,7 @@ impl VariantGraph {
         Ok(())
     }
 
-    pub(crate) fn paths(&self) -> Vec<Vec<NodeIndex>> {
+    pub(crate) fn paths(&self) -> Vec<HaplotypePath> {
         /// Finds all paths starting from the first two nodes in the graph.
         ///
         /// This method performs a depth-first search (DFS) starting from the first two nodes
@@ -223,13 +224,21 @@ impl VariantGraph {
 
                     // Check if the neighbor is a leaf node (no outgoing edges)
                     if self.0.edges(neighbor).next().is_none() {
-                        all_paths.push(new_path);
+                        all_paths.push(HaplotypePath(new_path));
                     }
                 }
             }
         }
 
         all_paths
+    }
+}
+
+pub(crate) struct HaplotypePath(pub(crate) Vec<NodeIndex>);
+
+impl HaplotypePath {
+    pub(crate) fn impact(&self) -> Impact {
+        unimplemented!()
     }
 }
 
@@ -270,6 +279,24 @@ impl Node {
             probs: EventProbs::from_record(calls_record, tags),
             pos: calls_record.pos(),
             index,
+        }
+    }
+
+    pub(crate) fn impact(&self, phase: u8, reference: &[u8]) -> Impact {
+        match self.node_type {
+            NodeType::Var(_) => match phase {
+                0 => {
+                    unimplemented!()
+                }
+                1 => {
+                    unimplemented!()
+                }
+                2 => {
+                    unimplemented!()
+                }
+                _ => unreachable!("Invalid phase"),
+            },
+            NodeType::Ref(_) => Impact::None,
         }
     }
 }
