@@ -6,6 +6,7 @@ use bio::stats::bayesian::BayesFactor;
 use itertools::Itertools;
 use petgraph::dot::{Config, Dot};
 use petgraph::graph::NodeIndex;
+use petgraph::visit::Dfs;
 use petgraph::{Directed, Graph};
 use rust_htslib::bcf::{Read, Reader, Record};
 use std::collections::{HashMap, HashSet};
@@ -194,6 +195,41 @@ impl VariantGraph {
         let mut file = std::fs::File::create(path)?;
         file.write_all(self.to_dot().as_bytes())?;
         Ok(())
+    }
+
+    pub(crate) fn paths(&self) -> Vec<Vec<NodeIndex>> {
+        /// Finds all paths starting from the first two nodes in the graph.
+        ///
+        /// This method performs a depth-first search (DFS) starting from the first two nodes
+        /// in the graph. It collects all possible paths, including those that reach leaf nodes
+        /// (nodes with no outgoing edges). The paths are represented as vectors of `NodeIndex`.
+        ///
+        /// Returns:
+        ///     A vector of vectors, where each inner vector represents a path through the graph
+        ///     starting from one of the initial nodes. Each path is a sequence of `NodeIndex`
+        ///     elements, representing the nodes in the order they are visited
+        let mut all_paths = Vec::new();
+        let start_nodes = self.0.node_indices().take(2).collect::<Vec<_>>();
+
+        for start_node in start_nodes {
+            let mut dfs = Dfs::new(&self.0, start_node);
+            let mut stack = vec![(start_node, vec![start_node])];
+
+            while let Some((node, path)) = stack.pop() {
+                for neighbor in self.0.neighbors(node) {
+                    let mut new_path = path.clone();
+                    new_path.push(neighbor);
+                    stack.push((neighbor, new_path.clone()));
+
+                    // Check if the neighbor is a leaf node (no outgoing edges)
+                    if self.0.edges(neighbor).next().is_none() {
+                        all_paths.push(new_path);
+                    }
+                }
+            }
+        }
+
+        all_paths
     }
 }
 
@@ -410,5 +446,66 @@ mod tests {
         }];
         let variant_graph = VariantGraph::build(&calls_file, &observations);
         assert!(variant_graph.is_ok());
+    }
+
+    #[test]
+    fn test_graph_paths() {
+        let calls_file = PathBuf::from("tests/resources/test_calls.vcf");
+        let observations_file = PathBuf::from("tests/resources/test_observations.vcf");
+        let observations = vec![ObservationFile {
+            path: observations_file,
+            sample: "sample".to_string(),
+        }];
+        let mut variant_graph = VariantGraph::build(&calls_file, &observations).unwrap();
+        variant_graph.0.add_edge(
+            NodeIndex::new(0),
+            NodeIndex::new(2),
+            Edge {
+                supporting_reads: HashMap::new(),
+            },
+        );
+        variant_graph.0.add_edge(
+            NodeIndex::new(2),
+            NodeIndex::new(5),
+            Edge {
+                supporting_reads: HashMap::new(),
+            },
+        );
+        variant_graph.0.add_edge(
+            NodeIndex::new(5),
+            NodeIndex::new(6),
+            Edge {
+                supporting_reads: HashMap::new(),
+            },
+        );
+        let paths = variant_graph.paths();
+        let expected_paths = vec![
+            vec![
+                NodeIndex::new(0),
+                NodeIndex::new(2),
+                NodeIndex::new(5),
+                NodeIndex::new(6),
+            ],
+            vec![
+                NodeIndex::new(0),
+                NodeIndex::new(2),
+                NodeIndex::new(5),
+                NodeIndex::new(7),
+            ],
+            vec![
+                NodeIndex::new(1),
+                NodeIndex::new(3),
+                NodeIndex::new(5),
+                NodeIndex::new(6),
+            ],
+            vec![
+                NodeIndex::new(1),
+                NodeIndex::new(3),
+                NodeIndex::new(5),
+                NodeIndex::new(7),
+            ],
+        ];
+
+        assert_eq!(paths, expected_paths);
     }
 }
