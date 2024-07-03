@@ -3,7 +3,7 @@ use amino_acids::Protein;
 use anyhow::Result;
 use itertools::Itertools;
 
-mod amino_acids;
+pub(crate) mod amino_acids;
 
 /// Translates a DNA sequence to a protein sequence
 pub(crate) fn dna_to_protein(dna: &[u8]) -> Result<Protein> {

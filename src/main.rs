@@ -29,7 +29,7 @@ fn main() -> Result<()> {
     let mut feature_reader = gff::Reader::from_file(features_file, GffType::GFF3).unwrap();
     for result in feature_reader.records() {
         let record = result.unwrap();
-        println!("{:?}", record.frame());
+        println!("{:?}", record);
     }
 
     Ok(())

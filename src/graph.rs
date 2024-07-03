@@ -1,5 +1,8 @@
+use std::cmp::max;
 use crate::cli::ObservationFile;
 use crate::impact::Impact;
+use crate::transcription;
+use crate::translation::amino_acids::AminoAcid;
 use crate::utils::bcf::extract_event_names;
 use anyhow::Result;
 use bio::stats::bayesian::bayes_factors::evidence::KassRaftery;
@@ -198,17 +201,17 @@ impl VariantGraph {
         Ok(())
     }
 
+    /// Finds all paths starting from the first two nodes in the graph.
+    ///
+    /// This method performs a depth-first search (DFS) starting from the first two nodes
+    /// in the graph. It collects all possible paths, including those that reach leaf nodes
+    /// (nodes with no outgoing edges). The paths are represented as vectors of `NodeIndex`.
+    ///
+    /// Returns:
+    ///     A vector of vectors, where each inner vector represents a path through the graph
+    ///     starting from one of the initial nodes. Each path is a sequence of `NodeIndex`
+    ///     elements, representing the nodes in the order they are visited
     pub(crate) fn paths(&self) -> Vec<HaplotypePath> {
-        /// Finds all paths starting from the first two nodes in the graph.
-        ///
-        /// This method performs a depth-first search (DFS) starting from the first two nodes
-        /// in the graph. It collects all possible paths, including those that reach leaf nodes
-        /// (nodes with no outgoing edges). The paths are represented as vectors of `NodeIndex`.
-        ///
-        /// Returns:
-        ///     A vector of vectors, where each inner vector represents a path through the graph
-        ///     starting from one of the initial nodes. Each path is a sequence of `NodeIndex`
-        ///     elements, representing the nodes in the order they are visited
         let mut all_paths = Vec::new();
         let start_nodes = self.0.node_indices().take(2).collect::<Vec<_>>();
 
@@ -234,11 +237,20 @@ impl VariantGraph {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct HaplotypePath(pub(crate) Vec<NodeIndex>);
 
 impl HaplotypePath {
-    pub(crate) fn impact(&self) -> Impact {
-        unimplemented!()
+    pub(crate) fn impact(&self, graph: &VariantGraph, phase: u8, reference: &[u8]) -> Result<Impact> {
+        let mut impact = Impact::None;
+        let mut phase = phase;
+        for node_index in self.0.iter() {
+            let node = graph.0.node_weight(*node_index).unwrap();
+            let new_impact = node.impact(phase, reference)?;
+            phase = (phase as i64 + node.frameshift() % 3) as u8;
+            impact = max(impact, new_impact);
+        }
+        Ok(impact)
     }
 }
 
@@ -282,21 +294,66 @@ impl Node {
         }
     }
 
-    pub(crate) fn impact(&self, phase: u8, reference: &[u8]) -> Impact {
-        match self.node_type {
-            NodeType::Var(_) => match phase {
-                0 => {
-                    unimplemented!()
+    pub(crate) fn new(node_type: NodeType, pos: i64) -> Self {
+        Node {
+            node_type,
+            vaf: Default::default(),
+            probs: EventProbs(HashMap::new()),
+            pos,
+            index: 0,
+        }
+    }
+
+    /// Returns the frameshift caused by the variant at this node.
+    pub(crate) fn frameshift(&self) -> i64 {
+        match &self.node_type {
+            NodeType::Var(alt_allele) => alt_allele.len() as i64 - 1,
+            NodeType::Ref(_) => 0,
+        }
+    }
+
+    pub(crate) fn reference_amino_acid(&self, phase: u8, reference: &[u8]) -> Result<AminoAcid> {
+        let start_pos = self.pos as usize - ((self.pos - phase as i64) % 3) as usize;
+        let ref_codon_bases = reference[start_pos..start_pos + 3].to_vec();
+        AminoAcid::from_codon(
+            transcription::transcribe_dna_to_rna(ref_codon_bases.as_ref())?.as_ref(),
+        )
+    }
+
+    pub(crate) fn variant_amino_acid(&self, phase: u8, reference: &[u8]) -> Result<AminoAcid> {
+        match &self.node_type {
+            NodeType::Var(alt_allele) => {
+                let start_pos = self.pos as usize - ((self.pos - phase as i64) % 3) as usize;
+                let position_in_codon = (self.pos - phase as i64) % 3;
+                let ref_codon_bases = reference[start_pos..start_pos + 3].to_vec();
+                let alt_codon_bases = [
+                    &ref_codon_bases[..position_in_codon as usize],
+                    alt_allele.as_bytes(),
+                    &ref_codon_bases[position_in_codon as usize + 1..],
+                ]
+                .concat();
+                AminoAcid::from_codon(
+                    transcription::transcribe_dna_to_rna(&alt_codon_bases)?.as_ref(),
+                )
+            }
+            _ => {
+                unreachable!("Reference node type has no variant amino acid")
+            }
+        }
+    }
+
+    pub(crate) fn impact(&self, phase: u8, reference: &[u8]) -> Result<Impact> {
+        match &self.node_type {
+            NodeType::Var(_) => {
+                let ref_amino_acid = self.reference_amino_acid(phase, reference)?;
+                let alt_amino_acid = self.variant_amino_acid(phase, reference)?;
+                match (ref_amino_acid == alt_amino_acid, alt_amino_acid) {
+                    (true, _) => Ok(Impact::None),
+                    (false, AminoAcid::Stop) => Ok(Impact::High),
+                    (false, _) => Ok(Impact::Modifier),
                 }
-                1 => {
-                    unimplemented!()
-                }
-                2 => {
-                    unimplemented!()
-                }
-                _ => unreachable!("Invalid phase"),
-            },
-            NodeType::Ref(_) => Impact::None,
+            }
+            NodeType::Ref(_) => Ok(Impact::None),
         }
     }
 }
@@ -507,32 +564,99 @@ mod tests {
         );
         let paths = variant_graph.paths();
         let expected_paths = vec![
-            vec![
+            HaplotypePath(vec![
                 NodeIndex::new(0),
                 NodeIndex::new(2),
                 NodeIndex::new(5),
                 NodeIndex::new(6),
-            ],
-            vec![
+            ]),
+            HaplotypePath(vec![
                 NodeIndex::new(0),
                 NodeIndex::new(2),
                 NodeIndex::new(5),
                 NodeIndex::new(7),
-            ],
-            vec![
+            ]),
+            HaplotypePath(vec![
                 NodeIndex::new(1),
                 NodeIndex::new(3),
                 NodeIndex::new(5),
                 NodeIndex::new(6),
-            ],
-            vec![
+            ]),
+            HaplotypePath(vec![
                 NodeIndex::new(1),
                 NodeIndex::new(3),
                 NodeIndex::new(5),
                 NodeIndex::new(7),
-            ],
+            ]),
         ];
 
         assert_eq!(paths, expected_paths);
+    }
+
+    #[test]
+    fn test_variant_amino_acid_with_different_phases() {
+        let node = Node::new(NodeType::Var("A".to_string()), 2);
+        let reference = b"ATGCGCGTA";
+        let ile = node.variant_amino_acid(0, reference).unwrap();
+        assert_eq!(ile, AminoAcid::Isoleucine);
+        let tyr = node.variant_amino_acid(1, reference).unwrap();
+        assert_eq!(tyr, AminoAcid::Tyrosine);
+        let thr = node.variant_amino_acid(2, reference).unwrap();
+        assert_eq!(thr, AminoAcid::Threonine);
+    }
+
+    #[test]
+    fn test_reference_amino_acid_with_different_phases() {
+        let node = Node::new(NodeType::Ref("".to_string()), 2);
+        let reference = b"ATGCGCGTA";
+        let met = node.reference_amino_acid(0, reference).unwrap();
+        assert_eq!(met, AminoAcid::Methionine);
+        let cys = node.reference_amino_acid(1, reference).unwrap();
+        assert_eq!(cys, AminoAcid::Cysteine);
+        let ala = node.reference_amino_acid(2, reference).unwrap();
+        assert_eq!(ala, AminoAcid::Alanine);
+    }
+    #[test]
+    fn impact_returns_none_for_ref_node_type() {
+        let node = Node::new(NodeType::Ref("".to_string()), 0);
+        let impact = node.impact(0, &[]).unwrap();
+        assert_eq!(impact, Impact::None);
+    }
+
+    #[test]
+    fn impact_identifies_none_for_identical_ref_and_alt_amino_acids() {
+        let node = Node::new(NodeType::Var("C".to_string()), 2);
+        let reference = b"ATA";
+        let impact = node.impact(0, reference).unwrap();
+        assert_eq!(impact, Impact::None);
+    }
+
+    #[test]
+    fn impact_identifies_modifier_for_different_ref_and_alt_amino_acids() {
+        let node = Node::new(NodeType::Var("G".to_string()), 3);
+        let reference = b"ATATG";
+        let impact = node.impact(2, reference).unwrap();
+        assert_eq!(impact, Impact::Modifier);
+    }
+
+    #[test]
+    fn impact_identifies_high_for_early_stop() {
+        let node = Node::new(NodeType::Var("A".to_string()), 6);
+        let reference = b"CATATAC";
+        let impact = node.impact(1, reference).unwrap();
+        assert_eq!(impact, Impact::High);
+    }
+
+    #[test]
+    fn test_frameshift() {
+        let node = Node::new(NodeType::Var("A".to_string()), 2);
+        let frameshift = node.frameshift();
+        assert_eq!(frameshift, 0);
+        let node = Node::new(NodeType::Var("AT".to_string()), 2);
+        let frameshift = node.frameshift();
+        assert_eq!(frameshift, 1);
+        let node = Node::new(NodeType::Var("".to_string()), 2);
+        let frameshift = node.frameshift();
+        assert_eq!(frameshift, -1);
     }
 }
