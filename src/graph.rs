@@ -1,4 +1,3 @@
-use std::cmp::max;
 use crate::cli::ObservationFile;
 use crate::impact::Impact;
 use crate::transcription;
@@ -13,6 +12,7 @@ use petgraph::graph::NodeIndex;
 use petgraph::visit::Dfs;
 use petgraph::{Directed, Graph};
 use rust_htslib::bcf::{Read, Reader, Record};
+use std::cmp::max;
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -241,7 +241,12 @@ impl VariantGraph {
 pub(crate) struct HaplotypePath(pub(crate) Vec<NodeIndex>);
 
 impl HaplotypePath {
-    pub(crate) fn impact(&self, graph: &VariantGraph, phase: u8, reference: &[u8]) -> Result<Impact> {
+    pub(crate) fn impact(
+        &self,
+        graph: &VariantGraph,
+        phase: u8,
+        reference: &[u8],
+    ) -> Result<Impact> {
         let mut impact = Impact::None;
         let mut phase = phase;
         for node_index in self.0.iter() {
