@@ -402,7 +402,6 @@ mod tests {
     use super::*;
     use petgraph::{Directed, Graph};
     use rust_htslib::bcf::{Read, Reader};
-    use std::fs;
 
     #[test]
     fn test_nodes_in_between() {
