@@ -9,7 +9,6 @@ use bio::stats::bayesian::BayesFactor;
 use itertools::Itertools;
 use petgraph::dot::{Config, Dot};
 use petgraph::graph::NodeIndex;
-use petgraph::visit::Dfs;
 use petgraph::{Directed, Graph};
 use rust_htslib::bcf::{Read, Reader, Record};
 use std::cmp::max;
@@ -83,7 +82,7 @@ impl VariantGraph {
                     (sample, observations.pileup.read_observations().clone())
                 })
                 .collect::<HashMap<_, _>>();
-            let fragment_ids: HashSet<_> = observations
+            let _fragment_ids: HashSet<_> = observations
                 .iter()
                 .flat_map(|(s, v)| v.iter().map(move |o| (s, o.fragment_id)))
                 .collect();
@@ -216,7 +215,6 @@ impl VariantGraph {
         let start_nodes = self.0.node_indices().take(2).collect::<Vec<_>>();
 
         for start_node in start_nodes {
-            let mut dfs = Dfs::new(&self.0, start_node);
             let mut stack = vec![(start_node, vec![start_node])];
 
             while let Some((node, path)) = stack.pop() {
