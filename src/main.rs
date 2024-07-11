@@ -21,6 +21,8 @@ fn main() -> Result<()> {
 
     utils::create_output_dir(&output_file)?;
 
+    // TODO: Alter building of the VariantGraph so it generates one graph per chromosome/target.
+
     // let variant_graph = VariantGraph::build(&calls_file, &observation_files)?;
     // variant_graph.to_file(&output_file)?;
 
