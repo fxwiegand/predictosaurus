@@ -29,9 +29,16 @@ fn main() -> Result<()> {
     // TODO: Parse the features file and iter transcripts per feature. For each transcript go through paths of the graph and translate each codon around a variant to an amino acid and calculate impact keeping track of the frameshift of the path.
 
     let mut feature_reader = gff::Reader::from_file(features_file, GffType::GFF3).unwrap();
-    for result in feature_reader.records() {
-        let record = result.unwrap();
-        println!("{:?}", record);
+    for record in feature_reader
+        .records()
+        .filter_map(Result::ok)
+        .filter(|record| record.feature_type() == "CDS")
+    {
+        println!("Target: {:?}", record.seqname());
+        println!("Position: {:?}", record.start());
+        println!("Length: {:?}", record.end() - record.start());
+        println!("Phase: {:?}", record.phase());
+        println!();
     }
 
     Ok(())

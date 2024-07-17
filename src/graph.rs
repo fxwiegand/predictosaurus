@@ -19,14 +19,21 @@ use varlociraptor::calling::variants::preprocessing::read_observations;
 use varlociraptor::utils::collect_variants::collect_variants;
 use varlociraptor::variants::evidence::observations::read_observation::ProcessedReadObservation;
 
-pub(crate) struct VariantGraph(pub(crate) Graph<Node, Edge, Directed>);
+pub(crate) struct VariantGraph {
+    pub(crate) graph: Graph<Node, Edge, Directed>,
+    start: i64,
+    end: i64,
+    target: String,
+}
 
 impl VariantGraph {
     pub(crate) fn build(
         calls_file: &PathBuf,
         observation_files: &[ObservationFile],
+        target: &str,
     ) -> Result<VariantGraph> {
         let mut calls_reader = Reader::from_path(calls_file)?;
+        let header = calls_reader.header().clone();
         let mut observation_readers: HashMap<_, _> = observation_files
             .iter()
             .map(|o| (o.sample.to_string(), Reader::from_path(&o.path).unwrap()))
@@ -65,6 +72,9 @@ impl VariantGraph {
 
         for calls_record in calls_reader.records() {
             let mut calls_record = calls_record?;
+            if header.rid2name(calls_record.rid().unwrap()).unwrap() != target.as_bytes() {
+                continue;
+            }
             let position = calls_record.pos();
             let mut observations_records = observations_records
                 .iter_mut()
@@ -142,7 +152,13 @@ impl VariantGraph {
             last_position = position;
         }
 
-        let mut variant_graph = VariantGraph(variant_graph.clone());
+        let mut variant_graph = VariantGraph {
+            graph: variant_graph.clone(),
+            start: variant_graph.node_weight(NodeIndex::new(0)).unwrap().pos, // Should be optimized as this causes the clone above which is not ideal
+            end: last_position,
+            target: target.to_string(),
+        };
+
         variant_graph.create_edges(&supporting_reads)?;
 
         Ok(variant_graph)
@@ -153,7 +169,7 @@ impl VariantGraph {
         supporting_reads: &HashMap<(String, Option<u64>), Vec<NodeIndex>>,
     ) -> Result<()> {
         for ((sample, _), nodes) in supporting_reads {
-            let weights = self.0.clone();
+            let weights = self.graph.clone();
             for node_tuple in nodes.iter().sorted().dedup().combinations(2).filter(|v| {
                 node_distance(
                     &weights.node_weight(*v[0]).unwrap().index,
@@ -168,9 +184,9 @@ impl VariantGraph {
                             .collect_vec(),
                     ) == 0
             }) {
-                let edge = self.0.find_edge(*node_tuple[0], *node_tuple[1]);
+                let edge = self.graph.find_edge(*node_tuple[0], *node_tuple[1]);
                 if let Some(edge) = edge {
-                    let edge = self.0.edge_weight_mut(edge).unwrap();
+                    let edge = self.graph.edge_weight_mut(edge).unwrap();
                     edge.supporting_reads
                         .entry(sample.to_string())
                         .and_modify(|v| *v += 1)
@@ -179,7 +195,7 @@ impl VariantGraph {
                     let edge = Edge {
                         supporting_reads: HashMap::from([(sample.to_string(), 1)]),
                     };
-                    self.0.add_edge(*node_tuple[0], *node_tuple[1], edge);
+                    self.graph.add_edge(*node_tuple[0], *node_tuple[1], edge);
                 }
             }
         }
@@ -189,7 +205,7 @@ impl VariantGraph {
     pub(crate) fn to_dot(&self) -> String {
         format!(
             "digraph {{ {:?} }}",
-            Dot::with_config(&self.0, &[Config::GraphContentOnly])
+            Dot::with_config(&self.graph, &[Config::GraphContentOnly])
         )
     }
 
@@ -212,19 +228,19 @@ impl VariantGraph {
     ///     elements, representing the nodes in the order they are visited
     pub(crate) fn paths(&self) -> Vec<HaplotypePath> {
         let mut all_paths = Vec::new();
-        let start_nodes = self.0.node_indices().take(2).collect::<Vec<_>>();
+        let start_nodes = self.graph.node_indices().take(2).collect::<Vec<_>>();
 
         for start_node in start_nodes {
             let mut stack = vec![(start_node, vec![start_node])];
 
             while let Some((node, path)) = stack.pop() {
-                for neighbor in self.0.neighbors(node) {
+                for neighbor in self.graph.neighbors(node) {
                     let mut new_path = path.clone();
                     new_path.push(neighbor);
                     stack.push((neighbor, new_path.clone()));
 
                     // Check if the neighbor is a leaf node (no outgoing edges)
-                    if self.0.edges(neighbor).next().is_none() {
+                    if self.graph.edges(neighbor).next().is_none() {
                         all_paths.push(HaplotypePath(new_path));
                     }
                 }
@@ -248,7 +264,7 @@ impl HaplotypePath {
         let mut impact = Impact::None;
         let mut phase = phase;
         for node_index in self.0.iter() {
-            let node = graph.0.node_weight(*node_index).unwrap();
+            let node = graph.graph.node_weight(*node_index).unwrap();
             let new_impact = node.impact(phase, reference)?;
             phase = (phase as i64 + node.frameshift() % 3) as u8;
             impact = max(impact, new_impact);
@@ -530,7 +546,7 @@ mod tests {
             path: observations_file,
             sample: "sample".to_string(),
         }];
-        let variant_graph = VariantGraph::build(&calls_file, &observations);
+        let variant_graph = VariantGraph::build(&calls_file, &observations, "OX512233.1");
         assert!(variant_graph.is_ok());
     }
 
@@ -542,22 +558,23 @@ mod tests {
             path: observations_file,
             sample: "sample".to_string(),
         }];
-        let mut variant_graph = VariantGraph::build(&calls_file, &observations).unwrap();
-        variant_graph.0.add_edge(
+        let mut variant_graph =
+            VariantGraph::build(&calls_file, &observations, "OX512233.1").unwrap();
+        variant_graph.graph.add_edge(
             NodeIndex::new(0),
             NodeIndex::new(2),
             Edge {
                 supporting_reads: HashMap::new(),
             },
         );
-        variant_graph.0.add_edge(
+        variant_graph.graph.add_edge(
             NodeIndex::new(2),
             NodeIndex::new(5),
             Edge {
                 supporting_reads: HashMap::new(),
             },
         );
-        variant_graph.0.add_edge(
+        variant_graph.graph.add_edge(
             NodeIndex::new(5),
             NodeIndex::new(6),
             Edge {
