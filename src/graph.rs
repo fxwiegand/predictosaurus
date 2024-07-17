@@ -351,7 +351,7 @@ impl Node {
                 let ref_amino_acid = self.reference_amino_acid(phase, reference)?;
                 let alt_amino_acid = self.variant_amino_acid(phase, reference)?;
                 match (ref_amino_acid == alt_amino_acid, alt_amino_acid) {
-                    (true, _) => Ok(Impact::None),
+                    (true, _) => Ok(Impact::Low),
                     (false, AminoAcid::Stop) => Ok(Impact::High),
                     (false, _) => Ok(Impact::Modifier),
                 }
@@ -626,11 +626,11 @@ mod tests {
     }
 
     #[test]
-    fn impact_identifies_none_for_identical_ref_and_alt_amino_acids() {
+    fn impact_identifies_low_for_identical_ref_and_alt_amino_acids() {
         let node = Node::new(NodeType::Var("C".to_string()), 2);
         let reference = b"ATA";
         let impact = node.impact(0, reference).unwrap();
-        assert_eq!(impact, Impact::None);
+        assert_eq!(impact, Impact::Low);
     }
 
     #[test]

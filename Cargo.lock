@@ -243,9 +243,9 @@ dependencies = [
 
 [[package]]
 name = "bio"
-version = "1.5.0"
+version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25dccfc5babf5a4f505ab5bdda0e18d4b5fc1600c222677c54992203632cbdf5"
+checksum = "7a72cb93babf08c85b375c2938ac678cc637936b3ebb72266d433cec2577f6c2"
 dependencies = [
  "anyhow",
  "approx",
@@ -258,7 +258,6 @@ dependencies = [
  "editdistancek",
  "enum-map",
  "fxhash",
- "getset",
  "itertools 0.11.0",
  "itertools-num",
  "lazy_static",
@@ -1141,9 +1140,9 @@ dependencies = [
 
 [[package]]
 name = "itertools"
-version = "0.12.1"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
 dependencies = [
  "either",
 ]
@@ -1646,7 +1645,7 @@ dependencies = [
  "bio",
  "clap 4.5.3",
  "clap_derive",
- "itertools 0.12.1",
+ "itertools 0.13.0",
  "petgraph",
  "rust-htslib",
  "serde",
