@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use crate::cli::Predictosaurus;
 use crate::graph::VariantGraph;
 use anyhow::Result;
@@ -21,12 +22,7 @@ fn main() -> Result<()> {
 
     utils::create_output_dir(&output_file)?;
 
-    // TODO: Alter building of the VariantGraph so it generates one graph per chromosome/target.
-
-    // let variant_graph = VariantGraph::build(&calls_file, &observation_files)?;
-    // variant_graph.to_file(&output_file)?;
-
-    // TODO: Parse the features file and iter transcripts per feature. For each transcript go through paths of the graph and translate each codon around a variant to an amino acid and calculate impact keeping track of the frameshift of the path.
+    // TODO: Load reference genome into memory and pass slice to impact calculation
 
     let mut feature_reader = gff::Reader::from_file(features_file, GffType::GFF3).unwrap();
     for record in feature_reader
@@ -34,12 +30,17 @@ fn main() -> Result<()> {
         .filter_map(Result::ok)
         .filter(|record| record.feature_type() == "CDS")
     {
-        println!("Target: {:?}", record.seqname());
-        println!("Position: {:?}", record.start());
-        println!("Length: {:?}", record.end() - record.start());
-        println!("Phase: {:?}", record.phase());
-        println!();
+        let variant_graph = VariantGraph::build(&calls_file, &observation_files, record.seqname(), *record.start() as i64,(record.end() - record.start()) as i64)?;
+        let phase = record.phase().as_u8();
+        println!("{:?}", record);
+        if let Some(phase) = phase {
+            let paths = variant_graph.paths();
+            for path in paths {
+                println!("{:?}", path.impact(&variant_graph, phase, &[])?);
+            }
+        } else {
+            println!("No phase found for CDS record");
+        }
     }
-
     Ok(())
 }

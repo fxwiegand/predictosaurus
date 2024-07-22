@@ -301,6 +301,44 @@ dependencies = [
 ]
 
 [[package]]
+name = "bio"
+version = "2.0.0"
+source = "git+https://github.com/rust-bio/rust-bio?branch=phase_u8_function#adde5a28ca2f385214813c0a726321d7ca3f6275"
+dependencies = [
+ "anyhow",
+ "approx",
+ "bio-types",
+ "bit-set",
+ "bv",
+ "bytecount",
+ "csv",
+ "custom_derive",
+ "editdistancek",
+ "enum-map",
+ "fxhash",
+ "itertools 0.8.2",
+ "itertools-num",
+ "lazy_static",
+ "multimap",
+ "ndarray",
+ "newtype_derive",
+ "num-integer",
+ "num-traits",
+ "ordered-float 4.2.1",
+ "petgraph",
+ "rand 0.8.5",
+ "regex",
+ "serde",
+ "serde_derive",
+ "statrs",
+ "strum",
+ "strum_macros",
+ "thiserror",
+ "triple_accel",
+ "vec_map",
+]
+
+[[package]]
 name = "bio-types"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1699,7 +1737,7 @@ name = "predictosaurus"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bio",
+ "bio 2.0.0 (git+https://github.com/rust-bio/rust-bio?branch=phase_u8_function)",
  "clap 4.5.3",
  "clap_derive",
  "itertools 0.13.0",
@@ -2501,7 +2539,7 @@ dependencies = [
  "askama",
  "auto_ops",
  "bincode",
- "bio",
+ "bio 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bio-types",
  "boolean_expression",
  "bv",
