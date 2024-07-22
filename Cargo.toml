@@ -20,5 +20,8 @@ itertools = "0.13.0"
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.115"
 
+[dev-dependencies]
+tempfile = "3.10.1"
+
 [profile.release]
 lto = "fat"

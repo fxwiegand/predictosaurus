@@ -3,6 +3,7 @@ use std::fs;
 use std::path::Path;
 
 pub(crate) mod bcf;
+pub(crate) mod fasta;
 
 pub(crate) fn create_output_dir(output_path: &Path) -> Result<()> {
     if !output_path.exists() {

@@ -19,6 +19,10 @@ pub(crate) struct Predictosaurus {
     #[clap(short, long)]
     pub(crate) features: PathBuf,
 
+    /// Path to reference genome fasta file
+    #[clap(short, long)]
+    pub(crate) reference: PathBuf,
+
     /// Path to the output file
     #[clap(long, default_value = ".")]
     pub(crate) output: PathBuf,
