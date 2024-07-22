@@ -1,10 +1,10 @@
-use std::collections::HashMap;
 use crate::cli::Predictosaurus;
 use crate::graph::VariantGraph;
 use anyhow::Result;
 use bio::io::gff;
 use bio::io::gff::GffType;
 use clap::Parser;
+use std::collections::HashMap;
 mod cli;
 mod graph;
 mod impact;
@@ -30,7 +30,13 @@ fn main() -> Result<()> {
         .filter_map(Result::ok)
         .filter(|record| record.feature_type() == "CDS")
     {
-        let variant_graph = VariantGraph::build(&calls_file, &observation_files, record.seqname(), *record.start() as i64,(record.end() - record.start()) as i64)?;
+        let variant_graph = VariantGraph::build(
+            &calls_file,
+            &observation_files,
+            record.seqname(),
+            *record.start() as i64,
+            (record.end() - record.start()) as i64,
+        )?;
         let phase = record.phase().as_u8();
         println!("{:?}", record);
         if let Some(phase) = phase {

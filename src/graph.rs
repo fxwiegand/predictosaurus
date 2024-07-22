@@ -91,7 +91,10 @@ impl VariantGraph {
                 })
                 .collect::<HashMap<_, _>>();
 
-            if header.rid2name(calls_record.rid().unwrap()).unwrap() != target.as_bytes() || position < start || position > end {
+            if header.rid2name(calls_record.rid().unwrap()).unwrap() != target.as_bytes()
+                || position < start
+                || position > end
+            {
                 continue;
             }
 
