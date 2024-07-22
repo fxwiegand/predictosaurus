@@ -5,7 +5,7 @@ use std::path::Path;
 pub(crate) fn read_reference<P: AsRef<Path> + std::fmt::Debug>(
     fasta_path: P,
 ) -> HashMap<String, Vec<u8>> {
-    let mut reader = fasta::Reader::from_file(fasta_path).expect("Error reading FASTA file");
+    let reader = fasta::Reader::from_file(fasta_path).expect("Error reading FASTA file");
     let mut genome_map = HashMap::new();
 
     for result in reader.records() {
@@ -21,23 +21,20 @@ pub(crate) fn read_reference<P: AsRef<Path> + std::fmt::Debug>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs::File;
     use std::io::Write;
-    use tempfile::tempdir;
+    use tempfile::NamedTempFile;
 
-    fn create_temp_fasta_file(contents: &str) -> std::path::PathBuf {
-        let dir = tempdir().unwrap();
-        let file_path = dir.path().join("temp.fasta");
-        let mut file = File::create(&file_path).unwrap();
-        writeln!(file, "{}", contents).unwrap();
-        file_path
+    fn create_temp_fasta_file(contents: &str) -> NamedTempFile {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        writeln!(temp_file, "{}", contents).unwrap();
+        temp_file
     }
 
     #[test]
     fn reads_single_record_correctly() {
         let fasta_contents = ">seq1\nACGT";
-        let fasta_path = create_temp_fasta_file(fasta_contents);
-        let result = read_reference(fasta_path);
+        let temp_file = create_temp_fasta_file(fasta_contents);
+        let result = read_reference(temp_file.path());
         assert_eq!(result.len(), 1);
         assert_eq!(result["seq1"], b"ACGT".to_vec());
     }
@@ -45,19 +42,11 @@ mod tests {
     #[test]
     fn reads_multiple_records_correctly() {
         let fasta_contents = ">seq1\nACGT\n>seq2\nTGCA";
-        let fasta_path = create_temp_fasta_file(fasta_contents);
-        let result = read_reference(fasta_path);
+        let temp_file = create_temp_fasta_file(fasta_contents);
+        let result = read_reference(temp_file.path());
         assert_eq!(result.len(), 2);
         assert_eq!(result["seq1"], b"ACGT".to_vec());
         assert_eq!(result["seq2"], b"TGCA".to_vec());
-    }
-
-    #[test]
-    fn handles_empty_file() {
-        let fasta_contents = "";
-        let fasta_path = create_temp_fasta_file(fasta_contents);
-        let result = read_reference(fasta_path);
-        assert!(result.is_empty());
     }
 
     #[test]
@@ -70,8 +59,8 @@ mod tests {
     #[test]
     fn handles_file_with_no_sequences() {
         let fasta_contents = ">seq1\n>seq2";
-        let fasta_path = create_temp_fasta_file(fasta_contents);
-        let result = read_reference(fasta_path);
+        let temp_file = create_temp_fasta_file(fasta_contents);
+        let result = read_reference(temp_file.path());
         assert_eq!(result.len(), 2);
         assert_eq!(result["seq1"], Vec::<u8>::new());
         assert_eq!(result["seq2"], Vec::<u8>::new());

@@ -12,7 +12,7 @@ edition = "2021"
 clap = { version = "4.5.3", features = ["derive"] }
 clap_derive = "4.5.3"
 rust-htslib = "0.47.0"
-bio = { git = "https://github.com/rust-bio/rust-bio", branch = "phase_u8_function"}
+bio = "2.0.1"
 anyhow = "1.0.81"
 varlociraptor = { git = "https://github.com/varlociraptor/varlociraptor" } # Use git dependeny while varlociraptor is not released with a version using rust-bio = 2.0
 petgraph = "0.6.4"

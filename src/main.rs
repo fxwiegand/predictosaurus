@@ -39,7 +39,7 @@ fn main() -> Result<()> {
             start,
             end,
         )?;
-        let phase = record.phase().as_u8();
+        let phase: u8 = record.phase().clone().try_into().expect("Invalid phase");
         let ref_seq = reference_genome.get(record.seqname()).expect(
             format!(
                 "Reference sequence {} not found in provided FASTA file",
@@ -48,20 +48,16 @@ fn main() -> Result<()> {
             .as_str(),
         );
         println!("{:?}", record);
-        if let Some(phase) = phase {
-            let paths = variant_graph.paths();
-            for path in paths {
-                println!(
-                    "{:?}",
-                    path.impact(
-                        &variant_graph,
-                        phase,
-                        &ref_seq[start as usize..end as usize].to_vec()
-                    )
-                );
-            }
-        } else {
-            println!("No phase found for CDS record");
+        let paths = variant_graph.paths();
+        for path in paths {
+            println!(
+                "{:?}",
+                path.impact(
+                    &variant_graph,
+                    phase,
+                    &ref_seq[start as usize..end as usize]
+                )
+            );
         }
     }
     Ok(())
