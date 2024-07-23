@@ -55,7 +55,7 @@ fn main() -> Result<()> {
                 path.impact(
                     &variant_graph,
                     phase,
-                    &ref_seq[start as usize..end as usize]
+                    &ref_seq,
                 )
             );
         }
