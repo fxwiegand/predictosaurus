@@ -115,6 +115,12 @@ impl AminoAcid {
     }
 }
 
+impl Display for AminoAcid {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.abbreviation())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

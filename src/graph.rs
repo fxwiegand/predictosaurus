@@ -272,15 +272,39 @@ impl HaplotypePath {
         reference: &[u8],
     ) -> Result<Impact> {
         let mut impact = Impact::None;
+        let ref_phase = phase;
         let mut phase = phase;
         for node_index in self.0.iter() {
             let node = graph.graph.node_weight(*node_index).unwrap();
-            let new_impact = node.impact(phase, reference)?;
-            println!("{:?} {:?}", node, new_impact);
-            phase = (phase as i64 + node.frameshift() % 3) as u8;
+            let new_impact = node.impact(ref_phase, phase, reference)?;
+            phase = (phase as i64 + (node.frameshift().abs()) % 3) as u8;
             impact = max(impact, new_impact);
         }
         Ok(impact)
+    }
+
+    pub(crate) fn display(
+        &self,
+        graph: &VariantGraph,
+        phase: u8,
+        reference: &[u8],
+    ) -> Result<String> {
+        let ref_phase = phase;
+        let mut phase = phase;
+        let mut protein = String::new();
+        for node_index in self.0.iter() {
+            let node = graph.graph.node_weight(*node_index).unwrap();
+            let ref_amino_acid = node.reference_amino_acid(ref_phase, reference)?;
+            let alt_amino_acid = node.variant_amino_acid(phase, reference)?;
+            protein.push_str(&format!(
+                "{} -> {} ({:?})\n",
+                ref_amino_acid,
+                alt_amino_acid,
+                node.impact(ref_phase, phase, reference)?
+            ));
+            phase = (phase as i64 + (node.frameshift().abs()) % 3) as u8;
+        }
+        Ok(protein)
     }
 }
 
@@ -355,7 +379,8 @@ impl Node {
             NodeType::Var(alt_allele) => {
                 let start_pos = self.pos as usize - ((self.pos - phase as i64) % 3) as usize;
                 let position_in_codon = (self.pos - phase as i64) % 3;
-                let ref_codon_bases = reference[start_pos..start_pos + 3].to_vec();
+                let needed_bases = if alt_allele.is_empty() { 4 } else { 3 };
+                let ref_codon_bases = reference[start_pos..start_pos + needed_bases].to_vec();
                 let alt_codon_bases = [
                     &ref_codon_bases[..position_in_codon as usize],
                     alt_allele.as_bytes(),
@@ -372,10 +397,10 @@ impl Node {
         }
     }
 
-    pub(crate) fn impact(&self, phase: u8, reference: &[u8]) -> Result<Impact> {
+    pub(crate) fn impact(&self, ref_phase: u8, phase: u8, reference: &[u8]) -> Result<Impact> {
         match &self.node_type {
             NodeType::Var(_) => {
-                let ref_amino_acid = self.reference_amino_acid(phase, reference)?;
+                let ref_amino_acid = self.reference_amino_acid(ref_phase, reference)?;
                 let alt_amino_acid = self.variant_amino_acid(phase, reference)?;
                 match (
                     ref_amino_acid == alt_amino_acid,
@@ -655,6 +680,14 @@ mod tests {
     }
 
     #[test]
+    fn test_variant_amino_acid_with_deletion() {
+        let node = Node::new(NodeType::Var("".to_string()), 2);
+        let reference = b"ATGC";
+        let ile = node.variant_amino_acid(0, reference).unwrap();
+        assert_eq!(ile, AminoAcid::Isoleucine);
+    }
+
+    #[test]
     fn test_reference_amino_acid_with_different_phases() {
         let node = Node::new(NodeType::Ref("".to_string()), 2);
         let reference = b"ATGCGCGTA";
@@ -668,7 +701,7 @@ mod tests {
     #[test]
     fn impact_returns_none_for_ref_node_type() {
         let node = Node::new(NodeType::Ref("".to_string()), 0);
-        let impact = node.impact(0, &[]).unwrap();
+        let impact = node.impact(0, 0, &[]).unwrap();
         assert_eq!(impact, Impact::None);
     }
 
@@ -676,7 +709,7 @@ mod tests {
     fn impact_identifies_low_for_identical_ref_and_alt_amino_acids() {
         let node = Node::new(NodeType::Var("C".to_string()), 2);
         let reference = b"ATA";
-        let impact = node.impact(0, reference).unwrap();
+        let impact = node.impact(0, 0, reference).unwrap();
         assert_eq!(impact, Impact::Low);
     }
 
@@ -684,7 +717,7 @@ mod tests {
     fn impact_identifies_modifier_for_different_ref_and_alt_amino_acids() {
         let node = Node::new(NodeType::Var("G".to_string()), 3);
         let reference = b"ATTTG";
-        let impact = node.impact(2, reference).unwrap();
+        let impact = node.impact(2, 2, reference).unwrap();
         assert_eq!(impact, Impact::Modifier);
     }
 
@@ -692,7 +725,7 @@ mod tests {
     fn impact_identifies_high_for_early_stop() {
         let node = Node::new(NodeType::Var("A".to_string()), 6);
         let reference = b"CATATAC";
-        let impact = node.impact(1, reference).unwrap();
+        let impact = node.impact(1, 1, reference).unwrap();
         assert_eq!(impact, Impact::High);
     }
 
@@ -714,6 +747,8 @@ mod tests {
         let node1 = graph.add_node(Node::new(NodeType::Var("A".to_string()), 1));
         let node2 = graph.add_node(Node::new(NodeType::Ref("".to_string()), 2));
         let node3 = graph.add_node(Node::new(NodeType::Var("T".to_string()), 3));
+        let node4 = graph.add_node(Node::new(NodeType::Var("".to_string()), 4));
+        let node5 = graph.add_node(Node::new(NodeType::Var("A".to_string()), 8));
         VariantGraph {
             graph,
             start: 0,
@@ -754,6 +789,26 @@ mod tests {
         let node_index = graph.graph.node_indices().next().unwrap();
         let path = HaplotypePath(vec![node_index]);
         let impact = path.impact(&graph, 1, b"ATGA").unwrap();
+        assert_eq!(impact, Impact::High);
+    }
+
+    #[test]
+    fn impact_handles_phase_shift_caused_by_frameshift() {
+        let mut graph = setup_variant_graph_with_nodes();
+        let node_indices = graph
+            .graph
+            .node_indices()
+            .skip(3)
+            .take(2)
+            .collect::<Vec<_>>();
+        let path = HaplotypePath(node_indices.clone());
+        let impact = path.impact(&graph, 0, b"GGGAAATTTAAA").unwrap();
+        println!(
+            "{}",
+            path.display(&graph, 0, b"GGGAAATTTAAA")
+                .unwrap()
+                .to_string()
+        );
         assert_eq!(impact, Impact::High);
     }
 }
