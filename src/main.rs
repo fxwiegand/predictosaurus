@@ -50,14 +50,7 @@ fn main() -> Result<()> {
         println!("{:?}", record);
         let paths = variant_graph.paths();
         for path in paths {
-            println!(
-                "{:?}",
-                path.impact(
-                    &variant_graph,
-                    phase,
-                    &ref_seq,
-                )
-            );
+            println!("{:?}", path.impact(&variant_graph, phase, &ref_seq,));
         }
     }
     Ok(())
