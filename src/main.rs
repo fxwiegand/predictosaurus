@@ -4,7 +4,6 @@ use anyhow::Result;
 use bio::io::gff;
 use bio::io::gff::GffType;
 use clap::Parser;
-use std::collections::HashMap;
 mod cli;
 mod graph;
 mod impact;

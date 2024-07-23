@@ -255,6 +255,10 @@ impl VariantGraph {
 
         all_paths
     }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.graph.node_count() == 0
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -554,6 +558,19 @@ mod tests {
         }];
         let variant_graph = VariantGraph::build(&calls_file, &observations, "OX512233.1", 60, 85);
         assert!(variant_graph.is_ok());
+    }
+
+    #[test]
+    fn test_graph_is_empty() {
+        let calls_file = PathBuf::from("tests/resources/test_calls.vcf");
+        let observations_file = PathBuf::from("tests/resources/test_observations.vcf");
+        let observations = vec![ObservationFile {
+            path: observations_file,
+            sample: "sample".to_string(),
+        }];
+        let variant_graph =
+            VariantGraph::build(&calls_file, &observations, "not actually in file", 60, 85);
+        assert!(variant_graph.unwrap().is_empty());
     }
 
     #[test]
