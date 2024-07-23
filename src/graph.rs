@@ -276,6 +276,7 @@ impl HaplotypePath {
         for node_index in self.0.iter() {
             let node = graph.graph.node_weight(*node_index).unwrap();
             let new_impact = node.impact(phase, reference)?;
+            println!("{:?} {:?}", node, new_impact);
             phase = (phase as i64 + node.frameshift() % 3) as u8;
             impact = max(impact, new_impact);
         }
@@ -376,10 +377,16 @@ impl Node {
             NodeType::Var(_) => {
                 let ref_amino_acid = self.reference_amino_acid(phase, reference)?;
                 let alt_amino_acid = self.variant_amino_acid(phase, reference)?;
-                match (ref_amino_acid == alt_amino_acid, alt_amino_acid) {
-                    (true, _) => Ok(Impact::Low),
-                    (false, AminoAcid::Stop) => Ok(Impact::High),
-                    (false, _) => Ok(Impact::Modifier),
+                match (
+                    ref_amino_acid == alt_amino_acid,
+                    ref_amino_acid,
+                    alt_amino_acid,
+                ) {
+                    (true, _, _) => Ok(Impact::Low),
+                    (false, _, AminoAcid::Stop) => Ok(Impact::High),
+                    (false, AminoAcid::Stop, _) => Ok(Impact::High),
+                    (false, AminoAcid::Methionine, _) => Ok(Impact::High), // TODO: Check if this is always automatic start lost or can Met occur anywhere in the protein?
+                    (false, _, _) => Ok(Impact::Modifier),
                 }
             }
             NodeType::Ref(_) => Ok(Impact::None),
@@ -676,7 +683,7 @@ mod tests {
     #[test]
     fn impact_identifies_modifier_for_different_ref_and_alt_amino_acids() {
         let node = Node::new(NodeType::Var("G".to_string()), 3);
-        let reference = b"ATATG";
+        let reference = b"ATTTG";
         let impact = node.impact(2, reference).unwrap();
         assert_eq!(impact, Impact::Modifier);
     }
@@ -700,5 +707,53 @@ mod tests {
         let node = Node::new(NodeType::Var("".to_string()), 2);
         let frameshift = node.frameshift();
         assert_eq!(frameshift, -1);
+    }
+
+    fn setup_variant_graph_with_nodes() -> VariantGraph {
+        let mut graph = Graph::<Node, Edge, Directed>::new();
+        let node1 = graph.add_node(Node::new(NodeType::Var("A".to_string()), 1));
+        let node2 = graph.add_node(Node::new(NodeType::Ref("".to_string()), 2));
+        let node3 = graph.add_node(Node::new(NodeType::Var("T".to_string()), 3));
+        VariantGraph {
+            graph,
+            start: 0,
+            end: 2,
+            target: "test".to_string(),
+        }
+    }
+
+    #[test]
+    fn impact_calculates_none_for_empty_path() {
+        let graph = setup_variant_graph_with_nodes();
+        let path = HaplotypePath(vec![]);
+        let impact = path.impact(&graph, 0, b"TTG").unwrap();
+        assert_eq!(impact, Impact::None);
+    }
+
+    #[test]
+    fn impact_calculates_correctly_for_single_variant_node() {
+        let mut graph = setup_variant_graph_with_nodes();
+        let node_index = graph.graph.node_indices().next().unwrap();
+        let path = HaplotypePath(vec![node_index]);
+        let impact = path.impact(&graph, 0, b"TTC").unwrap();
+        assert_eq!(impact, Impact::Modifier);
+    }
+
+    #[test]
+    fn impact_accumulates_over_multiple_nodes() {
+        let mut graph = setup_variant_graph_with_nodes();
+        let node_indices = graph.graph.node_indices().take(3).collect::<Vec<_>>();
+        let path = HaplotypePath(node_indices.clone());
+        let impact = path.impact(&graph, 0, b"TTCAAA").unwrap();
+        assert_eq!(impact, Impact::High);
+    }
+
+    #[test]
+    fn impact_handles_phase_shift_correctly() {
+        let mut graph = setup_variant_graph_with_nodes();
+        let node_index = graph.graph.node_indices().next().unwrap();
+        let path = HaplotypePath(vec![node_index]);
+        let impact = path.impact(&graph, 1, b"ATGA").unwrap();
+        assert_eq!(impact, Impact::High);
     }
 }
