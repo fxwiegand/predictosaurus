@@ -58,16 +58,19 @@ impl<'de> Deserialize<'de> for ObservationFile {
 
 #[cfg(test)]
 mod tests {
-    use clap::Parser;
     use super::*;
+    use clap::Parser;
 
     #[test]
     fn parsing_calls_path() {
         let args = Predictosaurus::parse_from([
             "",
-            "--calls", "path/to/calls.vcf",
-            "--features", "path/to/features.gff",
-            "--reference", "path/to/reference.fasta",
+            "--calls",
+            "path/to/calls.vcf",
+            "--features",
+            "path/to/features.gff",
+            "--reference",
+            "path/to/reference.fasta",
         ]);
         assert_eq!(args.calls, PathBuf::from("path/to/calls.vcf"));
     }
@@ -76,40 +79,61 @@ mod tests {
     fn parsing_single_observation_file() {
         let args = Predictosaurus::parse_from([
             "",
-            "--calls", "path/to/calls.vcf",
-            "--features", "path/to/features.gff",
-            "--reference", "path/to/reference.fasta",
-            "--observations", "sample1=observations1.vcf",
+            "--calls",
+            "path/to/calls.vcf",
+            "--features",
+            "path/to/features.gff",
+            "--reference",
+            "path/to/reference.fasta",
+            "--observations",
+            "sample1=observations1.vcf",
         ]);
         assert_eq!(args.observations.len(), 1);
         assert_eq!(args.observations[0].sample, "sample1");
-        assert_eq!(args.observations[0].path, PathBuf::from("observations1.vcf"));
+        assert_eq!(
+            args.observations[0].path,
+            PathBuf::from("observations1.vcf")
+        );
     }
 
     #[test]
     fn parsing_multiple_observation_files() {
         let args = Predictosaurus::parse_from([
             "",
-            "--calls", "path/to/calls.vcf",
-            "--features", "path/to/features.gff",
-            "--reference", "path/to/reference.fasta",
-            "--observations", "sample1=observations1.vcf",
-            "--observations", "sample2=observations2.vcf",
+            "--calls",
+            "path/to/calls.vcf",
+            "--features",
+            "path/to/features.gff",
+            "--reference",
+            "path/to/reference.fasta",
+            "--observations",
+            "sample1=observations1.vcf",
+            "--observations",
+            "sample2=observations2.vcf",
         ]);
         assert_eq!(args.observations.len(), 2);
         assert_eq!(args.observations[0].sample, "sample1");
-        assert_eq!(args.observations[0].path, PathBuf::from("observations1.vcf"));
+        assert_eq!(
+            args.observations[0].path,
+            PathBuf::from("observations1.vcf")
+        );
         assert_eq!(args.observations[1].sample, "sample2");
-        assert_eq!(args.observations[1].path, PathBuf::from("observations2.vcf"));
+        assert_eq!(
+            args.observations[1].path,
+            PathBuf::from("observations2.vcf")
+        );
     }
 
     #[test]
     fn parsing_features_path() {
         let args = Predictosaurus::parse_from([
             "",
-            "--calls", "path/to/calls.vcf",
-            "--features", "path/to/features.gff",
-            "--reference", "path/to/reference.fasta",
+            "--calls",
+            "path/to/calls.vcf",
+            "--features",
+            "path/to/features.gff",
+            "--reference",
+            "path/to/reference.fasta",
         ]);
         assert_eq!(args.features, PathBuf::from("path/to/features.gff"));
     }
@@ -118,9 +142,12 @@ mod tests {
     fn parsing_reference_path() {
         let args = Predictosaurus::parse_from([
             "",
-            "--calls", "path/to/calls.vcf",
-            "--features", "path/to/features.gff",
-            "--reference", "path/to/reference.fasta",
+            "--calls",
+            "path/to/calls.vcf",
+            "--features",
+            "path/to/features.gff",
+            "--reference",
+            "path/to/reference.fasta",
         ]);
         assert_eq!(args.reference, PathBuf::from("path/to/reference.fasta"));
     }
@@ -129,10 +156,14 @@ mod tests {
     fn parsing_output_path() {
         let args = Predictosaurus::parse_from([
             "",
-            "--calls", "path/to/calls.vcf",
-            "--features", "path/to/features.gff",
-            "--reference", "path/to/reference.fasta",
-            "--output", "path/to/output",
+            "--calls",
+            "path/to/calls.vcf",
+            "--features",
+            "path/to/features.gff",
+            "--reference",
+            "path/to/reference.fasta",
+            "--output",
+            "path/to/output",
         ]);
         assert_eq!(args.output, PathBuf::from("path/to/output"));
     }
@@ -141,9 +172,12 @@ mod tests {
     fn parsing_default_output_path() {
         let args = Predictosaurus::parse_from([
             "",
-            "--calls", "path/to/calls.vcf",
-            "--features", "path/to/features.gff",
-            "--reference", "path/to/reference.fasta",
+            "--calls",
+            "path/to/calls.vcf",
+            "--features",
+            "path/to/features.gff",
+            "--reference",
+            "path/to/reference.fasta",
         ]);
         assert_eq!(args.output, PathBuf::from("."));
     }
