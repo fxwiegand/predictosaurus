@@ -388,7 +388,7 @@ impl Node {
                 ]
                 .concat();
                 AminoAcid::from_codon(
-                    transcription::transcribe_dna_to_rna(&alt_codon_bases)?.as_ref(),
+                    transcription::transcribe_dna_to_rna(&alt_codon_bases[..3])?.as_ref(), // TODO: How do we want to consider insertions greater than 2 that will span multiple codons?
                 )
             }
             _ => {
@@ -688,6 +688,14 @@ mod tests {
     }
 
     #[test]
+    fn test_variant_amino_acid_with_insertion() {
+        let node = Node::new(NodeType::Var("GG".to_string()), 1);
+        let reference = b"ATC";
+        let arg = node.variant_amino_acid(0, reference).unwrap();
+        assert_eq!(arg, AminoAcid::Arginine);
+    }
+
+    #[test]
     fn test_reference_amino_acid_with_different_phases() {
         let node = Node::new(NodeType::Ref("".to_string()), 2);
         let reference = b"ATGCGCGTA";
@@ -749,6 +757,7 @@ mod tests {
         let node3 = graph.add_node(Node::new(NodeType::Var("T".to_string()), 3));
         let node4 = graph.add_node(Node::new(NodeType::Var("".to_string()), 4));
         let node5 = graph.add_node(Node::new(NodeType::Var("A".to_string()), 8));
+        let node6 = graph.add_node(Node::new(NodeType::Var("TT".to_string()), 9));
         VariantGraph {
             graph,
             start: 0,
@@ -810,5 +819,20 @@ mod tests {
                 .to_string()
         );
         assert_eq!(impact, Impact::High);
+    }
+
+    #[test]
+    fn impact_handles_phase_shift_caused_by_frameshift_2() {
+        let mut graph = setup_variant_graph_with_nodes();
+        let node_indices = graph.graph.node_indices().skip(3).take(3).collect_vec();
+        let path = HaplotypePath(vec![node_indices[0], node_indices[2]]);
+        let impact = path.impact(&graph, 0, b"GGGAAATTTAAC").unwrap();
+        println!(
+            "{}",
+            path.display(&graph, 0, b"GGGAAATTTAAC")
+                .unwrap()
+                .to_string()
+        );
+        assert_eq!(impact, Impact::Modifier);
     }
 }
