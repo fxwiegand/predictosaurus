@@ -21,6 +21,7 @@ fn main() -> Result<()> {
 
     utils::create_output_dir(&output_file)?;
 
+    println!("Reading reference genome from {:?}", args.reference);
     let reference_genome = utils::fasta::read_reference(&args.reference);
 
     let mut feature_reader = gff::Reader::from_file(features_file, GffType::GFF3).unwrap();
@@ -31,6 +32,7 @@ fn main() -> Result<()> {
     {
         let start = *record.start() as i64;
         let end = *record.end() as i64;
+        println!("Building variant graph for CDS at {}:{}-{}", record.seqname(), start, end);
         let variant_graph = VariantGraph::build(
             &calls_file,
             &observation_files,
@@ -46,10 +48,14 @@ fn main() -> Result<()> {
             )
             .as_str(),
         );
-        println!("{:?}", record);
         let paths = variant_graph.paths();
         for path in paths {
-            println!("{:?}", path.impact(&variant_graph, phase, &ref_seq,));
+            println!(
+                "Path with impact {} and weight {}",
+                path.impact(&variant_graph, phase, &ref_seq,).unwrap(),
+                path.weight(&variant_graph)
+            );
+            println!();
         }
     }
     Ok(())

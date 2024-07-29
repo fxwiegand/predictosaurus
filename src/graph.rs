@@ -283,6 +283,19 @@ impl HaplotypePath {
         Ok(impact)
     }
 
+    pub(crate) fn weight(&self, graph: &VariantGraph) -> f32 {
+        self.0
+            .iter()
+            .filter(|n| graph.graph.node_weight(**n).unwrap().node_type.is_variant())
+            .map(|n| {
+                let node = graph.graph.node_weight(*n).unwrap();
+                let vaf_values: Vec<f32> = node.vaf.values().cloned().collect();
+                let weight = vaf_values.iter().sum::<f32>() / vaf_values.len() as f32;
+                weight
+            })
+            .product()
+    }
+
     pub(crate) fn display(
         &self,
         graph: &VariantGraph,
@@ -313,6 +326,15 @@ impl HaplotypePath {
 pub(crate) enum NodeType {
     Var(String),
     Ref(String),
+}
+
+impl NodeType {
+    pub(crate) fn is_variant(&self) -> bool {
+        match self {
+            NodeType::Var(_) => true,
+            NodeType::Ref(_) => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -812,12 +834,6 @@ mod tests {
             .collect::<Vec<_>>();
         let path = HaplotypePath(node_indices.clone());
         let impact = path.impact(&graph, 0, b"GGGAAATTTAAA").unwrap();
-        println!(
-            "{}",
-            path.display(&graph, 0, b"GGGAAATTTAAA")
-                .unwrap()
-                .to_string()
-        );
         assert_eq!(impact, Impact::High);
     }
 
@@ -827,12 +843,18 @@ mod tests {
         let node_indices = graph.graph.node_indices().skip(3).take(3).collect_vec();
         let path = HaplotypePath(vec![node_indices[0], node_indices[2]]);
         let impact = path.impact(&graph, 0, b"GGGAAATTTAAC").unwrap();
-        println!(
-            "{}",
-            path.display(&graph, 0, b"GGGAAATTTAAC")
-                .unwrap()
-                .to_string()
-        );
         assert_eq!(impact, Impact::Modifier);
+    }
+
+    #[test]
+    fn is_variant_returns_true_for_variant_node() {
+        let node_type = NodeType::Var("A".to_string());
+        assert!(node_type.is_variant());
+    }
+
+    #[test]
+    fn is_variant_returns_false_for_reference_node() {
+        let node_type = NodeType::Ref("A".to_string());
+        assert!(!node_type.is_variant());
     }
 }
