@@ -32,7 +32,12 @@ fn main() -> Result<()> {
     {
         let start = *record.start() as i64;
         let end = *record.end() as i64;
-        println!("Building variant graph for CDS at {}:{}-{}", record.seqname(), start, end);
+        println!(
+            "Building variant graph for CDS at {}:{}-{}",
+            record.seqname(),
+            start,
+            end
+        );
         let variant_graph = VariantGraph::build(
             &calls_file,
             &observation_files,
