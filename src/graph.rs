@@ -264,6 +264,15 @@ impl VariantGraph {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct HaplotypePath(pub(crate) Vec<NodeIndex>);
 
+fn shift_phase(phase: u8, frameshift: u8) -> u8 {
+    match phase {
+        0 => [0, 2, 1][frameshift as usize],
+        1 => [1, 0, 2][frameshift as usize],
+        2 => [2, 1, 0][frameshift as usize],
+        _ => unreachable!(),
+    }
+}
+
 impl HaplotypePath {
     pub(crate) fn impact(
         &self,
@@ -277,7 +286,7 @@ impl HaplotypePath {
         for node_index in self.0.iter() {
             let node = graph.graph.node_weight(*node_index).unwrap();
             let new_impact = node.impact(ref_phase, phase, reference)?;
-            phase = (phase as i64 + (node.frameshift().abs()) % 3) as u8;
+            phase = shift_phase(phase, ((node.frameshift() + 3) % 3) as u8);
             impact = max(impact, new_impact);
         }
         Ok(impact)
@@ -315,7 +324,7 @@ impl HaplotypePath {
                 alt_amino_acid,
                 node.impact(ref_phase, phase, reference)?
             ));
-            phase = (phase as i64 + (node.frameshift().abs()) % 3) as u8;
+            phase = shift_phase(phase, ((node.frameshift() + 3) % 3) as u8);
         }
         Ok(protein)
     }
@@ -409,6 +418,8 @@ impl Node {
                     &ref_codon_bases[position_in_codon as usize + 1..],
                 ]
                 .concat();
+                println!("Ref: {:?}", String::from_utf8_lossy(&ref_codon_bases));
+                println!("Alt: {:?}", String::from_utf8_lossy(&alt_codon_bases));
                 AminoAcid::from_codon(
                     transcription::transcribe_dna_to_rna(&alt_codon_bases[..3])?.as_ref(), // TODO: How do we want to consider insertions greater than 2 that will span multiple codons?
                 )
@@ -713,8 +724,13 @@ mod tests {
     #[test]
     fn test_variant_amino_acid_with_insertion() {
         let node = Node::new(NodeType::Var("GG".to_string()), 1);
-        let reference = b"ATC";
+        let reference = b"ATCTCT";
         let arg = node.variant_amino_acid(0, reference).unwrap();
+        assert_eq!(arg, AminoAcid::Arginine);
+        let gly = node.variant_amino_acid(1, reference).unwrap();
+        assert_eq!(gly, AminoAcid::Glycine);
+        let node_2 = Node::new(NodeType::Var("GG".to_string()), 3);
+        let arg = node_2.variant_amino_acid(2, reference).unwrap();
         assert_eq!(arg, AminoAcid::Arginine);
     }
 
@@ -865,6 +881,24 @@ mod tests {
         let node_indices = graph.graph.node_indices().collect_vec();
         let path = HaplotypePath(node_indices.clone());
         let impact = path.impact(&graph, 0, b"ATGAAATGGAT").unwrap();
+        assert_eq!(impact, Impact::High);
+    }
+
+    #[test]
+    fn impact_handles_phase_shift_caused_by_big_frameshift() {
+        let mut graph = Graph::<Node, Edge, Directed>::new();
+        let node1 = graph.add_node(Node::new(NodeType::Var("TTTTT".to_string()), 1));
+        let node2 = graph.add_node(Node::new(NodeType::Var("GG".to_string()), 7));
+        let graph = VariantGraph {
+            graph,
+            start: 0,
+            end: 20,
+            target: "test".to_string(),
+        };
+        let node_indices = graph.graph.node_indices().collect_vec();
+        let path = HaplotypePath(node_indices.clone());
+        let impact = path.impact(&graph, 0, b"TGTTTTTAATTT").unwrap();
+        println!("{}", path.display(&graph, 0, b"TGTTTTTAATTT").unwrap());
         assert_eq!(impact, Impact::High);
     }
 
