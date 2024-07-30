@@ -477,6 +477,7 @@ pub(crate) fn nodes_in_between(node1: &u32, node2: &u32, nodes: Vec<&u32>) -> us
 // test node distance
 #[cfg(test)]
 mod tests {
+    use std::fs;
     use super::*;
     use petgraph::{Directed, Graph};
     use rust_htslib::bcf::{Read, Reader};
@@ -893,5 +894,24 @@ mod tests {
         let path = HaplotypePath(vec![NodeIndex::new(0), NodeIndex::new(2)]);
         let result = path.display(&graph, 0, b"ATGCGT").unwrap();
         assert_eq!(result, "Met -> Lys (High)\nArg -> Cys (Modifier)\n");
+    }
+
+    #[test]
+    fn to_dot_generates_correct_dot_representation() {
+        let graph = setup_variant_graph_with_nodes();
+        let dot_output = graph.to_dot();
+        assert!(dot_output.contains("digraph {"));
+        assert!(dot_output.contains("}"));
+    }
+
+    #[test]
+    fn to_file_writes_dot_file_correctly() {
+        let graph = setup_variant_graph_with_nodes();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let file_path = temp_dir.path().join("graph.dot");
+        graph.to_file(&temp_dir.path()).unwrap();
+        let written_content = fs::read_to_string(file_path).unwrap();
+        assert!(written_content.contains("digraph {"));
+        assert!(written_content.contains("}"));
     }
 }
