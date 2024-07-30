@@ -716,15 +716,19 @@ mod tests {
     #[test]
     fn test_variant_amino_acid_with_deletion() {
         let node = Node::new(NodeType::Var("".to_string()), 2);
-        let reference = b"ATGC";
+        let reference = b"ATGCCGT";
         let ile = node.variant_amino_acid(0, reference).unwrap();
         assert_eq!(ile, AminoAcid::Isoleucine);
+        let ser = node.variant_amino_acid(1, reference).unwrap();
+        assert_eq!(ser, AminoAcid::Serine);
+        let pro = node.variant_amino_acid(2, reference).unwrap();
+        assert_eq!(pro, AminoAcid::Proline);
     }
 
     #[test]
-    fn test_variant_amino_acid_with_insertion() {
+    fn test_variant_amino_acid_with_one_inserted_base() {
         let node = Node::new(NodeType::Var("GG".to_string()), 1);
-        let reference = b"ATCTCT";
+        let reference = b"AGCTCT";
         let arg = node.variant_amino_acid(0, reference).unwrap();
         assert_eq!(arg, AminoAcid::Arginine);
         let gly = node.variant_amino_acid(1, reference).unwrap();
@@ -732,6 +736,18 @@ mod tests {
         let node_2 = Node::new(NodeType::Var("GG".to_string()), 3);
         let arg = node_2.variant_amino_acid(2, reference).unwrap();
         assert_eq!(arg, AminoAcid::Arginine);
+    }
+
+    #[test]
+    fn test_variant_amino_acid_with_two_inserted_bases() {
+        let node = Node::new(NodeType::Var("TCC".to_string()), 4);
+        let reference = b"ATCATCATC";
+        let ile = node.variant_amino_acid(0, reference).unwrap();
+        assert_eq!(ile, AminoAcid::Isoleucine);
+        let ser = node.variant_amino_acid(1, reference).unwrap();
+        assert_eq!(ser, AminoAcid::Serine);
+        let his = node.variant_amino_acid(2, reference).unwrap();
+        assert_eq!(his, AminoAcid::Histidine);
     }
 
     #[test]
