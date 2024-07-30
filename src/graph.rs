@@ -289,8 +289,8 @@ impl HaplotypePath {
             .filter(|n| graph.graph.node_weight(**n).unwrap().node_type.is_variant())
             .map(|n| {
                 let node = graph.graph.node_weight(*n).unwrap();
-                let vaf_values: Vec<f32> = node.vaf.values().cloned().collect();
-                let weight = vaf_values.iter().sum::<f32>() / vaf_values.len() as f32;
+                let vaf_sum: f32 = node.vaf.values().sum();
+                let weight = vaf_sum / node.vaf.values().len() as f32;
                 weight
             })
             .product()
