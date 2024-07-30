@@ -846,6 +846,27 @@ mod tests {
         assert_eq!(impact, Impact::Modifier);
     }
 
+    fn setup_variant_graph_with_nodes_2() -> VariantGraph {
+        let mut graph = Graph::<Node, Edge, Directed>::new();
+        let node1 = graph.add_node(Node::new(NodeType::Var("AA".to_string()), 1));
+        let node2 = graph.add_node(Node::new(NodeType::Var("".to_string()), 7));
+        VariantGraph {
+            graph,
+            start: 0,
+            end: 2,
+            target: "test".to_string(),
+        }
+    }
+
+    #[test]
+    fn impact_handles_phase_shift_caused_by_frameshift_3() {
+        let mut graph = setup_variant_graph_with_nodes_2();
+        let node_indices = graph.graph.node_indices().collect_vec();
+        let path = HaplotypePath(node_indices.clone());
+        let impact = path.impact(&graph, 0, b"ATGAAATGGAT").unwrap();
+        assert_eq!(impact, Impact::High);
+    }
+
     #[test]
     fn is_variant_returns_true_for_variant_node() {
         let node_type = NodeType::Var("A".to_string());
@@ -856,5 +877,21 @@ mod tests {
     fn is_variant_returns_false_for_reference_node() {
         let node_type = NodeType::Ref("A".to_string());
         assert!(!node_type.is_variant());
+    }
+
+    #[test]
+    fn display_returns_correct_protein_string_for_single_node() {
+        let graph = setup_variant_graph_with_nodes();
+        let path = HaplotypePath(vec![NodeIndex::new(0)]);
+        let result = path.display(&graph, 0, b"ATG").unwrap();
+        assert_eq!(result, "Met -> Lys (High)\n");
+    }
+
+    #[test]
+    fn display_returns_correct_protein_string_for_multiple_nodes() {
+        let graph = setup_variant_graph_with_nodes();
+        let path = HaplotypePath(vec![NodeIndex::new(0), NodeIndex::new(2)]);
+        let result = path.display(&graph, 0, b"ATGCGT").unwrap();
+        assert_eq!(result, "Met -> Lys (High)\nArg -> Cys (Modifier)\n");
     }
 }
