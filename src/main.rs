@@ -1,6 +1,7 @@
 use crate::cli::Predictosaurus;
 use crate::graph::VariantGraph;
 use anyhow::Result;
+use bio::bio_types::strand::Strand;
 use bio::io::gff;
 use bio::io::gff::GffType;
 use clap::Parser;
@@ -46,13 +47,22 @@ fn main() -> Result<()> {
             end,
         )?;
         let phase: u8 = record.phase().clone().try_into().expect("Invalid phase");
-        let ref_seq = reference_genome.get(record.seqname()).expect(
+        let strand = record.strand().expect("Strand not found");
+        let forward_seq = reference_genome.get(record.seqname()).expect(
             format!(
                 "Reference sequence {} not found in provided FASTA file",
                 record.seqname()
             )
             .as_str(),
         );
+        let ref_seq = match strand {
+            Strand::Forward => forward_seq,
+            Strand::Reverse => &{ utils::fasta::reverse_complement(forward_seq) },
+            Strand::Unknown => {
+                panic!("Strand is unknown")
+            }
+        };
+
         let paths = variant_graph.paths();
         for path in paths {
             println!(
