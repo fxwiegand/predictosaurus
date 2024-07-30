@@ -477,10 +477,10 @@ pub(crate) fn nodes_in_between(node1: &u32, node2: &u32, nodes: Vec<&u32>) -> us
 // test node distance
 #[cfg(test)]
 mod tests {
-    use std::fs;
     use super::*;
     use petgraph::{Directed, Graph};
     use rust_htslib::bcf::{Read, Reader};
+    use std::fs;
 
     #[test]
     fn test_nodes_in_between() {
