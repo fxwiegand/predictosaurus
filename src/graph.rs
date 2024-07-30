@@ -964,4 +964,31 @@ mod tests {
         assert!(written_content.contains("digraph {"));
         assert!(written_content.contains("}"));
     }
+
+    #[test]
+    fn shift_phase_no_frameshift() {
+        assert_eq!(shift_phase(0, 0), 0);
+        assert_eq!(shift_phase(1, 0), 1);
+        assert_eq!(shift_phase(2, 0), 2);
+    }
+
+    #[test]
+    fn shift_phase_with_frameshift_1() {
+        assert_eq!(shift_phase(0, 1), 2);
+        assert_eq!(shift_phase(1, 1), 0);
+        assert_eq!(shift_phase(2, 1), 1);
+    }
+
+    #[test]
+    fn shift_phase_with_frameshift_2() {
+        assert_eq!(shift_phase(0, 2), 1);
+        assert_eq!(shift_phase(1, 2), 2);
+        assert_eq!(shift_phase(2, 2), 0);
+    }
+
+    #[test]
+    #[should_panic]
+    fn shift_phase_invalid_phase() {
+        shift_phase(3, 1);
+    }
 }
