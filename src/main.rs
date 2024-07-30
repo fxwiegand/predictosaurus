@@ -48,13 +48,12 @@ fn main() -> Result<()> {
         )?;
         let phase: u8 = record.phase().clone().try_into().expect("Invalid phase");
         let strand = record.strand().expect("Strand not found");
-        let forward_seq = reference_genome.get(record.seqname()).expect(
-            format!(
+        let forward_seq = reference_genome.get(record.seqname()).unwrap_or_else(|| {
+            panic!(
                 "Reference sequence {} not found in provided FASTA file",
                 record.seqname()
             )
-            .as_str(),
-        );
+        });
         let ref_seq = match strand {
             Strand::Forward => forward_seq,
             Strand::Reverse => &{ utils::fasta::reverse_complement(forward_seq) },
@@ -67,7 +66,7 @@ fn main() -> Result<()> {
         for path in paths {
             println!(
                 "Path with impact {} and weight {}",
-                path.impact(&variant_graph, phase, &ref_seq,).unwrap(),
+                path.impact(&variant_graph, phase, ref_seq,).unwrap(),
                 path.weight(&variant_graph)
             );
             println!();

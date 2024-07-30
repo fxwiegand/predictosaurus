@@ -26,3 +26,6 @@ tempfile = "3.10.1"
 
 [profile.release]
 lto = "fat"
+
+[lints.rust]
+unused = "allow"
