@@ -1,6 +1,6 @@
 use crate::cli::Predictosaurus;
 use crate::graph::VariantGraph;
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use bio::bio_types::strand::Strand;
 use bio::io::gff;
 use bio::io::gff::GffType;
@@ -25,7 +25,8 @@ fn main() -> Result<()> {
     println!("Reading reference genome from {:?}", args.reference);
     let reference_genome = utils::fasta::read_reference(&args.reference);
 
-    let mut feature_reader = gff::Reader::from_file(features_file, GffType::GFF3).unwrap();
+    let mut feature_reader =
+        gff::Reader::from_file(features_file, GffType::GFF3).context("Failed to open GFF file")?;
     for record in feature_reader
         .records()
         .filter_map(Result::ok)
@@ -46,19 +47,30 @@ fn main() -> Result<()> {
             start,
             end,
         )?;
-        let phase: u8 = record.phase().clone().try_into().expect("Invalid phase");
+        let phase: u8 = record.phase().clone().try_into().map_err(|_| {
+            anyhow!(
+                "Invalid phase value '{:?}' for CDS at {}:{}-{}",
+                record.phase(),
+                record.seqname(),
+                start,
+                end
+            )
+        })?;
         let strand = record.strand().expect("Strand not found");
-        let forward_seq = reference_genome.get(record.seqname()).unwrap_or_else(|| {
-            panic!(
+        let forward_seq = reference_genome.get(record.seqname()).ok_or_else(|| {
+            anyhow!(
                 "Reference sequence {} not found in provided FASTA file",
                 record.seqname()
             )
-        });
+        })?;
         let ref_seq = match strand {
             Strand::Forward => forward_seq,
             Strand::Reverse => &{ utils::fasta::reverse_complement(forward_seq) },
             Strand::Unknown => {
-                panic!("Strand is unknown")
+                return Err(anyhow!(
+                    "Strand is unknown for sequence {}",
+                    record.seqname()
+                ));
             }
         };
 
