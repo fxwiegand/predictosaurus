@@ -418,8 +418,6 @@ impl Node {
                     &ref_codon_bases[position_in_codon as usize + 1..],
                 ]
                 .concat();
-                println!("Ref: {:?}", String::from_utf8_lossy(&ref_codon_bases));
-                println!("Alt: {:?}", String::from_utf8_lossy(&alt_codon_bases));
                 AminoAcid::from_codon(
                     transcription::transcribe_dna_to_rna(&alt_codon_bases[..3])?.as_ref(), // TODO: How do we want to consider insertions greater than 2 that will span multiple codons?
                 )
