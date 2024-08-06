@@ -81,6 +81,7 @@ fn main() -> Result<()> {
                 path.impact(&variant_graph, phase, ref_seq,).unwrap(),
                 path.weight(&variant_graph)
             );
+            println!("{}", path.display(&variant_graph, phase, ref_seq).unwrap());
             println!();
         }
     }

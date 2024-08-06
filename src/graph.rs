@@ -316,6 +316,9 @@ impl HaplotypePath {
         let mut protein = String::new();
         for node_index in self.0.iter() {
             let node = graph.graph.node_weight(*node_index).unwrap();
+            if let NodeType::Ref(_) = node.node_type {
+                continue;
+            }
             let ref_amino_acid = node.reference_amino_acid(ref_phase, reference)?;
             let alt_amino_acid = node.variant_amino_acid(phase, reference)?;
             protein.push_str(&format!(
