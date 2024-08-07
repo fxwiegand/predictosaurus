@@ -22,7 +22,7 @@ serde_json = "1.0.115"
 colored = "2"
 
 [dev-dependencies]
-tempfile = "3.10.1"
+tempfile = "3.12.0"
 
 [profile.release]
 lto = "fat"
