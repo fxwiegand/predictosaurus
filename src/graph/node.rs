@@ -74,6 +74,11 @@ impl Node {
         }
     }
 
+    /// Returns the 0-based position of the node on the reverse strand.
+    pub(crate) fn position_on_reverse_strand(&self, reference_length: usize) -> i64 {
+        (reference_length as i64 - 1) - self.pos
+    }
+
     pub(crate) fn reference_amino_acid(
         &self,
         phase: u8,
@@ -432,5 +437,33 @@ mod tests {
         let node = Node::new(NodeType::Var("".to_string()), 2);
         let frameshift = node.frameshift();
         assert_eq!(frameshift, -1);
+    }
+
+    #[test]
+    fn position_on_reverse_strand_calculates_correctly_for_position() {
+        let node = Node::new(NodeType::Ref("".to_string()), 5);
+        let reference_length = 10;
+        assert_eq!(node.position_on_reverse_strand(reference_length), 4);
+    }
+
+    #[test]
+    fn position_on_reverse_strand_calculates_correctly_for_middle_position() {
+        let node = Node::new(NodeType::Ref("".to_string()), 4);
+        let reference_length = 9;
+        assert_eq!(node.position_on_reverse_strand(reference_length), 4);
+    }
+
+    #[test]
+    fn position_on_reverse_strand_calculates_correctly_for_start_position() {
+        let node = Node::new(NodeType::Ref("".to_string()), 0);
+        let reference_length = 10;
+        assert_eq!(node.position_on_reverse_strand(reference_length), 9);
+    }
+
+    #[test]
+    fn position_on_reverse_strand_calculates_correctly_for_end_position() {
+        let node = Node::new(NodeType::Ref("".to_string()), 10);
+        let reference_length = 11;
+        assert_eq!(node.position_on_reverse_strand(reference_length), 0);
     }
 }
