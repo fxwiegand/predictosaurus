@@ -28,7 +28,7 @@ impl NodeType {
 pub(crate) struct Node {
     pub(crate) node_type: NodeType,
     pub(crate) vaf: HashMap<String, f32>,
-    probs: EventProbs,
+    pub(crate) probs: EventProbs,
     pub(crate) pos: i64,
     pub(crate) index: u32,
 }

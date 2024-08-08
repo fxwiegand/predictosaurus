@@ -1,5 +1,6 @@
 use crate::graph::{shift_phase, NodeType, VariantGraph};
 use crate::impact::Impact;
+use itertools::Itertools;
 use petgraph::graph::NodeIndex;
 use std::cmp::max;
 
@@ -25,17 +26,16 @@ impl HaplotypePath {
         Ok(impact)
     }
 
-    pub(crate) fn weight(&self, graph: &VariantGraph) -> f32 {
+    pub(crate) fn weights(&self, graph: &VariantGraph, sample: String) -> Vec<f32> {
         self.0
             .iter()
             .filter(|n| graph.graph.node_weight(**n).unwrap().node_type.is_variant())
             .map(|n| {
                 let node = graph.graph.node_weight(*n).unwrap();
-                let vaf_sum: f32 = node.vaf.values().sum();
-                let weight = vaf_sum / node.vaf.values().len() as f32;
-                weight
+                println!("{:?}", node.vaf);
+                node.vaf.get(&sample).cloned().unwrap()
             })
-            .product()
+            .collect_vec()
     }
 
     pub(crate) fn display(
@@ -63,5 +63,47 @@ impl HaplotypePath {
             phase = shift_phase(phase, ((node.frameshift() + 3) % 3) as u8);
         }
         Ok(protein)
+    }
+}
+
+mod tests {
+    use crate::graph::node::{Node, NodeType};
+    use crate::graph::paths::HaplotypePath;
+    use crate::graph::{Edge, EventProbs, VariantGraph};
+    use petgraph::{Directed, Graph};
+    use std::collections::HashMap;
+
+    #[test]
+    fn weights_returns_correct_values_for_multiple_variant_nodes() {
+        let mut graph = Graph::<Node, Edge, Directed>::new();
+        let mut vaf1 = HashMap::new();
+        vaf1.insert("sample".to_string(), 0.5);
+        let node1 = graph.add_node(Node {
+            node_type: NodeType::Var("A".to_string()),
+            vaf: vaf1,
+            probs: EventProbs(HashMap::new()),
+            pos: 1,
+            index: 0,
+        });
+
+        let mut vaf2 = HashMap::new();
+        vaf2.insert("sample".to_string(), 0.7);
+        let node2 = graph.add_node(Node {
+            node_type: NodeType::Var("A".to_string()),
+            vaf: vaf2,
+            probs: EventProbs(HashMap::new()),
+            pos: 1,
+            index: 0,
+        });
+
+        let path = HaplotypePath(vec![node1, node2]);
+        let variant_graph = VariantGraph {
+            graph,
+            start: 0,
+            end: 2,
+            target: "test".to_string(),
+        };
+        let weights = path.weights(&variant_graph, "sample".to_string());
+        assert_eq!(weights, vec![0.5, 0.7]);
     }
 }

@@ -284,7 +284,7 @@ fn shift_phase(phase: u8, frameshift: u8) -> u8 {
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)] // TODO: Remove this attribute when graph is properly serialized
-struct EventProbs(HashMap<String, f32>);
+pub(crate) struct EventProbs(HashMap<String, f32>);
 
 impl EventProbs {
     fn from_record(record: &Record, tags: &Vec<String>) -> Self {

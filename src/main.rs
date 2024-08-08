@@ -77,9 +77,8 @@ fn main() -> Result<()> {
         let paths = variant_graph.paths();
         for path in paths {
             println!(
-                "Path with impact {} and weight {}",
+                "Path with impact {}",
                 path.impact(&variant_graph, phase, ref_seq,).unwrap(),
-                path.weight(&variant_graph)
             );
             println!("{}", path.display(&variant_graph, phase, ref_seq).unwrap());
             println!();
