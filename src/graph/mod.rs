@@ -261,6 +261,13 @@ impl VariantGraph {
         all_paths
     }
 
+    pub(crate) fn reverse_paths(&self) -> Vec<HaplotypePath> {
+        self.paths()
+            .iter()
+            .map(|path| HaplotypePath(path.0.iter().rev().cloned().collect()))
+            .collect()
+    }
+
     pub(crate) fn is_empty(&self) -> bool {
         self.graph.node_count() == 0
     }
@@ -405,6 +412,56 @@ mod tests {
         ];
 
         assert_eq!(paths, expected_paths);
+    }
+
+    #[test]
+    fn test_graph_reverse_paths() {
+        let mut graph = Graph::<Node, Edge, Directed>::new();
+        let node0 = graph.add_node(Node::new(NodeType::Ref("A".to_string()), 1));
+        let node1 = graph.add_node(Node::new(NodeType::Var("A".to_string()), 1));
+        let node2 = graph.add_node(Node::new(NodeType::Var("T".to_string()), 2));
+        let node3 = graph.add_node(Node::new(NodeType::Var("G".to_string()), 2));
+        let node4 = graph.add_node(Node::new(NodeType::Var("G".to_string()), 3));
+        graph.add_edge(
+            node1,
+            node2,
+            Edge {
+                supporting_reads: HashMap::new(),
+            },
+        );
+        graph.add_edge(
+            node1,
+            node3,
+            Edge {
+                supporting_reads: HashMap::new(),
+            },
+        );
+        graph.add_edge(
+            node2,
+            node4,
+            Edge {
+                supporting_reads: HashMap::new(),
+            },
+        );
+        graph.add_edge(
+            node3,
+            node4,
+            Edge {
+                supporting_reads: HashMap::new(),
+            },
+        );
+
+        let variant_graph = VariantGraph {
+            graph,
+            start: 0,
+            end: 3,
+            target: "test".to_string(),
+        };
+
+        let reversed_paths = variant_graph.reverse_paths();
+        assert_eq!(reversed_paths.len(), 2);
+        assert_eq!(reversed_paths[0].0, vec![node4, node2, node1]);
+        assert_eq!(reversed_paths[1].0, vec![node4, node3, node1]);
     }
 
     #[test]
