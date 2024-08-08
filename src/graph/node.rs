@@ -2,6 +2,7 @@ use crate::graph::EventProbs;
 use crate::impact::Impact;
 use crate::transcription;
 use crate::translation::amino_acids::AminoAcid;
+use itertools::Itertools;
 use rust_htslib::bcf::Record;
 use std::collections::HashMap;
 use varlociraptor::variants::evidence::observations::read_observation::ProcessedReadObservation;
@@ -85,11 +86,11 @@ impl Node {
         )
     }
 
-    pub(crate) fn variant_amino_acid(
+    pub(crate) fn variant_amino_acids(
         &self,
         phase: u8,
         reference: &[u8],
-    ) -> anyhow::Result<AminoAcid> {
+    ) -> anyhow::Result<Vec<AminoAcid>> {
         match &self.node_type {
             NodeType::Var(alt_allele) => {
                 let start_pos = self.pos as usize - ((self.pos - phase as i64) % 3) as usize;
@@ -102,9 +103,11 @@ impl Node {
                     &ref_codon_bases[position_in_codon as usize + 1..],
                 ]
                 .concat();
-                AminoAcid::from_codon(
-                    transcription::transcribe_dna_to_rna(&alt_codon_bases[..3])?.as_ref(), // TODO: How do we want to consider insertions greater than 2 that will span multiple codons?
-                )
+                Ok(transcription::transcribe_dna_to_rna(&alt_codon_bases)?
+                    .iter()
+                    .tuples::<(_, _, _)>()
+                    .map(|codon| AminoAcid::from_codon(&[*codon.0, *codon.1, *codon.2]).unwrap())
+                    .collect_vec())
             }
             _ => {
                 unreachable!("Reference node type has no variant amino acid")
@@ -121,9 +124,10 @@ impl Node {
         match &self.node_type {
             NodeType::Var(_) => {
                 let ref_amino_acid = self.reference_amino_acid(ref_phase, reference)?;
-                let alt_amino_acid = self.variant_amino_acid(phase, reference)?;
-                match (
-                    ref_amino_acid == alt_amino_acid,
+                let alt_amino_acids = self.variant_amino_acids(phase, reference)?;
+                let alt_amino_acid = alt_amino_acids.first().unwrap();
+                let impact = match (
+                    ref_amino_acid == *alt_amino_acid,
                     ref_amino_acid,
                     alt_amino_acid,
                 ) {
@@ -132,7 +136,13 @@ impl Node {
                     (false, AminoAcid::Stop, _) => Ok(Impact::High),
                     (false, AminoAcid::Methionine, _) => Ok(Impact::High), // TODO: Check if this is always automatic start lost or can Met occur anywhere in the protein?
                     (false, _, _) => Ok(Impact::Modifier),
+                };
+                for amino_acid in alt_amino_acids {
+                    if amino_acid == AminoAcid::Stop {
+                        return Ok(Impact::High);
+                    }
                 }
+                impact
             }
             NodeType::Ref(_) => Ok(Impact::None),
         }
@@ -269,11 +279,26 @@ mod tests {
     fn test_variant_amino_acid_with_different_phases() {
         let node = Node::new(NodeType::Var("A".to_string()), 2);
         let reference = b"ATGCGCGTA";
-        let ile = node.variant_amino_acid(0, reference).unwrap();
+        let ile = node
+            .variant_amino_acids(0, reference)
+            .unwrap()
+            .first()
+            .unwrap()
+            .to_owned();
         assert_eq!(ile, AminoAcid::Isoleucine);
-        let tyr = node.variant_amino_acid(1, reference).unwrap();
+        let tyr = node
+            .variant_amino_acids(1, reference)
+            .unwrap()
+            .first()
+            .unwrap()
+            .to_owned();
         assert_eq!(tyr, AminoAcid::Tyrosine);
-        let thr = node.variant_amino_acid(2, reference).unwrap();
+        let thr = node
+            .variant_amino_acids(2, reference)
+            .unwrap()
+            .first()
+            .unwrap()
+            .to_owned();
         assert_eq!(thr, AminoAcid::Threonine);
     }
 
@@ -281,11 +306,26 @@ mod tests {
     fn test_variant_amino_acid_with_deletion() {
         let node = Node::new(NodeType::Var("".to_string()), 2);
         let reference = b"ATGCCGT";
-        let ile = node.variant_amino_acid(0, reference).unwrap();
+        let ile = node
+            .variant_amino_acids(0, reference)
+            .unwrap()
+            .first()
+            .unwrap()
+            .to_owned();
         assert_eq!(ile, AminoAcid::Isoleucine);
-        let ser = node.variant_amino_acid(1, reference).unwrap();
+        let ser = node
+            .variant_amino_acids(1, reference)
+            .unwrap()
+            .first()
+            .unwrap()
+            .to_owned();
         assert_eq!(ser, AminoAcid::Serine);
-        let pro = node.variant_amino_acid(2, reference).unwrap();
+        let pro = node
+            .variant_amino_acids(2, reference)
+            .unwrap()
+            .first()
+            .unwrap()
+            .to_owned();
         assert_eq!(pro, AminoAcid::Proline);
     }
 
@@ -293,12 +333,27 @@ mod tests {
     fn test_variant_amino_acid_with_one_inserted_base() {
         let node = Node::new(NodeType::Var("GG".to_string()), 1);
         let reference = b"AGCTCT";
-        let arg = node.variant_amino_acid(0, reference).unwrap();
+        let arg = node
+            .variant_amino_acids(0, reference)
+            .unwrap()
+            .first()
+            .unwrap()
+            .to_owned();
         assert_eq!(arg, AminoAcid::Arginine);
-        let gly = node.variant_amino_acid(1, reference).unwrap();
+        let gly = node
+            .variant_amino_acids(1, reference)
+            .unwrap()
+            .first()
+            .unwrap()
+            .to_owned();
         assert_eq!(gly, AminoAcid::Glycine);
         let node_2 = Node::new(NodeType::Var("GG".to_string()), 3);
-        let arg = node_2.variant_amino_acid(2, reference).unwrap();
+        let arg = node_2
+            .variant_amino_acids(2, reference)
+            .unwrap()
+            .first()
+            .unwrap()
+            .to_owned();
         assert_eq!(arg, AminoAcid::Arginine);
     }
 
@@ -306,12 +361,52 @@ mod tests {
     fn test_variant_amino_acid_with_two_inserted_bases() {
         let node = Node::new(NodeType::Var("TCC".to_string()), 4);
         let reference = b"ATCATCATC";
-        let ile = node.variant_amino_acid(0, reference).unwrap();
+        let ile = node
+            .variant_amino_acids(0, reference)
+            .unwrap()
+            .first()
+            .unwrap()
+            .to_owned();
         assert_eq!(ile, AminoAcid::Isoleucine);
-        let ser = node.variant_amino_acid(1, reference).unwrap();
+        let ser = node
+            .variant_amino_acids(1, reference)
+            .unwrap()
+            .first()
+            .unwrap()
+            .to_owned();
         assert_eq!(ser, AminoAcid::Serine);
-        let his = node.variant_amino_acid(2, reference).unwrap();
+        let his = node
+            .variant_amino_acids(2, reference)
+            .unwrap()
+            .first()
+            .unwrap()
+            .to_owned();
         assert_eq!(his, AminoAcid::Histidine);
+    }
+
+    #[test]
+    fn test_variant_amino_acid_with_six_inserted_bases() {
+        let node = Node::new(NodeType::Var("TCCAGTT".to_string()), 4);
+        let reference = b"ATCATCATC";
+        let ile_gln_phe = node.variant_amino_acids(0, reference).unwrap();
+        assert_eq!(
+            ile_gln_phe,
+            vec![
+                AminoAcid::Isoleucine,
+                AminoAcid::Glutamine,
+                AminoAcid::Phenylalanine
+            ]
+        );
+        let ser_ser_ser = node.variant_amino_acids(1, reference).unwrap();
+        assert_eq!(
+            ser_ser_ser,
+            vec![AminoAcid::Serine, AminoAcid::Serine, AminoAcid::Serine]
+        );
+        let his_pro_val = node.variant_amino_acids(2, reference).unwrap();
+        assert_eq!(
+            his_pro_val,
+            vec![AminoAcid::Histidine, AminoAcid::Proline, AminoAcid::Valine]
+        );
     }
 
     #[test]

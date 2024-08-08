@@ -28,7 +28,7 @@ impl Display for Protein {
 }
 
 /// Amino acids and stop
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) enum AminoAcid {
     Alanine,
     Arginine,

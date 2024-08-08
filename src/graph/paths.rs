@@ -53,9 +53,9 @@ impl HaplotypePath {
                 continue;
             }
             let ref_amino_acid = node.reference_amino_acid(ref_phase, reference)?;
-            let alt_amino_acid = node.variant_amino_acid(phase, reference)?;
+            let alt_amino_acid = node.variant_amino_acids(phase, reference)?;
             protein.push_str(&format!(
-                "{} -> {} ({:?})\n",
+                "{} -> {:?} ({:?})\n",
                 ref_amino_acid,
                 alt_amino_acid,
                 node.impact(ref_phase, phase, reference)?
