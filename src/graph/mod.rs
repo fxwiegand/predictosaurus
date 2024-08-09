@@ -307,6 +307,7 @@ pub(crate) struct Edge {
 mod tests {
     use super::*;
     use crate::graph::node::{Node, NodeType};
+    use bio::bio_types::strand::Strand;
     use petgraph::{Directed, Graph};
     use rust_htslib::bcf::{Read, Reader};
     use std::fs;
@@ -467,7 +468,7 @@ mod tests {
     #[test]
     fn impact_returns_none_for_ref_node_type() {
         let node = Node::new(NodeType::Ref("".to_string()), 0);
-        let impact = node.impact(0, 0, &[]).unwrap();
+        let impact = node.impact(0, 0, &[], Strand::Forward).unwrap();
         assert_eq!(impact, Impact::None);
     }
 
@@ -475,7 +476,7 @@ mod tests {
     fn impact_identifies_low_for_identical_ref_and_alt_amino_acids() {
         let node = Node::new(NodeType::Var("C".to_string()), 2);
         let reference = b"ATA";
-        let impact = node.impact(0, 0, reference).unwrap();
+        let impact = node.impact(0, 0, reference, Strand::Forward).unwrap();
         assert_eq!(impact, Impact::Low);
     }
 
@@ -483,7 +484,7 @@ mod tests {
     fn impact_identifies_modifier_for_different_ref_and_alt_amino_acids() {
         let node = Node::new(NodeType::Var("G".to_string()), 3);
         let reference = b"ATTTG";
-        let impact = node.impact(2, 2, reference).unwrap();
+        let impact = node.impact(2, 2, reference, Strand::Forward).unwrap();
         assert_eq!(impact, Impact::Modifier);
     }
 
@@ -491,7 +492,7 @@ mod tests {
     fn impact_identifies_high_for_early_stop() {
         let node = Node::new(NodeType::Var("A".to_string()), 6);
         let reference = b"CATATAC";
-        let impact = node.impact(1, 1, reference).unwrap();
+        let impact = node.impact(1, 1, reference, Strand::Forward).unwrap();
         assert_eq!(impact, Impact::High);
     }
 
@@ -515,7 +516,7 @@ mod tests {
     fn impact_calculates_none_for_empty_path() {
         let graph = setup_variant_graph_with_nodes();
         let path = HaplotypePath(vec![]);
-        let impact = path.impact(&graph, 0, b"TTG").unwrap();
+        let impact = path.impact(&graph, 0, b"TTG", Strand::Forward).unwrap();
         assert_eq!(impact, Impact::None);
     }
 
@@ -524,7 +525,7 @@ mod tests {
         let mut graph = setup_variant_graph_with_nodes();
         let node_index = graph.graph.node_indices().next().unwrap();
         let path = HaplotypePath(vec![node_index]);
-        let impact = path.impact(&graph, 0, b"TTC").unwrap();
+        let impact = path.impact(&graph, 0, b"TTC", Strand::Forward).unwrap();
         assert_eq!(impact, Impact::Modifier);
     }
 
@@ -533,7 +534,7 @@ mod tests {
         let mut graph = setup_variant_graph_with_nodes();
         let node_indices = graph.graph.node_indices().take(3).collect::<Vec<_>>();
         let path = HaplotypePath(node_indices.clone());
-        let impact = path.impact(&graph, 0, b"TTCAAA").unwrap();
+        let impact = path.impact(&graph, 0, b"TTCAAA", Strand::Forward).unwrap();
         assert_eq!(impact, Impact::High);
     }
 
@@ -542,7 +543,7 @@ mod tests {
         let mut graph = setup_variant_graph_with_nodes();
         let node_index = graph.graph.node_indices().next().unwrap();
         let path = HaplotypePath(vec![node_index]);
-        let impact = path.impact(&graph, 1, b"ATGA").unwrap();
+        let impact = path.impact(&graph, 1, b"ATGA", Strand::Forward).unwrap();
         assert_eq!(impact, Impact::High);
     }
 
@@ -556,7 +557,9 @@ mod tests {
             .take(2)
             .collect::<Vec<_>>();
         let path = HaplotypePath(node_indices.clone());
-        let impact = path.impact(&graph, 0, b"GGGAAATTTAAA").unwrap();
+        let impact = path
+            .impact(&graph, 0, b"GGGAAATTTAAA", Strand::Forward)
+            .unwrap();
         assert_eq!(impact, Impact::High);
     }
 
@@ -565,7 +568,9 @@ mod tests {
         let mut graph = setup_variant_graph_with_nodes();
         let node_indices = graph.graph.node_indices().skip(3).take(3).collect_vec();
         let path = HaplotypePath(vec![node_indices[0], node_indices[2]]);
-        let impact = path.impact(&graph, 0, b"GGGAAATTTAAC").unwrap();
+        let impact = path
+            .impact(&graph, 0, b"GGGAAATTTAAC", Strand::Forward)
+            .unwrap();
         assert_eq!(impact, Impact::Modifier);
     }
 
@@ -586,7 +591,9 @@ mod tests {
         let mut graph = setup_variant_graph_with_nodes_2();
         let node_indices = graph.graph.node_indices().collect_vec();
         let path = HaplotypePath(node_indices.clone());
-        let impact = path.impact(&graph, 0, b"ATGAAATGGAT").unwrap();
+        let impact = path
+            .impact(&graph, 0, b"ATGAAATGGAT", Strand::Forward)
+            .unwrap();
         assert_eq!(impact, Impact::High);
     }
 
@@ -603,8 +610,14 @@ mod tests {
         };
         let node_indices = graph.graph.node_indices().collect_vec();
         let path = HaplotypePath(node_indices.clone());
-        let impact = path.impact(&graph, 0, b"TGTTTTTAATTT").unwrap();
-        println!("{}", path.display(&graph, 0, b"TGTTTTTAATTT").unwrap());
+        let impact = path
+            .impact(&graph, 0, b"TGTTTTTAATTT", Strand::Forward)
+            .unwrap();
+        println!(
+            "{}",
+            path.display(&graph, 0, b"TGTTTTTAATTT", Strand::Forward)
+                .unwrap()
+        );
         assert_eq!(impact, Impact::High);
     }
 
@@ -624,7 +637,7 @@ mod tests {
     fn display_returns_correct_protein_string_for_single_node() {
         let graph = setup_variant_graph_with_nodes();
         let path = HaplotypePath(vec![NodeIndex::new(0)]);
-        let result = path.display(&graph, 0, b"ATG").unwrap();
+        let result = path.display(&graph, 0, b"ATG", Strand::Forward).unwrap();
         assert_eq!(result, "Met -> [Lysine] (High)\n");
     }
 
@@ -632,7 +645,7 @@ mod tests {
     fn display_returns_correct_protein_string_for_multiple_nodes() {
         let graph = setup_variant_graph_with_nodes();
         let path = HaplotypePath(vec![NodeIndex::new(0), NodeIndex::new(2)]);
-        let result = path.display(&graph, 0, b"ATGCGT").unwrap();
+        let result = path.display(&graph, 0, b"ATGCGT", Strand::Forward).unwrap();
         assert_eq!(
             result,
             "Met -> [Lysine] (High)\nArg -> [Cysteine] (Modifier)\n"

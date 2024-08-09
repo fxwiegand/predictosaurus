@@ -63,9 +63,12 @@ fn main() -> Result<()> {
                 record.seqname()
             )
         })?;
-        let ref_seq = match strand {
-            Strand::Forward => forward_seq,
-            Strand::Reverse => &{ utils::fasta::reverse_complement(forward_seq) },
+        let (ref_seq, paths) = match strand {
+            Strand::Forward => (forward_seq, variant_graph.paths()),
+            Strand::Reverse => (
+                &{ utils::fasta::reverse_complement(forward_seq) },
+                variant_graph.reverse_paths(),
+            ),
             Strand::Unknown => {
                 return Err(anyhow!(
                     "Strand is unknown for sequence {}",
@@ -74,13 +77,16 @@ fn main() -> Result<()> {
             }
         };
 
-        let paths = variant_graph.paths();
         for path in paths {
             println!(
                 "Path with impact {}",
-                path.impact(&variant_graph, phase, ref_seq,).unwrap(),
+                path.impact(&variant_graph, phase, ref_seq, strand).unwrap(),
             );
-            println!("{}", path.display(&variant_graph, phase, ref_seq).unwrap());
+            println!(
+                "{}",
+                path.display(&variant_graph, phase, ref_seq, strand)
+                    .unwrap()
+            );
             println!();
         }
     }

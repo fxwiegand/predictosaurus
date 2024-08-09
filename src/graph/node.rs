@@ -2,6 +2,8 @@ use crate::graph::EventProbs;
 use crate::impact::Impact;
 use crate::transcription;
 use crate::translation::amino_acids::AminoAcid;
+use anyhow::anyhow;
+use bio::bio_types::strand::Strand;
 use itertools::Itertools;
 use rust_htslib::bcf::Record;
 use std::collections::HashMap;
@@ -83,8 +85,14 @@ impl Node {
         &self,
         phase: u8,
         reference: &[u8],
+        strand: Strand,
     ) -> anyhow::Result<AminoAcid> {
-        let start_pos = self.pos as usize - ((self.pos - phase as i64) % 3) as usize;
+        let p = match strand {
+            Strand::Forward => self.pos,
+            Strand::Reverse => self.position_on_reverse_strand(reference.len()),
+            Strand::Unknown => return Err(anyhow!("Strand is unknown")),
+        };
+        let start_pos = p as usize - ((p - phase as i64) % 3) as usize;
         let ref_codon_bases = reference[start_pos..start_pos + 3].to_vec();
         AminoAcid::from_codon(
             transcription::transcribe_dna_to_rna(ref_codon_bases.as_ref())?.as_ref(),
@@ -95,11 +103,24 @@ impl Node {
         &self,
         phase: u8,
         reference: &[u8],
+        strand: Strand,
     ) -> anyhow::Result<Vec<AminoAcid>> {
         match &self.node_type {
             NodeType::Var(alt_allele) => {
-                let start_pos = self.pos as usize - ((self.pos - phase as i64) % 3) as usize;
-                let position_in_codon = (self.pos - phase as i64) % 3;
+                let p = match strand {
+                    Strand::Forward => self.pos,
+                    Strand::Reverse => self.position_on_reverse_strand(reference.len()),
+                    Strand::Unknown => return Err(anyhow!("Strand is unknown")),
+                };
+                let alt_allele = if strand == Strand::Reverse {
+                    String::from_utf8(crate::utils::fasta::reverse_complement(
+                        alt_allele.as_bytes(),
+                    ))?
+                } else {
+                    alt_allele.to_string()
+                };
+                let start_pos = p as usize - ((p - phase as i64) % 3) as usize;
+                let position_in_codon = (p - phase as i64) % 3;
                 let needed_bases = if alt_allele.is_empty() { 4 } else { 3 };
                 let ref_codon_bases = reference[start_pos..start_pos + needed_bases].to_vec();
                 let alt_codon_bases = [
@@ -125,11 +146,12 @@ impl Node {
         ref_phase: u8,
         phase: u8,
         reference: &[u8],
+        strand: Strand,
     ) -> anyhow::Result<Impact> {
         match &self.node_type {
             NodeType::Var(_) => {
-                let ref_amino_acid = self.reference_amino_acid(ref_phase, reference)?;
-                let alt_amino_acids = self.variant_amino_acids(phase, reference)?;
+                let ref_amino_acid = self.reference_amino_acid(ref_phase, reference, strand)?;
+                let alt_amino_acids = self.variant_amino_acids(phase, reference, strand)?;
                 let alt_amino_acid = alt_amino_acids.first().unwrap();
                 let impact = match (
                     ref_amino_acid == *alt_amino_acid,
@@ -171,6 +193,7 @@ mod tests {
     use crate::graph::node::{node_distance, nodes_in_between, Node, NodeType};
     use crate::graph::{Edge, EventProbs};
     use crate::translation::amino_acids::AminoAcid;
+    use bio::bio_types::strand::Strand;
     use itertools::Itertools;
     use petgraph::{Directed, Graph};
     use std::collections::HashMap;
@@ -285,21 +308,21 @@ mod tests {
         let node = Node::new(NodeType::Var("A".to_string()), 2);
         let reference = b"ATGCGCGTA";
         let ile = node
-            .variant_amino_acids(0, reference)
+            .variant_amino_acids(0, reference, Strand::Forward)
             .unwrap()
             .first()
             .unwrap()
             .to_owned();
         assert_eq!(ile, AminoAcid::Isoleucine);
         let tyr = node
-            .variant_amino_acids(1, reference)
+            .variant_amino_acids(1, reference, Strand::Forward)
             .unwrap()
             .first()
             .unwrap()
             .to_owned();
         assert_eq!(tyr, AminoAcid::Tyrosine);
         let thr = node
-            .variant_amino_acids(2, reference)
+            .variant_amino_acids(2, reference, Strand::Forward)
             .unwrap()
             .first()
             .unwrap()
@@ -312,21 +335,21 @@ mod tests {
         let node = Node::new(NodeType::Var("".to_string()), 2);
         let reference = b"ATGCCGT";
         let ile = node
-            .variant_amino_acids(0, reference)
+            .variant_amino_acids(0, reference, Strand::Forward)
             .unwrap()
             .first()
             .unwrap()
             .to_owned();
         assert_eq!(ile, AminoAcid::Isoleucine);
         let ser = node
-            .variant_amino_acids(1, reference)
+            .variant_amino_acids(1, reference, Strand::Forward)
             .unwrap()
             .first()
             .unwrap()
             .to_owned();
         assert_eq!(ser, AminoAcid::Serine);
         let pro = node
-            .variant_amino_acids(2, reference)
+            .variant_amino_acids(2, reference, Strand::Forward)
             .unwrap()
             .first()
             .unwrap()
@@ -339,14 +362,14 @@ mod tests {
         let node = Node::new(NodeType::Var("GG".to_string()), 1);
         let reference = b"AGCTCT";
         let arg = node
-            .variant_amino_acids(0, reference)
+            .variant_amino_acids(0, reference, Strand::Forward)
             .unwrap()
             .first()
             .unwrap()
             .to_owned();
         assert_eq!(arg, AminoAcid::Arginine);
         let gly = node
-            .variant_amino_acids(1, reference)
+            .variant_amino_acids(1, reference, Strand::Forward)
             .unwrap()
             .first()
             .unwrap()
@@ -354,7 +377,7 @@ mod tests {
         assert_eq!(gly, AminoAcid::Glycine);
         let node_2 = Node::new(NodeType::Var("GG".to_string()), 3);
         let arg = node_2
-            .variant_amino_acids(2, reference)
+            .variant_amino_acids(2, reference, Strand::Forward)
             .unwrap()
             .first()
             .unwrap()
@@ -367,21 +390,21 @@ mod tests {
         let node = Node::new(NodeType::Var("TCC".to_string()), 4);
         let reference = b"ATCATCATC";
         let ile = node
-            .variant_amino_acids(0, reference)
+            .variant_amino_acids(0, reference, Strand::Forward)
             .unwrap()
             .first()
             .unwrap()
             .to_owned();
         assert_eq!(ile, AminoAcid::Isoleucine);
         let ser = node
-            .variant_amino_acids(1, reference)
+            .variant_amino_acids(1, reference, Strand::Forward)
             .unwrap()
             .first()
             .unwrap()
             .to_owned();
         assert_eq!(ser, AminoAcid::Serine);
         let his = node
-            .variant_amino_acids(2, reference)
+            .variant_amino_acids(2, reference, Strand::Forward)
             .unwrap()
             .first()
             .unwrap()
@@ -393,7 +416,9 @@ mod tests {
     fn test_variant_amino_acid_with_six_inserted_bases() {
         let node = Node::new(NodeType::Var("TCCAGTT".to_string()), 4);
         let reference = b"ATCATCATC";
-        let ile_gln_phe = node.variant_amino_acids(0, reference).unwrap();
+        let ile_gln_phe = node
+            .variant_amino_acids(0, reference, Strand::Forward)
+            .unwrap();
         assert_eq!(
             ile_gln_phe,
             vec![
@@ -402,12 +427,16 @@ mod tests {
                 AminoAcid::Phenylalanine
             ]
         );
-        let ser_ser_ser = node.variant_amino_acids(1, reference).unwrap();
+        let ser_ser_ser = node
+            .variant_amino_acids(1, reference, Strand::Forward)
+            .unwrap();
         assert_eq!(
             ser_ser_ser,
             vec![AminoAcid::Serine, AminoAcid::Serine, AminoAcid::Serine]
         );
-        let his_pro_val = node.variant_amino_acids(2, reference).unwrap();
+        let his_pro_val = node
+            .variant_amino_acids(2, reference, Strand::Forward)
+            .unwrap();
         assert_eq!(
             his_pro_val,
             vec![AminoAcid::Histidine, AminoAcid::Proline, AminoAcid::Valine]
@@ -415,14 +444,69 @@ mod tests {
     }
 
     #[test]
+    fn test_variant_amino_acid_on_backward_strand() {
+        let node = Node::new(NodeType::Var("A".to_string()), 2);
+        let forward_reference = b"ATGCGCGTA";
+        let backward_reference = &{ crate::utils::fasta::reverse_complement(forward_reference) };
+        assert_eq!(backward_reference, b"TACGCGCAT");
+        let tyr = node
+            .variant_amino_acids(0, backward_reference, Strand::Reverse)
+            .unwrap()
+            .first()
+            .unwrap()
+            .to_owned();
+        assert_eq!(tyr, AminoAcid::Tyrosine);
+        let arg = node
+            .variant_amino_acids(1, backward_reference, Strand::Reverse)
+            .unwrap()
+            .first()
+            .unwrap()
+            .to_owned();
+        assert_eq!(arg, AminoAcid::Arginine);
+        let val = node
+            .variant_amino_acids(2, backward_reference, Strand::Reverse)
+            .unwrap()
+            .first()
+            .unwrap()
+            .to_owned();
+        assert_eq!(val, AminoAcid::Valine);
+    }
+
+    #[test]
     fn test_reference_amino_acid_with_different_phases() {
         let node = Node::new(NodeType::Ref("".to_string()), 2);
         let reference = b"ATGCGCGTA";
-        let met = node.reference_amino_acid(0, reference).unwrap();
+        let met = node
+            .reference_amino_acid(0, reference, Strand::Forward)
+            .unwrap();
         assert_eq!(met, AminoAcid::Methionine);
-        let cys = node.reference_amino_acid(1, reference).unwrap();
+        let cys = node
+            .reference_amino_acid(1, reference, Strand::Forward)
+            .unwrap();
         assert_eq!(cys, AminoAcid::Cysteine);
-        let ala = node.reference_amino_acid(2, reference).unwrap();
+        let ala = node
+            .reference_amino_acid(2, reference, Strand::Forward)
+            .unwrap();
+        assert_eq!(ala, AminoAcid::Alanine);
+    }
+
+    #[test]
+    fn test_reference_amino_acid_on_backward_strand() {
+        let node = Node::new(NodeType::Ref("".to_string()), 2);
+        let forward_reference = b"ATGCGCGTA";
+        let backward_reference = &{ crate::utils::fasta::reverse_complement(forward_reference) };
+        assert_eq!(backward_reference, b"TACGCGCAT");
+        let his = node
+            .reference_amino_acid(0, backward_reference, Strand::Reverse)
+            .unwrap();
+        assert_eq!(his, AminoAcid::Histidine);
+        let arg = node
+            .reference_amino_acid(1, backward_reference, Strand::Reverse)
+            .unwrap();
+        assert_eq!(arg, AminoAcid::Arginine);
+        let ala = node
+            .reference_amino_acid(2, backward_reference, Strand::Reverse)
+            .unwrap();
         assert_eq!(ala, AminoAcid::Alanine);
     }
 
