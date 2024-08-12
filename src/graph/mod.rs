@@ -638,7 +638,7 @@ mod tests {
         let graph = setup_variant_graph_with_nodes();
         let path = HaplotypePath(vec![NodeIndex::new(0)]);
         let result = path.display(&graph, 0, b"ATG", Strand::Forward).unwrap();
-        assert_eq!(result, "Met -> [Lysine] (High)\n");
+        assert_eq!(result, "Some(Methionine) -> [Lysine] (High)\n");
     }
 
     #[test]
@@ -648,7 +648,7 @@ mod tests {
         let result = path.display(&graph, 0, b"ATGCGT", Strand::Forward).unwrap();
         assert_eq!(
             result,
-            "Met -> [Lysine] (High)\nArg -> [Cysteine] (Modifier)\n"
+            "Some(Methionine) -> [Lysine] (High)\nSome(Arginine) -> [Cysteine] (Modifier)\n"
         );
     }
 

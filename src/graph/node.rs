@@ -86,17 +86,19 @@ impl Node {
         phase: u8,
         reference: &[u8],
         strand: Strand,
-    ) -> anyhow::Result<AminoAcid> {
+    ) -> anyhow::Result<Option<AminoAcid>> {
         let p = match strand {
             Strand::Forward => self.pos,
             Strand::Reverse => self.position_on_reverse_strand(reference.len()),
             Strand::Unknown => return Err(anyhow!("Strand is unknown")),
         };
         let start_pos = p as usize - ((p - phase as i64) % 3) as usize;
+        if start_pos + 3 > reference.len() {
+            return Ok(None);
+        }
         let ref_codon_bases = reference[start_pos..start_pos + 3].to_vec();
-        AminoAcid::from_codon(
-            transcription::transcribe_dna_to_rna(ref_codon_bases.as_ref())?.as_ref(),
-        )
+        let rna_codon = transcription::transcribe_dna_to_rna(&ref_codon_bases)?;
+        Ok(AminoAcid::from_codon(&rna_codon).ok())
     }
 
     pub(crate) fn variant_amino_acids(
@@ -119,14 +121,19 @@ impl Node {
                 } else {
                     alt_allele.to_string()
                 };
-                let start_pos = p as usize - ((p - phase as i64) % 3) as usize;
-                let position_in_codon = (p - phase as i64) % 3;
+
+                let start_pos = (p - ((p - phase as i64) % 3)) as usize;
+                let position_in_codon = ((p - phase as i64) % 3) as usize;
                 let needed_bases = if alt_allele.is_empty() { 4 } else { 3 };
+                if start_pos + needed_bases > reference.len() || p - (phase as i64) < 0 {
+                    // Variant is at the end of the reference sequence and there are not enough bases to form a codon
+                    return Ok(vec![]);
+                }
                 let ref_codon_bases = reference[start_pos..start_pos + needed_bases].to_vec();
                 let alt_codon_bases = [
-                    &ref_codon_bases[..position_in_codon as usize],
+                    &ref_codon_bases[..position_in_codon],
                     alt_allele.as_bytes(),
-                    &ref_codon_bases[position_in_codon as usize + 1..],
+                    &ref_codon_bases[position_in_codon + 1..],
                 ]
                 .concat();
                 Ok(transcription::transcribe_dna_to_rna(&alt_codon_bases)?
@@ -151,25 +158,36 @@ impl Node {
         match &self.node_type {
             NodeType::Var(_) => {
                 let ref_amino_acid = self.reference_amino_acid(ref_phase, reference, strand)?;
-                let alt_amino_acids = self.variant_amino_acids(phase, reference, strand)?;
-                let alt_amino_acid = alt_amino_acids.first().unwrap();
-                let impact = match (
-                    ref_amino_acid == *alt_amino_acid,
-                    ref_amino_acid,
-                    alt_amino_acid,
-                ) {
-                    (true, _, _) => Ok(Impact::Low),
-                    (false, _, AminoAcid::Stop) => Ok(Impact::High),
-                    (false, AminoAcid::Stop, _) => Ok(Impact::High),
-                    (false, AminoAcid::Methionine, _) => Ok(Impact::High), // TODO: Check if this is always automatic start lost or can Met occur anywhere in the protein?
-                    (false, _, _) => Ok(Impact::Modifier),
-                };
-                for amino_acid in alt_amino_acids {
-                    if amino_acid == AminoAcid::Stop {
-                        return Ok(Impact::High);
+                match ref_amino_acid {
+                    None => Ok(Impact::None),
+                    Some(ref_amino_acid) => {
+                        let alt_amino_acids = self.variant_amino_acids(phase, reference, strand)?;
+                        match alt_amino_acids.len() {
+                            0 => Ok(Impact::Moderate),
+                            1 => {
+                                let alt_amino_acid = alt_amino_acids.first().unwrap();
+                                let impact = match (
+                                    ref_amino_acid == *alt_amino_acid,
+                                    ref_amino_acid,
+                                    alt_amino_acid,
+                                ) {
+                                    (true, _, _) => Ok(Impact::Low),
+                                    (false, _, AminoAcid::Stop) => Ok(Impact::High),
+                                    (false, AminoAcid::Stop, _) => Ok(Impact::High),
+                                    (false, AminoAcid::Methionine, _) => Ok(Impact::High), // TODO: Check if this is always automatic start lost or can Met occur anywhere in the protein?
+                                    (false, _, _) => Ok(Impact::Modifier),
+                                };
+                                for amino_acid in alt_amino_acids {
+                                    if amino_acid == AminoAcid::Stop {
+                                        return Ok(Impact::High);
+                                    }
+                                }
+                                impact
+                            }
+                            _ => Ok(Impact::Moderate),
+                        }
                     }
                 }
-                impact
             }
             NodeType::Ref(_) => Ok(Impact::None),
         }
@@ -444,6 +462,31 @@ mod tests {
     }
 
     #[test]
+    fn test_variant_amino_acid_at_feature_end() {
+        let node = Node::new(NodeType::Var("A".to_string()), 9);
+        let reference = b"ATGCGCGTAT";
+        let no_amino_acid = node
+            .variant_amino_acids(0, reference, Strand::Forward)
+            .unwrap();
+        assert!(no_amino_acid.is_empty());
+        let node2 = Node::new(NodeType::Var("A".to_string()), 0);
+        let no_amino_acid_2 = node2
+            .variant_amino_acids(0, reference, Strand::Reverse)
+            .unwrap();
+        assert!(no_amino_acid_2.is_empty());
+    }
+
+    #[test]
+    fn test_variant_amino_acid_at_feature_start() {
+        let node = Node::new(NodeType::Var("A".to_string()), 0);
+        let reference = b"ATGCGCGTAT";
+        let no_amino_acid = node
+            .variant_amino_acids(1, reference, Strand::Forward)
+            .unwrap();
+        assert!(no_amino_acid.is_empty());
+    }
+
+    #[test]
     fn test_variant_amino_acid_on_backward_strand() {
         let node = Node::new(NodeType::Var("A".to_string()), 2);
         let forward_reference = b"ATGCGCGTA";
@@ -478,14 +521,17 @@ mod tests {
         let reference = b"ATGCGCGTA";
         let met = node
             .reference_amino_acid(0, reference, Strand::Forward)
+            .unwrap()
             .unwrap();
         assert_eq!(met, AminoAcid::Methionine);
         let cys = node
             .reference_amino_acid(1, reference, Strand::Forward)
+            .unwrap()
             .unwrap();
         assert_eq!(cys, AminoAcid::Cysteine);
         let ala = node
             .reference_amino_acid(2, reference, Strand::Forward)
+            .unwrap()
             .unwrap();
         assert_eq!(ala, AminoAcid::Alanine);
     }
@@ -498,16 +544,34 @@ mod tests {
         assert_eq!(backward_reference, b"TACGCGCAT");
         let his = node
             .reference_amino_acid(0, backward_reference, Strand::Reverse)
+            .unwrap()
             .unwrap();
         assert_eq!(his, AminoAcid::Histidine);
         let arg = node
             .reference_amino_acid(1, backward_reference, Strand::Reverse)
+            .unwrap()
             .unwrap();
         assert_eq!(arg, AminoAcid::Arginine);
         let ala = node
             .reference_amino_acid(2, backward_reference, Strand::Reverse)
+            .unwrap()
             .unwrap();
         assert_eq!(ala, AminoAcid::Alanine);
+    }
+
+    #[test]
+    fn test_empty_reference_amino_acid() {
+        let node = Node::new(NodeType::Ref("".to_string()), 9);
+        let reference = b"ATGCGCGTAT";
+        let no_amino_acid = node
+            .reference_amino_acid(0, reference, Strand::Forward)
+            .unwrap();
+        assert!(no_amino_acid.is_none());
+        let node2 = Node::new(NodeType::Ref("".to_string()), 0);
+        let no_amino_acid_2 = node2
+            .reference_amino_acid(0, reference, Strand::Reverse)
+            .unwrap();
+        assert!(no_amino_acid_2.is_none());
     }
 
     #[test]
