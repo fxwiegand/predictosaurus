@@ -1276,7 +1276,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e310b3a6b5907f99202fcdb4960ff45b93735d7c7d96b760fcff8db2dc0e103d"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -2506,8 +2506,8 @@ dependencies = [
 
 [[package]]
 name = "varlociraptor"
-version = "8.4.9"
-source = "git+https://github.com/varlociraptor/varlociraptor#e17fc7f1d6d7b9f5e8dc750ae8fe022df98296b9"
+version = "8.4.10"
+source = "git+https://github.com/varlociraptor/varlociraptor#502dc6ec6d87dd97ff304267ff3245046044bbf2"
 dependencies = [
  "GSL",
  "anyhow",
