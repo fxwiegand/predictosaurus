@@ -14,7 +14,7 @@ clap_derive = "4.5.3"
 rust-htslib = "0.47.0"
 bio = "2.0.1"
 anyhow = "1.0.86"
-varlociraptor = { git = "https://github.com/varlociraptor/varlociraptor" } # Use git dependeny while varlociraptor is not released with a version using rust-bio = 2.0
+varlociraptor = "8.4.10"
 petgraph = { version = "0.6.5", features = ["serde-1"]}
 itertools = "0.13.0"
 serde = { version = "1.0.207", features = ["derive"] }
