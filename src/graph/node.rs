@@ -6,10 +6,11 @@ use anyhow::anyhow;
 use bio::bio_types::strand::Strand;
 use itertools::Itertools;
 use rust_htslib::bcf::Record;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use varlociraptor::variants::evidence::observations::read_observation::ProcessedReadObservation;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(dead_code)] // TODO: Remove this attribute when graph is properly serialized
 pub(crate) enum NodeType {
     Var(String),
@@ -25,7 +26,7 @@ impl NodeType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(dead_code)] // TODO: Remove this attribute when graph is properly serialized
 pub(crate) struct Node {
     pub(crate) node_type: NodeType,

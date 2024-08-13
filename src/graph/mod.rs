@@ -5,8 +5,6 @@ use crate::cli::ObservationFile;
 use crate::graph::node::{node_distance, nodes_in_between, Node, NodeType};
 use crate::graph::paths::HaplotypePath;
 use crate::impact::Impact;
-use crate::transcription;
-use crate::translation::amino_acids::AminoAcid;
 use crate::utils::bcf::extract_event_names;
 use anyhow::Result;
 use bio::stats::bayesian::bayes_factors::evidence::KassRaftery;
@@ -16,14 +14,14 @@ use petgraph::dot::{Config, Dot};
 use petgraph::graph::NodeIndex;
 use petgraph::{Directed, Graph};
 use rust_htslib::bcf::{Read, Reader, Record};
-use std::cmp::max;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use varlociraptor::calling::variants::preprocessing::read_observations;
 use varlociraptor::utils::collect_variants::collect_variants;
-use varlociraptor::variants::evidence::observations::read_observation::ProcessedReadObservation;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct VariantGraph {
     pub(crate) graph: Graph<Node, Edge, Directed>,
     start: i64,
@@ -282,7 +280,7 @@ fn shift_phase(phase: u8, frameshift: u8) -> u8 {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(dead_code)] // TODO: Remove this attribute when graph is properly serialized
 pub(crate) struct EventProbs(HashMap<String, f32>);
 
@@ -297,7 +295,7 @@ impl EventProbs {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct Edge {
     pub(crate) supporting_reads: HashMap<String, u32>,
 }
