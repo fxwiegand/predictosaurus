@@ -5,8 +5,6 @@ use crate::cli::ObservationFile;
 use crate::graph::node::{node_distance, nodes_in_between, Node, NodeType};
 use crate::graph::paths::HaplotypePath;
 use crate::impact::Impact;
-use crate::transcription;
-use crate::translation::amino_acids::AminoAcid;
 use crate::utils::bcf::extract_event_names;
 use anyhow::Result;
 use bio::stats::bayesian::bayes_factors::evidence::KassRaftery;
@@ -17,13 +15,11 @@ use petgraph::graph::NodeIndex;
 use petgraph::{Directed, Graph};
 use rust_htslib::bcf::{Read, Reader, Record};
 use serde::{Deserialize, Serialize};
-use std::cmp::max;
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use varlociraptor::calling::variants::preprocessing::read_observations;
 use varlociraptor::utils::collect_variants::collect_variants;
-use varlociraptor::variants::evidence::observations::read_observation::ProcessedReadObservation;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct VariantGraph {
@@ -646,7 +642,7 @@ mod tests {
         let graph = setup_variant_graph_with_nodes();
         let path = HaplotypePath(vec![NodeIndex::new(0)]);
         let result = path.display(&graph, 0, b"ATG", Strand::Forward).unwrap();
-        assert_eq!(result, "Met -> [Lysine] (High)\n");
+        assert_eq!(result, "Some(Methionine) -> [Lysine] (High)\n");
     }
 
     #[test]
@@ -656,7 +652,7 @@ mod tests {
         let result = path.display(&graph, 0, b"ATGCGT", Strand::Forward).unwrap();
         assert_eq!(
             result,
-            "Met -> [Lysine] (High)\nArg -> [Cysteine] (Modifier)\n"
+            "Some(Methionine) -> [Lysine] (High)\nSome(Arginine) -> [Cysteine] (Modifier)\n"
         );
     }
 
@@ -704,5 +700,20 @@ mod tests {
     #[should_panic]
     fn shift_phase_invalid_phase() {
         shift_phase(3, 1);
+    }
+
+    #[test]
+    fn test_graph_serialization_and_deserialization() {
+        let graph = setup_variant_graph_with_nodes();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let file_path = temp_dir.path().join("graph.json");
+        let file = fs::File::create(&file_path).unwrap();
+        serde_json::to_writer(file, &graph).unwrap();
+        let file = fs::File::open(&file_path).unwrap();
+        let deserialized_graph: VariantGraph = serde_json::from_reader(file).unwrap();
+        assert_eq!(
+            graph.graph.node_count(),
+            deserialized_graph.graph.node_count()
+        );
     }
 }
