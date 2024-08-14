@@ -32,7 +32,6 @@ impl Command {
                     let variant_graph = VariantGraph::build(calls, observations, &target)?;
                     variant_graph.write(&target, output)?;
                 }
-                unimplemented!("Build command not implemented")
             }
             Command::Process { features, output } => {
                 let mut feature_reader = gff::Reader::from_file(features, GffType::GFF3)
