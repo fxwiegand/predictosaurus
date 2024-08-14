@@ -470,6 +470,20 @@ mod tests {
     }
 
     #[test]
+    fn write_creates_json_file_with_correct_content() {
+        let graph = setup_variant_graph_with_nodes();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let file_path = temp_dir.path().join("test.json");
+        graph.write("test", &temp_dir.path()).unwrap();
+        let written_content = fs::read_to_string(file_path).unwrap();
+        let deserialized_graph: VariantGraph = serde_json::from_str(&written_content).unwrap();
+        assert_eq!(
+            graph.graph.node_count(),
+            deserialized_graph.graph.node_count()
+        );
+    }
+
+    #[test]
     fn impact_returns_none_for_ref_node_type() {
         let node = Node::new(NodeType::Ref("".to_string()), 0);
         let impact = node.impact(0, 0, &[], Strand::Forward).unwrap();

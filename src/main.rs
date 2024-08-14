@@ -1,8 +1,7 @@
 use crate::cli::{Command, Predictosaurus};
 use crate::graph::VariantGraph;
 use crate::utils::bcf::get_targets;
-use anyhow::{anyhow, Context, Result};
-use bio::bio_types::strand::Strand;
+use anyhow::{Context, Result};
 use bio::io::gff;
 use bio::io::gff::GffType;
 use clap::Parser;
