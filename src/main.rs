@@ -31,7 +31,7 @@ impl Command {
                 let targets = get_targets(&calls)?;
                 for target in targets {
                     let variant_graph = VariantGraph::build(&calls, &observations, &target)?;
-                    variant_graph.write(&output)?;
+                    variant_graph.write(&target, &output)?;
                 }
                 unimplemented!("Build command not implemented")
             }

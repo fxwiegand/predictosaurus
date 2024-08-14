@@ -16,6 +16,7 @@ use petgraph::dot::{Config, Dot};
 use petgraph::graph::NodeIndex;
 use petgraph::{Directed, Graph};
 use rust_htslib::bcf::{Read, Reader, Record};
+use serde::{Deserialize, Serialize};
 use std::cmp::max;
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
@@ -24,6 +25,7 @@ use varlociraptor::calling::variants::preprocessing::read_observations;
 use varlociraptor::utils::collect_variants::collect_variants;
 use varlociraptor::variants::evidence::observations::read_observation::ProcessedReadObservation;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct VariantGraph {
     pub(crate) graph: Graph<Node, Edge, Directed>,
     start: i64,
@@ -32,8 +34,11 @@ pub(crate) struct VariantGraph {
 }
 
 impl VariantGraph {
-    pub(crate) fn write(&self, output_path: &PathBuf) -> Result<()> {
-        unimplemented!("Write method not implemented")
+    pub(crate) fn write(&self, target: &str, output_path: &PathBuf) -> Result<()> {
+        let path = output_path.join(format!("{}.json", target));
+        let file = std::fs::File::create(path)?;
+        serde_json::to_writer(file, self)?;
+        Ok(())
     }
 }
 
@@ -286,7 +291,7 @@ fn shift_phase(phase: u8, frameshift: u8) -> u8 {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(dead_code)] // TODO: Remove this attribute when graph is properly serialized
 pub(crate) struct EventProbs(HashMap<String, f32>);
 
@@ -301,7 +306,7 @@ impl EventProbs {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct Edge {
     pub(crate) supporting_reads: HashMap<String, u32>,
 }

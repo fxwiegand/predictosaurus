@@ -15,7 +15,7 @@ rust-htslib = "0.47.0"
 bio = "2.0.1"
 anyhow = "1.0.86"
 varlociraptor = { git = "https://github.com/varlociraptor/varlociraptor" } # Use git dependeny while varlociraptor is not released with a version using rust-bio = 2.0
-petgraph = "0.6.5"
+petgraph = { version = "0.6.5", features = ["serde-1"] }
 itertools = "0.13.0"
 serde = { version = "1.0.204", features = ["derive"] }
 serde_json = "1.0.122"
