@@ -16,6 +16,7 @@ use petgraph::{Directed, Graph};
 use rust_htslib::bcf::{Read, Reader, Record};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::hash::Hash;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use varlociraptor::calling::variants::preprocessing::read_observations;
@@ -29,13 +30,14 @@ pub(crate) struct VariantGraph {
     target: String,
 }
 
-impl VariantGraph {
-    pub(crate) fn write(&self, target: &str, output_path: &Path) -> Result<()> {
-        let path = output_path.join(format!("{}.json", target));
-        let file = std::fs::File::create(path)?;
-        serde_json::to_writer(file, self)?;
-        Ok(())
-    }
+pub(crate) fn write_graphs(
+    graphs: HashMap<String, VariantGraph>,
+    output_path: &Path,
+) -> Result<()> {
+    let path = output_path.join("graphs.json");
+    let file = std::fs::File::create(path)?;
+    serde_json::to_writer(file, &graphs)?;
+    Ok(())
 }
 
 impl VariantGraph {
@@ -470,13 +472,18 @@ mod tests {
     }
 
     #[test]
-    fn write_creates_json_file_with_correct_content() {
-        let graph = setup_variant_graph_with_nodes();
+    fn write_graphs_creates_json_file_with_correct_content() {
+        let mut graphs = HashMap::new();
+        graphs.insert("graph1".to_string(), setup_variant_graph_with_nodes());
         let temp_dir = tempfile::tempdir().unwrap();
-        let file_path = temp_dir.path().join("test.json");
-        graph.write("test", &temp_dir.path()).unwrap();
+        let file_path = temp_dir.path().join("graphs.json");
+        write_graphs(graphs.clone(), &temp_dir.path()).unwrap();
         let written_content = fs::read_to_string(file_path).unwrap();
-        let deserialized_graph: VariantGraph = serde_json::from_str(&written_content).unwrap();
+        let deserialized_graphs: HashMap<String, VariantGraph> =
+            serde_json::from_str(&written_content).unwrap();
+        assert_eq!(graphs.len(), deserialized_graphs.len());
+        let graph = graphs.get("graph1").unwrap();
+        let deserialized_graph = deserialized_graphs.get("graph1").unwrap();
         assert_eq!(
             graph.graph.node_count(),
             deserialized_graph.graph.node_count()

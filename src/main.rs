@@ -1,10 +1,11 @@
 use crate::cli::{Command, Predictosaurus};
-use crate::graph::VariantGraph;
+use crate::graph::{write_graphs, VariantGraph};
 use crate::utils::bcf::get_targets;
 use anyhow::{Context, Result};
 use bio::io::gff;
 use bio::io::gff::GffType;
 use clap::Parser;
+use std::collections::HashMap;
 
 mod cli;
 mod graph;
@@ -28,14 +29,25 @@ impl Command {
             } => {
                 utils::create_output_dir(output)?;
                 let targets = get_targets(calls)?;
+                let mut graphs = HashMap::new();
                 for target in targets {
                     let variant_graph = VariantGraph::build(calls, observations, &target)?;
-                    variant_graph.write(&target, output)?;
+                    if !variant_graph.is_empty() {
+                        graphs.insert(target, variant_graph);
+                    }
                 }
+                write_graphs(graphs, output)?;
             }
-            Command::Process { features, output } => {
+            Command::Process {
+                features,
+                graph,
+                output,
+            } => {
                 let mut feature_reader = gff::Reader::from_file(features, GffType::GFF3)
                     .context("Failed to open GFF file")?;
+                let _variant_graphs: HashMap<String, VariantGraph> =
+                    serde_json::from_reader(std::fs::File::open(graph)?)
+                        .context("Failed to read graph file")?;
                 for record in feature_reader
                     .records()
                     .filter_map(Result::ok)
