@@ -26,7 +26,7 @@ pub(crate) fn extract_event_names(bcf_file: &Path) -> Vec<String> {
 }
 
 // Get all occuring target chromosomes from a BCF file
-pub(crate) fn get_chromosomes(calls: &Path) -> Result<Vec<String>> {
+pub(crate) fn get_targets(calls: &Path) -> Result<Vec<String>> {
     let mut targets = Vec::new();
     let reader = Reader::from_path(calls)?;
 
@@ -61,7 +61,7 @@ mod tests {
     #[test]
     fn get_chromosomes_returns_correct_chromosomes() {
         let bcf_file_path = PathBuf::from("tests/resources/calls.bcf");
-        let chromosomes = get_chromosomes(&bcf_file_path).unwrap();
+        let chromosomes = get_targets(&bcf_file_path).unwrap();
         let expected_chromosomes = vec!["OX512233.1".to_string()];
         assert_eq!(chromosomes, expected_chromosomes);
     }

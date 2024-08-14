@@ -5,6 +5,8 @@ use bio::bio_types::strand::Strand;
 use bio::io::gff;
 use bio::io::gff::GffType;
 use clap::Parser;
+use crate::utils::bcf::get_targets;
+
 mod cli;
 mod graph;
 mod impact;
@@ -26,9 +28,10 @@ impl Command {
                 output,
             } => {
                 utils::create_output_dir(&output)?;
-                let targets = vec!["target1", "target2"]; // Later create function that gets all targets from calls file
+                let targets= get_targets(&calls)?;
                 for target in targets {
-                    let variant_graph = VariantGraph::build(&calls, &observations, target)?;
+                    let variant_graph = VariantGraph::build(&calls, &observations, &target)?;
+                    variant_graph.write(&output)?;
                 }
                 unimplemented!("Build command not implemented")
             }

@@ -32,6 +32,12 @@ pub(crate) struct VariantGraph {
 }
 
 impl VariantGraph {
+    pub(crate) fn write(&self, output_path: &PathBuf) -> Result<()> {
+        unimplemented!("Write method not implemented")
+    }
+}
+
+impl VariantGraph {
     pub(crate) fn build(
         calls_file: &PathBuf,
         observation_files: &[ObservationFile],
