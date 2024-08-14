@@ -27,11 +27,11 @@ impl Command {
                 observations,
                 output,
             } => {
-                utils::create_output_dir(&output)?;
-                let targets = get_targets(&calls)?;
+                utils::create_output_dir(output)?;
+                let targets = get_targets(calls)?;
                 for target in targets {
-                    let variant_graph = VariantGraph::build(&calls, &observations, &target)?;
-                    variant_graph.write(&target, &output)?;
+                    let variant_graph = VariantGraph::build(calls, observations, &target)?;
+                    variant_graph.write(&target, output)?;
                 }
                 unimplemented!("Build command not implemented")
             }
@@ -43,7 +43,12 @@ impl Command {
                     .filter_map(Result::ok)
                     .filter(|record| record.feature_type() == "CDS")
                 {
-                    unimplemented!("Process command not implemented")
+                    println!(
+                        "Feature: {} {}..{}",
+                        record.seqname(),
+                        record.start(),
+                        record.end()
+                    );
                 }
             }
             Command::Filter {
@@ -51,6 +56,8 @@ impl Command {
                 reference,
                 output,
             } => {
+                println!("Reading reference genome from {:?}", reference);
+                let _reference_genome = utils::fasta::read_reference(reference);
                 unimplemented!("Filter command not implemented")
             }
             Command::Show {

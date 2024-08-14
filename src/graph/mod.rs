@@ -30,7 +30,7 @@ pub(crate) struct VariantGraph {
 }
 
 impl VariantGraph {
-    pub(crate) fn write(&self, target: &str, output_path: &PathBuf) -> Result<()> {
+    pub(crate) fn write(&self, target: &str, output_path: &Path) -> Result<()> {
         let path = output_path.join(format!("{}.json", target));
         let file = std::fs::File::create(path)?;
         serde_json::to_writer(file, self)?;
