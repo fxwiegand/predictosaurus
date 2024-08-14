@@ -1,4 +1,4 @@
-use clap_derive::Parser;
+use clap_derive::{Parser, Subcommand};
 use serde::{Deserialize, Deserializer};
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -7,25 +7,67 @@ use std::str::FromStr;
 #[derive(Parser, Debug)]
 #[clap(version, about)]
 pub(crate) struct Predictosaurus {
-    /// Path to the calls file
-    #[clap(short, long)]
-    pub(crate) calls: PathBuf,
+    #[clap(subcommand)]
+    pub(crate) command: Command,
+}
 
-    /// One or more observation files in the format `sample=observations.vcf`. Make sure the sample names match the sample names in the calls file.
-    #[clap(short, long)]
-    pub(crate) observations: Vec<ObservationFile>,
+#[derive(Subcommand, Debug)]
+pub(crate) enum Command {
+    /// Build a full variant graph out of VCF files and store it.
+    Build {
+        /// Path to the calls file
+        #[clap(short, long)]
+        calls: PathBuf,
 
-    /// Path to the gff file containing the features of interest.
-    #[clap(short, long)]
-    pub(crate) features: PathBuf,
+        /// One or more observation files in the format `sample=observations.vcf`. Make sure the sample names match the sample names in the calls file.
+        #[clap(short, long)]
+        observations: Vec<ObservationFile>,
 
-    /// Path to reference genome fasta file
-    #[clap(short, long)]
-    pub(crate) reference: PathBuf,
+        /// Output path for the stored variant graphs
+        #[clap(short, long)]
+        output: PathBuf,
+    },
 
-    /// Path to the output file
-    #[clap(long, default_value = ".")]
-    pub(crate) output: PathBuf,
+    /// Retrieve subgraphs for individual features from the given GFF file
+    Process {
+        /// Path to the gff file containing the features of interest.
+        #[clap(short, long)]
+        features: PathBuf,
+
+        /// Path to the output file
+        #[clap(short, long)]
+        output: PathBuf,
+    },
+
+    /// Filter paths with specific impacts or allele frequencies
+    Filter {
+        /// Path to the input file
+        #[clap(short, long)]
+        input: PathBuf,
+
+        /// Path to reference genome fasta file
+        #[clap(short, long)]
+        reference: PathBuf,
+
+        /// Path to the output Parquet file
+        #[clap(short, long)]
+        output: PathBuf,
+    },
+
+    /// Create visualizations and output HTML, TSV, or Vega specs
+    Show {
+        /// Path to the input data file
+        #[clap(short, long)]
+        input: PathBuf,
+
+        /// Output format (html, tsv, vega)
+        #[clap(short, long)]
+        format: String,
+
+        /// Path to the output file
+        #[clap(short, long)]
+        output: PathBuf,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -59,126 +101,19 @@ impl<'de> Deserialize<'de> for ObservationFile {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use clap::Parser;
 
     #[test]
-    fn parsing_calls_path() {
-        let args = Predictosaurus::parse_from([
-            "",
-            "--calls",
-            "path/to/calls.vcf",
-            "--features",
-            "path/to/features.gff",
-            "--reference",
-            "path/to/reference.fasta",
-        ]);
-        assert_eq!(args.calls, PathBuf::from("path/to/calls.vcf"));
+    fn from_str_parses_valid_observation_file() {
+        let input = "sample1=observations.vcf";
+        let observation_file = ObservationFile::from_str(input).unwrap();
+        assert_eq!(observation_file.sample, "sample1");
+        assert_eq!(observation_file.path, PathBuf::from("observations.vcf"));
     }
 
     #[test]
-    fn parsing_single_observation_file() {
-        let args = Predictosaurus::parse_from([
-            "",
-            "--calls",
-            "path/to/calls.vcf",
-            "--features",
-            "path/to/features.gff",
-            "--reference",
-            "path/to/reference.fasta",
-            "--observations",
-            "sample1=observations1.vcf",
-        ]);
-        assert_eq!(args.observations.len(), 1);
-        assert_eq!(args.observations[0].sample, "sample1");
-        assert_eq!(
-            args.observations[0].path,
-            PathBuf::from("observations1.vcf")
-        );
-    }
-
-    #[test]
-    fn parsing_multiple_observation_files() {
-        let args = Predictosaurus::parse_from([
-            "",
-            "--calls",
-            "path/to/calls.vcf",
-            "--features",
-            "path/to/features.gff",
-            "--reference",
-            "path/to/reference.fasta",
-            "--observations",
-            "sample1=observations1.vcf",
-            "--observations",
-            "sample2=observations2.vcf",
-        ]);
-        assert_eq!(args.observations.len(), 2);
-        assert_eq!(args.observations[0].sample, "sample1");
-        assert_eq!(
-            args.observations[0].path,
-            PathBuf::from("observations1.vcf")
-        );
-        assert_eq!(args.observations[1].sample, "sample2");
-        assert_eq!(
-            args.observations[1].path,
-            PathBuf::from("observations2.vcf")
-        );
-    }
-
-    #[test]
-    fn parsing_features_path() {
-        let args = Predictosaurus::parse_from([
-            "",
-            "--calls",
-            "path/to/calls.vcf",
-            "--features",
-            "path/to/features.gff",
-            "--reference",
-            "path/to/reference.fasta",
-        ]);
-        assert_eq!(args.features, PathBuf::from("path/to/features.gff"));
-    }
-
-    #[test]
-    fn parsing_reference_path() {
-        let args = Predictosaurus::parse_from([
-            "",
-            "--calls",
-            "path/to/calls.vcf",
-            "--features",
-            "path/to/features.gff",
-            "--reference",
-            "path/to/reference.fasta",
-        ]);
-        assert_eq!(args.reference, PathBuf::from("path/to/reference.fasta"));
-    }
-
-    #[test]
-    fn parsing_output_path() {
-        let args = Predictosaurus::parse_from([
-            "",
-            "--calls",
-            "path/to/calls.vcf",
-            "--features",
-            "path/to/features.gff",
-            "--reference",
-            "path/to/reference.fasta",
-            "--output",
-            "path/to/output",
-        ]);
-        assert_eq!(args.output, PathBuf::from("path/to/output"));
-    }
-
-    #[test]
-    fn parsing_default_output_path() {
-        let args = Predictosaurus::parse_from([
-            "",
-            "--calls",
-            "path/to/calls.vcf",
-            "--features",
-            "path/to/features.gff",
-            "--reference",
-            "path/to/reference.fasta",
-        ]);
-        assert_eq!(args.output, PathBuf::from("."));
+    #[should_panic]
+    fn from_str_fails_on_invalid_format() {
+        let input = "invalid_format";
+        let result = ObservationFile::from_str(input);
     }
 }

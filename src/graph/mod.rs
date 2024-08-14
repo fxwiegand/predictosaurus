@@ -36,8 +36,6 @@ impl VariantGraph {
         calls_file: &PathBuf,
         observation_files: &[ObservationFile],
         target: &str,
-        start: i64,
-        end: i64,
     ) -> Result<VariantGraph> {
         let mut calls_reader = Reader::from_path(calls_file)?;
         let header = calls_reader.header().clone();
@@ -76,6 +74,7 @@ impl VariantGraph {
         let mut variant_graph = Graph::<Node, Edge, Directed>::new();
         let mut index = 0;
         let mut last_position = -1;
+        let mut start = 0;
 
         for calls_record in calls_reader.records() {
             let mut calls_record = calls_record?;
@@ -96,10 +95,7 @@ impl VariantGraph {
                 })
                 .collect::<HashMap<_, _>>();
 
-            if header.rid2name(calls_record.rid().unwrap()).unwrap() != target.as_bytes()
-                || position < start
-                || position > end
-            {
+            if header.rid2name(calls_record.rid().unwrap()).unwrap() != target.as_bytes() {
                 continue;
             }
 
@@ -159,7 +155,9 @@ impl VariantGraph {
                     }
                 }
             }
-
+            if (last_position == -1) {
+                start = position; // Set start position
+            }
             last_position = position;
         }
 
@@ -336,7 +334,7 @@ mod tests {
             path: observations_file,
             sample: "sample".to_string(),
         }];
-        let variant_graph = VariantGraph::build(&calls_file, &observations, "OX512233.1", 60, 85);
+        let variant_graph = VariantGraph::build(&calls_file, &observations, "OX512233.1");
         assert!(variant_graph.is_ok());
     }
 
@@ -348,8 +346,7 @@ mod tests {
             path: observations_file,
             sample: "sample".to_string(),
         }];
-        let variant_graph =
-            VariantGraph::build(&calls_file, &observations, "not actually in file", 60, 85);
+        let variant_graph = VariantGraph::build(&calls_file, &observations, "not actually in file");
         assert!(variant_graph.unwrap().is_empty());
     }
 
@@ -362,7 +359,7 @@ mod tests {
             sample: "sample".to_string(),
         }];
         let mut variant_graph =
-            VariantGraph::build(&calls_file, &observations, "OX512233.1", 60, 85).unwrap();
+            VariantGraph::build(&calls_file, &observations, "OX512233.1").unwrap();
         variant_graph.graph.add_edge(
             NodeIndex::new(0),
             NodeIndex::new(2),
