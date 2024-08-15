@@ -55,8 +55,10 @@ impl Command {
                 {
                     let target = record.seqname().to_string();
                     if let Some(variant_graph) = variant_graphs.get(&target) {
-                        let subgraph = variant_graph.subgraph(*record.start() as i64, *record.end() as i64);
-                        let output_file = output.join(format!("{}.json", record.attributes().get("ID").unwrap()));
+                        let subgraph =
+                            variant_graph.subgraph(*record.start() as i64, *record.end() as i64);
+                        let output_file =
+                            output.join(format!("{}.json", record.attributes().get("ID").unwrap()));
                         subgraph.write(&output_file)?;
                     } else {
                         anyhow::bail!("No variant graph found for target {}", target);
