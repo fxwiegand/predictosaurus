@@ -247,6 +247,12 @@ impl VariantGraph {
         }
     }
 
+    pub(crate) fn write(&self, path: &Path) -> Result<()> {
+        let file = std::fs::File::create(path)?;
+        serde_json::to_writer(file, self)?;
+        Ok(())
+    }
+
     pub(crate) fn to_dot(&self) -> String {
         format!(
             "digraph {{ {:?} }}",
@@ -774,5 +780,16 @@ mod tests {
             graph.graph.node_count(),
             deserialized_graph.graph.node_count()
         );
+    }
+
+    #[test]
+    fn test_write_graph() {
+        let graph = setup_variant_graph_with_nodes();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let file_path = temp_dir.path().join("graph.json");
+        graph.write(&file_path).unwrap();
+        let written_content = fs::read_to_string(file_path).unwrap();
+        let deserialized_graph: VariantGraph = serde_json::from_str(&written_content).unwrap();
+        assert_eq!(graph.graph.node_count(), deserialized_graph.graph.node_count());
     }
 }
