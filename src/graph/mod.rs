@@ -220,6 +220,33 @@ impl VariantGraph {
         Ok(())
     }
 
+    pub(crate) fn subgraph(&self, start: i64, end: i64) -> VariantGraph {
+        let mut subgraph = self.graph.clone();
+        let nodes = subgraph
+            .node_indices()
+            .filter(|n| {
+                let node = subgraph.node_weight(*n).unwrap();
+                node.pos >= start && node.pos <= end
+            })
+            .collect_vec();
+        let edges = subgraph
+            .edge_indices()
+            .filter(|e| {
+                let source = subgraph.edge_endpoints(*e).unwrap().0;
+                let target = subgraph.edge_endpoints(*e).unwrap().1;
+                nodes.contains(&source) && nodes.contains(&target)
+            })
+            .collect_vec();
+        subgraph.retain_nodes(|_, n| nodes.contains(&n));
+        subgraph.retain_edges(|_, e| edges.contains(&e));
+        VariantGraph {
+            graph: subgraph,
+            start,
+            end,
+            target: self.target.clone(),
+        }
+    }
+
     pub(crate) fn to_dot(&self) -> String {
         format!(
             "digraph {{ {:?} }}",
@@ -357,6 +384,17 @@ mod tests {
         }];
         let variant_graph = VariantGraph::build(&calls_file, &observations, "not actually in file");
         assert!(variant_graph.unwrap().is_empty());
+    }
+
+    #[test]
+    fn subgraph_includes_nodes_within_range() {
+        let graph = setup_variant_graph_with_nodes();
+        let subgraph = graph.subgraph(1, 3);
+        assert!(subgraph.graph.node_indices().all(|n| {
+            let node = subgraph.graph.node_weight(n).unwrap();
+            node.pos >= 1 && node.pos <= 3
+        }));
+        assert_eq!(subgraph.graph.node_count(), 3)
     }
 
     #[test]
