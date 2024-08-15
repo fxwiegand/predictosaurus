@@ -45,7 +45,7 @@ impl Command {
             } => {
                 let mut feature_reader = gff::Reader::from_file(features, GffType::GFF3)
                     .context("Failed to open GFF file")?;
-                let _variant_graphs: HashMap<String, VariantGraph> =
+                let variant_graphs: HashMap<String, VariantGraph> =
                     serde_json::from_reader(std::fs::File::open(graph)?)
                         .context("Failed to read graph file")?;
                 for record in feature_reader
@@ -53,12 +53,14 @@ impl Command {
                     .filter_map(Result::ok)
                     .filter(|record| record.feature_type() == "CDS")
                 {
-                    println!(
-                        "Feature: {} {}..{}",
-                        record.seqname(),
-                        record.start(),
-                        record.end()
-                    );
+                    let target = record.seqname().to_string();
+                    if let Some(variant_graph) = variant_graphs.get(&target) {
+                        let subgraph = variant_graph.subgraph(*record.start() as i64, *record.end() as i64);
+                        let output_file = output.join(format!("{}.json", record.attributes().get("ID").unwrap()));
+                        subgraph.write(&output_file)?;
+                    } else {
+                        anyhow::bail!("No variant graph found for target {}", target);
+                    }
                 }
             }
             Command::Filter {
