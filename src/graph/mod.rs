@@ -790,6 +790,9 @@ mod tests {
         graph.write(&file_path).unwrap();
         let written_content = fs::read_to_string(file_path).unwrap();
         let deserialized_graph: VariantGraph = serde_json::from_str(&written_content).unwrap();
-        assert_eq!(graph.graph.node_count(), deserialized_graph.graph.node_count());
+        assert_eq!(
+            graph.graph.node_count(),
+            deserialized_graph.graph.node_count()
+        );
     }
 }
