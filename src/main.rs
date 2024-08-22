@@ -1,10 +1,12 @@
-use crate::cli::Predictosaurus;
-use crate::graph::VariantGraph;
-use anyhow::{anyhow, Context, Result};
-use bio::bio_types::strand::Strand;
+use crate::cli::{Command, Predictosaurus};
+use crate::graph::{write_graphs, VariantGraph};
+use crate::utils::bcf::get_targets;
+use anyhow::{Context, Result};
 use bio::io::gff;
 use bio::io::gff::GffType;
 use clap::Parser;
+use std::collections::HashMap;
+
 mod cli;
 mod graph;
 mod impact;
@@ -14,81 +16,72 @@ mod utils;
 
 fn main() -> Result<()> {
     let args = Predictosaurus::parse();
+    args.command.run()
+}
 
-    let calls_file = args.calls;
-    let observation_files = args.observations;
-    let features_file = args.features;
-    let output_file = args.output;
-
-    utils::create_output_dir(&output_file)?;
-
-    println!("Reading reference genome from {:?}", args.reference);
-    let reference_genome = utils::fasta::read_reference(&args.reference);
-
-    let mut feature_reader =
-        gff::Reader::from_file(features_file, GffType::GFF3).context("Failed to open GFF file")?;
-    for record in feature_reader
-        .records()
-        .filter_map(Result::ok)
-        .filter(|record| record.feature_type() == "CDS")
-    {
-        let start = *record.start() as i64;
-        let end = *record.end() as i64;
-        println!(
-            "Building variant graph for CDS at {}:{}-{}",
-            record.seqname(),
-            start,
-            end
-        );
-        let variant_graph = VariantGraph::build(
-            &calls_file,
-            &observation_files,
-            record.seqname(),
-            start,
-            end,
-        )?;
-        let phase: u8 = record.phase().clone().try_into().map_err(|_| {
-            anyhow!(
-                "Invalid phase value '{:?}' for CDS at {}:{}-{}",
-                record.phase(),
-                record.seqname(),
-                start,
-                end
-            )
-        })?;
-        let strand = record.strand().expect("Strand not found");
-        let forward_seq = reference_genome.get(record.seqname()).ok_or_else(|| {
-            anyhow!(
-                "Reference sequence {} not found in provided FASTA file",
-                record.seqname()
-            )
-        })?;
-        let (ref_seq, paths) = match strand {
-            Strand::Forward => (forward_seq, variant_graph.paths()),
-            Strand::Reverse => (
-                &{ utils::fasta::reverse_complement(forward_seq) },
-                variant_graph.reverse_paths(),
-            ),
-            Strand::Unknown => {
-                return Err(anyhow!(
-                    "Strand is unknown for sequence {}",
-                    record.seqname()
-                ));
+impl Command {
+    fn run(&self) -> Result<()> {
+        match self {
+            Command::Build {
+                calls,
+                observations,
+                output,
+            } => {
+                utils::create_output_dir(output)?;
+                let targets = get_targets(calls)?;
+                let mut graphs = HashMap::new();
+                for target in targets {
+                    let variant_graph = VariantGraph::build(calls, observations, &target)?;
+                    if !variant_graph.is_empty() {
+                        graphs.insert(target, variant_graph);
+                    }
+                }
+                write_graphs(graphs, output)?;
             }
-        };
-
-        for path in paths {
-            println!(
-                "Path with impact {}",
-                path.impact(&variant_graph, phase, ref_seq, strand).unwrap(),
-            );
-            println!(
-                "{}",
-                path.display(&variant_graph, phase, ref_seq, strand)
-                    .unwrap()
-            );
-            println!();
+            Command::Process {
+                features,
+                graph,
+                output,
+            } => {
+                let mut feature_reader = gff::Reader::from_file(features, GffType::GFF3)
+                    .context("Failed to open GFF file")?;
+                let variant_graphs: HashMap<String, VariantGraph> =
+                    serde_json::from_reader(std::fs::File::open(graph)?)
+                        .context("Failed to read graph file")?;
+                for record in feature_reader
+                    .records()
+                    .filter_map(Result::ok)
+                    .filter(|record| record.feature_type() == "CDS")
+                {
+                    let target = record.seqname().to_string();
+                    if let Some(variant_graph) = variant_graphs.get(&target) {
+                        let subgraph =
+                            variant_graph.subgraph(*record.start() as i64, *record.end() as i64);
+                        let output_file_path =
+                            output.join(format!("{}.json", record.attributes().get("ID").unwrap()));
+                        subgraph.write(&output_file_path)?;
+                    } else {
+                        anyhow::bail!("No variant graph found for target {}", target);
+                    }
+                }
+            }
+            Command::Filter {
+                input,
+                reference,
+                output,
+            } => {
+                println!("Reading reference genome from {:?}", reference);
+                let _reference_genome = utils::fasta::read_reference(reference);
+                unimplemented!("Filter command not implemented")
+            }
+            Command::Show {
+                input,
+                format,
+                output,
+            } => {
+                unimplemented!("Show command not implemented")
+            }
         }
+        Ok(())
     }
-    Ok(())
 }
