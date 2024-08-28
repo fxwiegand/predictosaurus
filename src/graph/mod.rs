@@ -17,7 +17,6 @@ use petgraph::{Directed, Graph};
 use rust_htslib::bcf::{Read, Reader, Record};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use std::hash::Hash;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use varlociraptor::calling::variants::preprocessing::read_observations;
@@ -155,7 +154,7 @@ impl VariantGraph {
                     }
                 }
             }
-            if (last_position == -1) {
+            if last_position == -1 {
                 start = position; // Set start position
             }
             last_position = position;
