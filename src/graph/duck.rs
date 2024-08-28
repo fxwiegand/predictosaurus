@@ -23,7 +23,14 @@ pub(crate) fn write_graphs(
         [],
     )?;
     for (target, graph) in graphs {
-        db.execute("INSERT INTO graphs VALUES (?, ?, ?)", [target.to_string(), graph.start.to_string(), graph.end.to_string()])?;
+        db.execute(
+            "INSERT INTO graphs VALUES (?, ?, ?)",
+            [
+                target.to_string(),
+                graph.start.to_string(),
+                graph.end.to_string(),
+            ],
+        )?;
         for node_index in graph.graph.node_indices() {
             let node = graph.graph.node_weight(node_index).unwrap();
             db.execute(
@@ -59,7 +66,9 @@ pub(crate) fn write_graphs(
 
 pub(crate) fn read_graphs(path: PathBuf) -> HashMap<String, VariantGraph> {
     let db = Connection::open(path).unwrap();
-    let mut stmt = db.prepare("SELECT target, start_position, end_position FROM graphs").unwrap();
+    let mut stmt = db
+        .prepare("SELECT target, start_position, end_position FROM graphs")
+        .unwrap();
     let targets: Vec<(String, i64, i64)> = stmt
         .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
         .unwrap()
