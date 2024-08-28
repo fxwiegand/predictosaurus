@@ -1,7 +1,11 @@
-use crate::graph::VariantGraph;
+use crate::graph::node::{Node, NodeType};
+use crate::graph::{Edge, VariantGraph};
 use duckdb::Connection;
+use petgraph::matrix_graph::NodeIndex;
+use petgraph::Graph;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
 pub(crate) fn write_graphs(
     graphs: HashMap<String, VariantGraph>,
@@ -53,23 +57,129 @@ pub(crate) fn write_graphs(
     Ok(())
 }
 
+pub(crate) fn read_graphs(path: PathBuf) -> HashMap<String, VariantGraph> {
+    let db = Connection::open(path).unwrap();
+    let mut stmt = db.prepare("SELECT target FROM graphs").unwrap();
+    let targets: Vec<String> = stmt
+        .query_map([], |row| row.get(0))
+        .unwrap()
+        .map(Result::unwrap)
+        .collect();
+    let mut graphs = HashMap::new();
+    for target in targets {
+        let mut graph = Graph::<Node, Edge, petgraph::Directed>::new();
+        let mut stmt = db
+            .prepare(
+                "SELECT node_index, node_type, vaf, probs, pos, index FROM nodes WHERE target = ?",
+            )
+            .unwrap();
+        let nodes: Vec<(usize, String, String, String, i64, u32)> = stmt
+            .query_map([target.to_string()], |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                ))
+            })
+            .unwrap()
+            .map(Result::unwrap)
+            .collect();
+        for _ in 0..nodes.len() {
+            graph.add_node(Node::new(NodeType::Ref("".to_string()), 0)); // Add placeholder nodes
+        }
+        for (node_index, node_type, vaf, probs, pos, index) in nodes {
+            let node = Node {
+                node_type: NodeType::from_str(&node_type).unwrap(),
+                vaf: serde_json::from_str(&vaf).unwrap(),
+                probs: serde_json::from_str(&probs).unwrap(),
+                pos,
+                index,
+            };
+            graph[NodeIndex::new(node_index)] = node;
+        }
+        let mut stmt = db
+            .prepare("SELECT from_node, to_node, supporting_reads FROM edges WHERE target = ?")
+            .unwrap();
+        let edges: Vec<(i64, i64, String)> = stmt
+            .query_map([target.to_string()], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+            })
+            .unwrap()
+            .map(Result::unwrap)
+            .collect();
+        for (from_node, to_node, supporting_reads) in edges {
+            let edge_weight: HashMap<String, u32> =
+                serde_json::from_str(&supporting_reads).unwrap();
+            graph.add_edge(
+                graph.node_indices().nth(from_node as usize).unwrap(),
+                graph.node_indices().nth(to_node as usize).unwrap(),
+                Edge {
+                    supporting_reads: edge_weight,
+                },
+            );
+        }
+        let variant_graph = VariantGraph {
+            graph,
+            start: 0, // TODO: Read start and end from database? Is this necessary?
+            end: 0,
+            target: target.clone(),
+        };
+        graphs.insert(target, variant_graph);
+    }
+    db.close().unwrap();
+    graphs
+}
+
 mod tests {
     use super::*;
+    use crate::graph::node::{Node, NodeType};
     use crate::graph::Edge;
-    use petgraph::graph::NodeIndex;
+    use petgraph::{Directed, Graph};
 
-    #[test]
-    fn test_write_graphs() {
-        let mut graphs = HashMap::new();
-        let mut g1 = crate::graph::tests::setup_variant_graph_with_nodes();
-        g1.graph.add_edge(
-            NodeIndex::new(0),
-            NodeIndex::new(1),
+    pub(crate) fn setup_graph() -> VariantGraph {
+        let mut graph = Graph::<Node, Edge, Directed>::new();
+        let node1 = graph.add_node(Node::new(NodeType::Var("A".to_string()), 1));
+        let node2 = graph.add_node(Node::new(NodeType::Ref("".to_string()), 2));
+        let node3 = graph.add_node(Node::new(NodeType::Var("T".to_string()), 3));
+        let node4 = graph.add_node(Node::new(NodeType::Var("".to_string()), 4));
+        let node5 = graph.add_node(Node::new(NodeType::Var("A".to_string()), 8));
+        let node6 = graph.add_node(Node::new(NodeType::Var("TT".to_string()), 9));
+        let edge1 = graph.add_edge(
+            node1,
+            node2,
             Edge {
                 supporting_reads: HashMap::new(),
             },
         );
-        graphs.insert("graph1".to_string(), g1);
+        let edge2 = graph.add_edge(
+            node2,
+            node3,
+            Edge {
+                supporting_reads: HashMap::new(),
+            },
+        );
+        let edge3 = graph.add_edge(
+            node3,
+            node4,
+            Edge {
+                supporting_reads: HashMap::new(),
+            },
+        );
+        VariantGraph {
+            graph,
+            start: 0,
+            end: 2,
+            target: "test".to_string(),
+        }
+    }
+
+    #[test]
+    fn test_write_graphs() {
+        let mut graphs = HashMap::new();
+        graphs.insert("graph1".to_string(), setup_graph());
         let temp_dir = tempfile::tempdir().unwrap();
         let output_path = temp_dir.path();
         write_graphs(graphs, output_path).unwrap();
@@ -107,7 +217,21 @@ mod tests {
             .unwrap()
             .map(Result::unwrap)
             .collect();
-        assert_eq!(edges.len(), 1);
+        assert_eq!(edges.len(), 3);
         db.close().unwrap();
+    }
+
+    #[test]
+    fn test_read_and_write_graphs() {
+        let mut graphs = HashMap::new();
+        graphs.insert("graph1".to_string(), setup_graph());
+        let temp_dir = tempfile::tempdir().unwrap();
+        let output_path = temp_dir.path();
+        write_graphs(graphs, output_path).unwrap();
+        let read_graphs = read_graphs(output_path.join("graphs.duckdb"));
+        assert_eq!(read_graphs.len(), 1);
+        let graph = read_graphs.get("graph1").unwrap();
+        assert_eq!(graph.graph.node_count(), 6);
+        assert_eq!(graph.graph.edge_count(), 3);
     }
 }

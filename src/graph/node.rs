@@ -12,7 +12,7 @@ use std::fmt::Display;
 use std::str::FromStr;
 use varlociraptor::variants::evidence::observations::read_observation::ProcessedReadObservation;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[allow(dead_code)] // TODO: Remove this attribute when graph is properly serialized
 pub(crate) enum NodeType {
     Var(String),
@@ -32,10 +32,13 @@ impl FromStr for NodeType {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "Var" => Ok(NodeType::Var("".to_string())),
-            "Ref" => Ok(NodeType::Ref("".to_string())),
-            _ => Err(anyhow!("Invalid node type")),
+        if s.starts_with("Var(") && s.ends_with(')') {
+            let inner = &s[4..s.len() - 1];
+            Ok(NodeType::Var(inner.to_string()))
+        } else if s == "Ref" {
+            Ok(NodeType::Ref("".to_string()))
+        } else {
+            Err(anyhow!("Invalid node type"))
         }
     }
 }
@@ -239,6 +242,7 @@ mod tests {
     use itertools::Itertools;
     use petgraph::{Directed, Graph};
     use std::collections::HashMap;
+    use std::str::FromStr;
 
     #[test]
     fn test_nodes_in_between() {
@@ -637,5 +641,35 @@ mod tests {
         let node = Node::new(NodeType::Ref("".to_string()), 10);
         let reference_length = 11;
         assert_eq!(node.position_on_reverse_strand(reference_length), 0);
+    }
+
+    #[test]
+    fn from_str_parses_variant_node_type() {
+        let result = NodeType::from_str("Var(A)").unwrap();
+        assert_eq!(result, NodeType::Var("A".to_string()));
+    }
+
+    #[test]
+    fn from_str_parses_reference_node_type() {
+        let result = NodeType::from_str("Ref").unwrap();
+        assert_eq!(result, NodeType::Ref("".to_string()));
+    }
+
+    #[test]
+    fn from_str_returns_error_for_invalid_node_type() {
+        let result = NodeType::from_str("Invalid");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn from_str_returns_error_for_malformed_variant_node_type() {
+        let result = NodeType::from_str("Var(A");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn from_str_returns_error_for_empty_string() {
+        let result = NodeType::from_str("");
+        assert!(result.is_err());
     }
 }
