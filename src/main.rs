@@ -1,5 +1,6 @@
 use crate::cli::{Command, Predictosaurus};
-use crate::graph::{write_graphs, VariantGraph};
+use crate::graph::duck::write_graphs;
+use crate::graph::VariantGraph;
 use crate::utils::bcf::get_targets;
 use anyhow::{Context, Result};
 use bio::io::gff;
@@ -72,6 +73,8 @@ impl Command {
             } => {
                 println!("Reading reference genome from {:?}", reference);
                 let _reference_genome = utils::fasta::read_reference(reference);
+                let graph: VariantGraph = serde_json::from_reader(std::fs::File::open(input)?)?;
+                let _paths = graph.paths();
                 unimplemented!("Filter command not implemented")
             }
             Command::Show {

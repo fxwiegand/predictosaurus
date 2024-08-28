@@ -8,6 +8,8 @@ use itertools::Itertools;
 use rust_htslib::bcf::Record;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt::Display;
+use std::str::FromStr;
 use varlociraptor::variants::evidence::observations::read_observation::ProcessedReadObservation;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -15,6 +17,27 @@ use varlociraptor::variants::evidence::observations::read_observation::Processed
 pub(crate) enum NodeType {
     Var(String),
     Ref(String),
+}
+
+impl Display for NodeType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NodeType::Var(alt) => write!(f, "Var({})", alt),
+            NodeType::Ref(_) => write!(f, "Ref"),
+        }
+    }
+}
+
+impl FromStr for NodeType {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Var" => Ok(NodeType::Var("".to_string())),
+            "Ref" => Ok(NodeType::Ref("".to_string())),
+            _ => Err(anyhow!("Invalid node type")),
+        }
+    }
 }
 
 impl NodeType {
