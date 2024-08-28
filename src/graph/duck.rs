@@ -13,7 +13,7 @@ pub(crate) fn write_graphs(
 ) -> anyhow::Result<()> {
     let path = output_path.join("graphs.duckdb");
     let db = Connection::open(&path)?;
-    db.execute("CREATE TABLE graphs (target STRING PRIMARY KEY)", [])?;
+    db.execute("CREATE TABLE graphs (target STRING PRIMARY KEY, start_position INTEGER, end_position INTEGER)", [])?;
     db.execute(
         "CREATE TABLE nodes (target STRING, node_index INTEGER PRIMARY KEY, node_type STRING, vaf STRING, probs STRING, pos INTEGER, index INTEGER)",
         [],
@@ -23,7 +23,7 @@ pub(crate) fn write_graphs(
         [],
     )?;
     for (target, graph) in graphs {
-        db.execute("INSERT INTO graphs VALUES (?)", [target.to_string()])?;
+        db.execute("INSERT INTO graphs VALUES (?, ?, ?)", [target.to_string(), graph.start.to_string(), graph.end.to_string()])?;
         for node_index in graph.graph.node_indices() {
             let node = graph.graph.node_weight(node_index).unwrap();
             db.execute(
@@ -59,14 +59,14 @@ pub(crate) fn write_graphs(
 
 pub(crate) fn read_graphs(path: PathBuf) -> HashMap<String, VariantGraph> {
     let db = Connection::open(path).unwrap();
-    let mut stmt = db.prepare("SELECT target FROM graphs").unwrap();
-    let targets: Vec<String> = stmt
-        .query_map([], |row| row.get(0))
+    let mut stmt = db.prepare("SELECT target, start_position, end_position FROM graphs").unwrap();
+    let targets: Vec<(String, i64, i64)> = stmt
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
         .unwrap()
         .map(Result::unwrap)
         .collect();
     let mut graphs = HashMap::new();
-    for target in targets {
+    for (target, start, end) in targets {
         let mut graph = Graph::<Node, Edge, petgraph::Directed>::new();
         let mut stmt = db
             .prepare(
@@ -123,8 +123,8 @@ pub(crate) fn read_graphs(path: PathBuf) -> HashMap<String, VariantGraph> {
         }
         let variant_graph = VariantGraph {
             graph,
-            start: 0, // TODO: Read start and end from database? Is this necessary?
-            end: 0,
+            start,
+            end,
             target: target.clone(),
         };
         graphs.insert(target, variant_graph);
@@ -233,5 +233,7 @@ mod tests {
         let graph = read_graphs.get("graph1").unwrap();
         assert_eq!(graph.graph.node_count(), 6);
         assert_eq!(graph.graph.edge_count(), 3);
+        assert_eq!(graph.start, 0);
+        assert_eq!(graph.end, 2);
     }
 }
