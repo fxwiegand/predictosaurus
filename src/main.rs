@@ -1,5 +1,5 @@
 use crate::cli::{Command, Predictosaurus};
-use crate::graph::duck::write_graphs;
+use crate::graph::duck::{read_graphs, write_graphs};
 use crate::graph::VariantGraph;
 use crate::utils::bcf::get_targets;
 use anyhow::{Context, Result};
@@ -41,14 +41,18 @@ impl Command {
             }
             Command::Process {
                 features,
+                reference,
                 graph,
                 output,
             } => {
                 let mut feature_reader = gff::Reader::from_file(features, GffType::GFF3)
                     .context("Failed to open GFF file")?;
-                let variant_graphs: HashMap<String, VariantGraph> =
-                    serde_json::from_reader(std::fs::File::open(graph)?)
-                        .context("Failed to read graph file")?;
+
+                let variant_graphs = read_graphs(graph.to_owned());
+
+                println!("Reading reference genome from {:?}", reference);
+                let _reference_genome = utils::fasta::read_reference(reference);
+
                 for record in feature_reader
                     .records()
                     .filter_map(Result::ok)
@@ -56,26 +60,12 @@ impl Command {
                 {
                     let target = record.seqname().to_string();
                     if let Some(variant_graph) = variant_graphs.get(&target) {
-                        let subgraph =
-                            variant_graph.subgraph(*record.start() as i64, *record.end() as i64);
-                        let output_file_path =
-                            output.join(format!("{}.json", record.attributes().get("ID").unwrap()));
-                        subgraph.write(&output_file_path)?;
+                        // TODO: Implement filtering of nodes and edges based on feature coordinates to create subgraph.
+                        // Create Paths and their impacts for subgraph/feature and serialize them for usage in show command.
                     } else {
                         anyhow::bail!("No variant graph found for target {}", target);
                     }
                 }
-            }
-            Command::Filter {
-                input,
-                reference,
-                output,
-            } => {
-                println!("Reading reference genome from {:?}", reference);
-                let _reference_genome = utils::fasta::read_reference(reference);
-                let graph: VariantGraph = serde_json::from_reader(std::fs::File::open(input)?)?;
-                let _paths = graph.paths();
-                unimplemented!("Filter command not implemented")
             }
             Command::Show {
                 input,
