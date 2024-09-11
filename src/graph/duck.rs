@@ -1,5 +1,6 @@
 use crate::graph::node::{Node, NodeType};
 use crate::graph::{Edge, VariantGraph};
+use anyhow::Result;
 use duckdb::Connection;
 use petgraph::matrix_graph::NodeIndex;
 use petgraph::Graph;
@@ -64,6 +65,81 @@ pub(crate) fn write_graphs(
     Ok(())
 }
 
+pub(crate) fn feature_graph(
+    path: PathBuf,
+    target: String,
+    start: i64,
+    end: i64,
+) -> Result<VariantGraph> {
+    let db = Connection::open(path)?;
+    let mut graph = Graph::<Node, Edge, petgraph::Directed>::new();
+    let mut stmt = db
+        .prepare(
+            "SELECT node_index, node_type, vaf, probs, pos, index FROM nodes WHERE target = ? AND pos >= ? AND pos <= ?",
+        )
+        .unwrap();
+    let nodes: Vec<(usize, String, String, String, i64, u32)> = stmt
+        .query_map(
+            [target.to_string(), start.to_string(), end.to_string()],
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                ))
+            },
+        )?
+        .map(Result::unwrap)
+        .collect();
+    for _ in 0..nodes.len() {
+        graph.add_node(Node::new(NodeType::Ref("".to_string()), 0)); // Add placeholder nodes
+    }
+    for (node_index, node_type, vaf, probs, pos, index) in nodes {
+        let node = Node {
+            node_type: NodeType::from_str(&node_type).unwrap(),
+            vaf: serde_json::from_str(&vaf).unwrap(),
+            probs: serde_json::from_str(&probs).unwrap(),
+            pos,
+            index,
+        };
+        graph[NodeIndex::new(node_index)] = node;
+    }
+    let mut stmt = db
+        .prepare("SELECT from_node, to_node, supporting_reads FROM edges WHERE target = ?")
+        .unwrap();
+    let edges: Vec<(usize, usize, String)> = stmt
+        .query_map([target.to_string()], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+        })?
+        .map(Result::unwrap)
+        .collect();
+    for (from_node, to_node, supporting_reads) in edges {
+        if graph.node_indices().nth(from_node).is_none()
+            || graph.node_indices().nth(to_node).is_none()
+        {
+            continue;
+        }
+        let edge_weight: HashMap<String, u32> = serde_json::from_str(&supporting_reads).unwrap();
+        graph.add_edge(
+            graph.node_indices().nth(from_node).unwrap(),
+            graph.node_indices().nth(to_node).unwrap(),
+            Edge {
+                supporting_reads: edge_weight,
+            },
+        );
+    }
+    Ok(VariantGraph {
+        graph,
+        start,
+        end,
+        target: target.clone(),
+    })
+}
+
+// TODO: Remove as this is unused...
 pub(crate) fn read_graphs(path: PathBuf) -> HashMap<String, VariantGraph> {
     let db = Connection::open(path).unwrap();
     let mut stmt = db
