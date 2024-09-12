@@ -3,6 +3,7 @@ use crate::graph::duck::{feature_graph, write_graphs};
 use crate::graph::VariantGraph;
 use crate::utils::bcf::get_targets;
 use anyhow::{Context, Result};
+use bio::bio_types::strand::Strand;
 use bio::io::gff;
 use bio::io::gff::GffType;
 use clap::Parser;
@@ -49,7 +50,7 @@ impl Command {
                     .context("Failed to open GFF file")?;
 
                 println!("Reading reference genome from {:?}", reference);
-                let _reference_genome = utils::fasta::read_reference(reference);
+                let reference_genome = utils::fasta::read_reference(reference);
 
                 for record in feature_reader
                     .records()
@@ -57,7 +58,34 @@ impl Command {
                     .filter(|record| record.feature_type() == "CDS")
                 {
                     let target = record.seqname().to_string();
-                    if let Ok(graph) = feature_graph(graph.to_owned(), target.to_string(), *record.start(), *record.end()) {
+                    if let Ok(graph) = feature_graph(
+                        graph.to_owned(),
+                        target.to_string(),
+                        *record.start(),
+                        *record.end(),
+                    ) {
+                        let strand = record.strand().expect("Strand not found");
+                        let phase: u8 = record.phase().clone().try_into().unwrap();
+                        match strand {
+                            Strand::Forward => {
+                                for path in graph.paths() {
+                                    let impact = path.impact(&graph, phase, reference_genome.get(&target).unwrap(), strand)?;
+                                    println!("{:?}", impact);
+                                }
+                            }
+                            Strand::Reverse => {
+                                for path in graph.reverse_paths() {
+                                    let impact = path.impact(&graph, phase, reference_genome.get(&target).unwrap(), strand)?;
+                                    println!("{:?}", impact);
+                                }
+                            }
+                            Strand::Unknown => {
+                                return Err(anyhow::bail!(
+                                    "Strand is unknown for sequence {}",
+                                    record.seqname()
+                                ));
+                            }
+                        }
                         // TODO: Implement filtering of nodes and edges based on feature coordinates to create subgraph.
                         // Create Paths and their impacts for subgraph/feature and serialize them for usage in show command.
                     } else {

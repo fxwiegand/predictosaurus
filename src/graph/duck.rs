@@ -234,7 +234,13 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let output_path = temp_dir.path();
         write_graphs(graphs, output_path).unwrap();
-        let graph = feature_graph(output_path.join("graphs.duckdb"), "graph1".to_string(), 1, 3).unwrap();
+        let graph = feature_graph(
+            output_path.join("graphs.duckdb"),
+            "graph1".to_string(),
+            1,
+            3,
+        )
+        .unwrap();
         assert_eq!(graph.graph.node_count(), 3);
         assert_eq!(graph.graph.edge_count(), 2);
         assert_eq!(graph.start, 1);
