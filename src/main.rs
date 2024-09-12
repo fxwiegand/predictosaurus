@@ -1,5 +1,5 @@
 use crate::cli::{Command, Predictosaurus};
-use crate::graph::duck::{read_graphs, write_graphs};
+use crate::graph::duck::{feature_graph, write_graphs};
 use crate::graph::VariantGraph;
 use crate::utils::bcf::get_targets;
 use anyhow::{Context, Result};
@@ -48,8 +48,6 @@ impl Command {
                 let mut feature_reader = gff::Reader::from_file(features, GffType::GFF3)
                     .context("Failed to open GFF file")?;
 
-                let variant_graphs = read_graphs(graph.to_owned());
-
                 println!("Reading reference genome from {:?}", reference);
                 let _reference_genome = utils::fasta::read_reference(reference);
 
@@ -59,7 +57,7 @@ impl Command {
                     .filter(|record| record.feature_type() == "CDS")
                 {
                     let target = record.seqname().to_string();
-                    if let Some(variant_graph) = variant_graphs.get(&target) {
+                    if let Ok(graph) = feature_graph(graph.to_owned(), target.to_string(), *record.start(), *record.end()) {
                         // TODO: Implement filtering of nodes and edges based on feature coordinates to create subgraph.
                         // Create Paths and their impacts for subgraph/feature and serialize them for usage in show command.
                     } else {
