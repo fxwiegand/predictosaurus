@@ -12,13 +12,13 @@ edition = "2021"
 clap = { version = "4.5.3", features = ["derive"] }
 clap_derive = "4.5.3"
 rust-htslib = "0.47.0"
-bio = "2.0.1"
-anyhow = "1.0.86"
+bio = "2.0.3"
+anyhow = "1.0.89"
 varlociraptor = "8.4.10"
 petgraph = { version = "0.6.5", features = ["serde-1"]}
 itertools = "0.13.0"
-serde = { version = "1.0.209", features = ["derive"] }
-serde_json = "1.0.127"
+serde = { version = "1.0.210", features = ["derive"] }
+serde_json = "1.0.128"
 colored = "2"
 duckdb = { version = "1.0.0", features = ["bundled"]}
 
