@@ -143,22 +143,28 @@ pub(crate) fn feature_graph(
 pub(crate) fn create_paths(output_path: &Path) -> Result<()> {
     let path = output_path.join("paths.duckdb");
     let db = Connection::open(&path)?;
-    db.execute("CREATE TABLE paths (index INTEGER PRIMARY KEY)", [])?;
-    db.execute("CREATE TABLE path_nodes (path_index INTEGER, node_index INTEGER, vaf FLOAT, impact STRING, reason STRING, consequence STRING, sample STRING)", [])?;
+    // TODO: Rethink the schema, we need a unique identifier for each CDS that we then use to iter batchwise via GROUP BY to generate the plots with the show command
+    db.execute("CREATE TABLE path_nodes (path_index INTEGER, target String, feature STRING, node_index INTEGER, vaf FLOAT, impact STRING, reason STRING, consequence STRING, sample STRING)", [])?;
     db.close().unwrap();
     Ok(())
 }
 
-pub(crate) fn write_paths(outputh_path: &Path, paths: Vec<Vec<Weight>>) -> Result<()> {
+pub(crate) fn write_paths(
+    outputh_path: &Path,
+    paths: Vec<Vec<Weight>>,
+    target: String,
+    feature: String,
+) -> Result<()> {
     let path = outputh_path.join("paths.duckdb");
     let db = Connection::open(&path)?;
     for (index, path) in paths.iter().enumerate() {
-        db.execute("INSERT INTO paths VALUES (?)", [index.to_string()])?;
         for weight in path {
             db.execute(
-                "INSERT INTO path_nodes VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO path_nodes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 [
                     index.to_string(),
+                    target.to_string(),
+                    feature.to_string(),
                     weight.index.to_string(),
                     weight.vaf.to_string(),
                     weight.impact.to_string(),
@@ -313,17 +319,26 @@ mod tests {
                 sample: "sample2".to_string(),
             }],
         ];
-        write_paths(output_path, paths).unwrap();
+        write_paths(
+            output_path,
+            paths,
+            "1".to_string(),
+            "some feature".to_string(),
+        )
+        .unwrap();
         let db = Connection::open(output_path.join("paths.duckdb")).unwrap();
-        let mut stmt = db.prepare("SELECT index FROM paths").unwrap();
-        let path_indices: Vec<i64> = stmt
-            .query_map([], |row| row.get(0))
-            .unwrap()
-            .map(Result::unwrap)
-            .collect();
-        assert_eq!(path_indices, vec![0, 1]);
-        let mut stmt = db.prepare("SELECT path_index, node_index, vaf, impact, reason, consequence, sample FROM path_nodes").unwrap();
-        let path_nodes: Vec<(i64, i64, f64, String, String, String, String)> = stmt
+        let mut stmt = db.prepare("SELECT path_index, target, feature, node_index, vaf, impact, reason, consequence, sample FROM path_nodes").unwrap();
+        let path_nodes: Vec<(
+            i64,
+            String,
+            String,
+            i64,
+            f64,
+            String,
+            String,
+            String,
+            String,
+        )> = stmt
             .query_map([], |row| {
                 Ok((
                     row.get(0)?,
@@ -333,6 +348,8 @@ mod tests {
                     row.get(4)?,
                     row.get(5)?,
                     row.get(6)?,
+                    row.get(7)?,
+                    row.get(8)?,
                 ))
             })
             .unwrap()
