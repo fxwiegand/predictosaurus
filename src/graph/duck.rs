@@ -148,6 +148,8 @@ pub(crate) fn create_paths(output_path: &Path) -> Result<()> {
     Ok(())
 }
 
+
+
 mod tests {
     use super::*;
     use crate::graph::node::{Node, NodeType};

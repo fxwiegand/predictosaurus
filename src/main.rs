@@ -8,6 +8,7 @@ use bio::io::gff;
 use bio::io::gff::GffType;
 use clap::Parser;
 use std::collections::HashMap;
+use itertools::Itertools;
 
 mod cli;
 mod graph;
@@ -66,28 +67,26 @@ impl Command {
                     ) {
                         let strand = record.strand().expect("Strand not found");
                         let phase: u8 = record.phase().clone().try_into().unwrap();
-                        match strand {
+                        let weights = match strand {
                             Strand::Forward => {
-                                for path in graph.paths() {
-                                    let impact = path.impact(
+                                graph.paths().iter().map(|path| {
+                                    path.weights(
                                         &graph,
                                         phase,
                                         reference_genome.get(&target).unwrap(),
                                         strand,
-                                    )?;
-                                    println!("{:?}", impact);
-                                }
+                                    ).unwrap()
+                                }).collect_vec()
                             }
                             Strand::Reverse => {
-                                for path in graph.reverse_paths() {
-                                    let impact = path.impact(
+                                graph.reverse_paths().iter().map(|path| {
+                                    path.weights(
                                         &graph,
                                         phase,
                                         reference_genome.get(&target).unwrap(),
                                         strand,
-                                    )?;
-                                    println!("{:?}", impact);
-                                }
+                                    ).unwrap()
+                                }).collect_vec()
                             }
                             Strand::Unknown => {
                                 return Err(anyhow::bail!(
@@ -95,7 +94,7 @@ impl Command {
                                     record.seqname()
                                 ));
                             }
-                        }
+                        };
                         // TODO: Implement filtering of nodes and edges based on feature coordinates to create subgraph.
                         // Create Paths and their impacts for subgraph/feature and serialize them for usage in show command.
                     } else {
