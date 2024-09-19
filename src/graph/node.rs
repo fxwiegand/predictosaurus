@@ -175,6 +175,23 @@ impl Node {
         }
     }
 
+    pub(crate) fn reason(
+        &self,
+        ref_phase: u8,
+        phase: u8,
+        reference: &[u8],
+        strand: Strand,
+    ) -> anyhow::Result<String> {
+        let ref_amino_acid = self
+            .reference_amino_acid(ref_phase, reference, strand)?
+            .map_or("None".to_string(), |a| a.to_string());
+        let alt_amino_acids = self
+            .variant_amino_acids(phase, reference, strand)?
+            .iter()
+            .join(", ");
+        Ok(format!("{} -> {}", ref_amino_acid, alt_amino_acids))
+    }
+
     pub(crate) fn impact(
         &self,
         ref_phase: u8,
@@ -671,5 +688,13 @@ mod tests {
     fn from_str_returns_error_for_empty_string() {
         let result = NodeType::from_str("");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn reason_with_valid_reference_and_variant_amino_acids() {
+        let node = Node::new(NodeType::Var("A".to_string()), 2);
+        let reference = b"ATGCGCGTA";
+        let result = node.reason(0, 0, reference, Strand::Forward).unwrap();
+        assert_eq!(result, "Met -> Ile");
     }
 }

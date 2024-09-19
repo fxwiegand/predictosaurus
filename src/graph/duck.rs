@@ -11,7 +11,7 @@ use std::str::FromStr;
 pub(crate) fn write_graphs(
     graphs: HashMap<String, VariantGraph>,
     output_path: &Path,
-) -> anyhow::Result<()> {
+) -> Result<()> {
     let path = output_path.join("graphs.duckdb");
     let db = Connection::open(&path)?;
     db.execute("CREATE TABLE graphs (target STRING PRIMARY KEY, start_position INTEGER, end_position INTEGER)", [])?;
@@ -139,6 +139,15 @@ pub(crate) fn feature_graph(
     })
 }
 
+pub(crate) fn create_paths(output_path: &Path) -> Result<()> {
+    let path = output_path.join("paths.duckdb");
+    let db = Connection::open(&path)?;
+    db.execute("CREATE TABLE paths (index INTEGER PRIMARY KEY)", [])?;
+    db.execute("CREATE TABLE path_nodes (path_index INTEGER, node_index INTEGER, vaf FLOAT, impact STRING, reason STRING, consequence STRING, sample STRING)", [])?;
+    db.close().unwrap();
+    Ok(())
+}
+
 mod tests {
     use super::*;
     use crate::graph::node::{Node, NodeType};
@@ -245,5 +254,13 @@ mod tests {
         assert_eq!(graph.graph.edge_count(), 2);
         assert_eq!(graph.start, 1);
         assert_eq!(graph.end, 3);
+    }
+
+    #[test]
+    fn test_create_paths() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let output_path = temp_dir.path();
+        assert!(create_paths(output_path).is_ok());
+        assert!(Connection::open(output_path.join("graphs.duckdb")).is_ok());
     }
 }

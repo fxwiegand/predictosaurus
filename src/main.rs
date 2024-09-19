@@ -69,13 +69,23 @@ impl Command {
                         match strand {
                             Strand::Forward => {
                                 for path in graph.paths() {
-                                    let impact = path.impact(&graph, phase, reference_genome.get(&target).unwrap(), strand)?;
+                                    let impact = path.impact(
+                                        &graph,
+                                        phase,
+                                        reference_genome.get(&target).unwrap(),
+                                        strand,
+                                    )?;
                                     println!("{:?}", impact);
                                 }
                             }
                             Strand::Reverse => {
                                 for path in graph.reverse_paths() {
-                                    let impact = path.impact(&graph, phase, reference_genome.get(&target).unwrap(), strand)?;
+                                    let impact = path.impact(
+                                        &graph,
+                                        phase,
+                                        reference_genome.get(&target).unwrap(),
+                                        strand,
+                                    )?;
                                     println!("{:?}", impact);
                                 }
                             }
