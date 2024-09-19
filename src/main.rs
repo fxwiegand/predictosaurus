@@ -7,8 +7,8 @@ use bio::bio_types::strand::Strand;
 use bio::io::gff;
 use bio::io::gff::GffType;
 use clap::Parser;
-use std::collections::HashMap;
 use itertools::Itertools;
+use std::collections::HashMap;
 
 mod cli;
 mod graph;
@@ -68,26 +68,32 @@ impl Command {
                         let strand = record.strand().expect("Strand not found");
                         let phase: u8 = record.phase().clone().try_into().unwrap();
                         let weights = match strand {
-                            Strand::Forward => {
-                                graph.paths().iter().map(|path| {
+                            Strand::Forward => graph
+                                .paths()
+                                .iter()
+                                .map(|path| {
                                     path.weights(
                                         &graph,
                                         phase,
                                         reference_genome.get(&target).unwrap(),
                                         strand,
-                                    ).unwrap()
-                                }).collect_vec()
-                            }
-                            Strand::Reverse => {
-                                graph.reverse_paths().iter().map(|path| {
+                                    )
+                                    .unwrap()
+                                })
+                                .collect_vec(),
+                            Strand::Reverse => graph
+                                .reverse_paths()
+                                .iter()
+                                .map(|path| {
                                     path.weights(
                                         &graph,
                                         phase,
                                         reference_genome.get(&target).unwrap(),
                                         strand,
-                                    ).unwrap()
-                                }).collect_vec()
-                            }
+                                    )
+                                    .unwrap()
+                                })
+                                .collect_vec(),
                             Strand::Unknown => {
                                 return Err(anyhow::bail!(
                                     "Strand is unknown for sequence {}",

@@ -1,4 +1,5 @@
 use crate::graph::node::{Node, NodeType};
+use crate::graph::paths::Weight;
 use crate::graph::{Edge, VariantGraph};
 use anyhow::Result;
 use duckdb::Connection;
@@ -148,12 +149,35 @@ pub(crate) fn create_paths(output_path: &Path) -> Result<()> {
     Ok(())
 }
 
-
+pub(crate) fn write_paths(outputh_path: &Path, paths: Vec<Vec<Weight>>) -> Result<()> {
+    let path = outputh_path.join("paths.duckdb");
+    let db = Connection::open(&path)?;
+    for (index, path) in paths.iter().enumerate() {
+        db.execute("INSERT INTO paths VALUES (?)", [index.to_string()])?;
+        for weight in path {
+            db.execute(
+                "INSERT INTO path_nodes VALUES (?, ?, ?, ?, ?, ?, ?)",
+                [
+                    index.to_string(),
+                    weight.index.to_string(),
+                    weight.vaf.to_string(),
+                    weight.impact.to_string(),
+                    weight.reason.to_string(),
+                    weight.consequence.to_string(),
+                    weight.sample.to_string(),
+                ],
+            )?;
+        }
+    }
+    db.close().unwrap();
+    Ok(())
+}
 
 mod tests {
     use super::*;
     use crate::graph::node::{Node, NodeType};
     use crate::graph::Edge;
+    use crate::impact::Impact;
     use petgraph::{Directed, Graph};
 
     pub(crate) fn setup_graph() -> VariantGraph {
@@ -264,5 +288,57 @@ mod tests {
         let output_path = temp_dir.path();
         assert!(create_paths(output_path).is_ok());
         assert!(Connection::open(output_path.join("graphs.duckdb")).is_ok());
+    }
+
+    #[test]
+    fn test_write_paths_creates_database_and_inserts_paths() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let output_path = temp_dir.path();
+        create_paths(output_path).unwrap();
+        let paths = vec![
+            vec![Weight {
+                index: 1,
+                vaf: 0.5,
+                impact: Impact::High,
+                reason: "Ile -> Met".to_string(),
+                consequence: "loss".to_string(),
+                sample: "sample1".to_string(),
+            }],
+            vec![Weight {
+                index: 2,
+                vaf: 0.3,
+                impact: Impact::Low,
+                reason: "Met -> Lys".to_string(),
+                consequence: "gain".to_string(),
+                sample: "sample2".to_string(),
+            }],
+        ];
+        write_paths(output_path, paths).unwrap();
+        let db = Connection::open(output_path.join("paths.duckdb")).unwrap();
+        let mut stmt = db.prepare("SELECT index FROM paths").unwrap();
+        let path_indices: Vec<i64> = stmt
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .map(Result::unwrap)
+            .collect();
+        assert_eq!(path_indices, vec![0, 1]);
+        let mut stmt = db.prepare("SELECT path_index, node_index, vaf, impact, reason, consequence, sample FROM path_nodes").unwrap();
+        let path_nodes: Vec<(i64, i64, f64, String, String, String, String)> = stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                    row.get(6)?,
+                ))
+            })
+            .unwrap()
+            .map(Result::unwrap)
+            .collect();
+        assert_eq!(path_nodes.len(), 2);
+        db.close().unwrap();
     }
 }
