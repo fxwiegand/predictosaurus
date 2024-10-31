@@ -58,7 +58,7 @@ impl HaplotypePath {
                     vaf: *vaf,
                     impact,
                     reason: node.reason(ref_phase, phase, reference, strand)?,
-                    consequence: "TODO".to_string(),
+                    consequence: "CONSEQUENCE NOT SUPPORTED YET".to_string(),
                     sample: sample.clone(),
                 });
             }
