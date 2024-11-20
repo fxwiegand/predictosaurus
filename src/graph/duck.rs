@@ -110,7 +110,7 @@ pub(crate) fn feature_graph(
         .prepare("SELECT from_node, to_node, supporting_reads FROM edges WHERE target = ?")
         .unwrap();
     let edges: Vec<(usize, usize, String)> = stmt
-        .query_map([target.to_string()], |row| {
+        .query_map(params![target.to_string()], |row| {
             Ok((row.get(0)?, row.get(1)?, row.get(2)?))
         })?
         .map(Result::unwrap)
