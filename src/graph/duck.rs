@@ -1,6 +1,7 @@
 use crate::graph::node::{Node, NodeType};
 use crate::graph::paths::Weight;
 use crate::graph::{Edge, VariantGraph};
+use crate::impact::Impact;
 use anyhow::Result;
 use duckdb::{params, Connection};
 use petgraph::matrix_graph::NodeIndex;
@@ -165,7 +166,7 @@ pub(crate) fn write_paths(
                     feature.to_string(),
                     weight.index.to_string(),
                     weight.vaf.to_string(),
-                    weight.impact.to_string(),
+                    weight.impact.to_raw_string().parse()?,
                     weight.reason.to_string(),
                     weight.consequence.to_string(),
                     weight.sample.to_string(),
@@ -175,6 +176,48 @@ pub(crate) fn write_paths(
     }
     db.close().unwrap();
     Ok(())
+}
+
+/// Reads paths and their metadata from the database file and returns a HashMap
+/// where each feature is mapped to a HashMap of path indices and their corresponding
+/// vectors of Weight values.
+///
+/// # Arguments
+/// * `path` - The path to the DuckDB file to read from.
+///
+/// # Returns
+/// A Result containing a HashMap with the CDS ID as the key, and a HashMap of path indices
+/// mapped to vectors of Weight structs for each feature.
+pub(crate) fn read_paths(path: &Path) -> Result<HashMap<String, HashMap<usize, Vec<Weight>>>> {
+    let db = duckdb::Connection::open(path)?;
+    let mut stmt = db.prepare(
+        "SELECT path_index, feature, node_index, vaf, impact, reason, consequence, sample
+         FROM path_nodes",
+    )?;
+
+    let mut paths: HashMap<String, HashMap<usize, Vec<Weight>>> = HashMap::new();
+    let rows = stmt.query_map([], |row| {
+        let path_index: usize = row.get(0)?;
+        let feature: String = row.get(1)?;
+        let weight = Weight {
+            index: row.get(2)?,
+            vaf: row.get(3)?,
+            impact: Impact::from_str(&row.get::<_, String>(4)?).unwrap(),
+            reason: row.get(5)?,
+            consequence: row.get(6)?,
+            sample: row.get(7)?,
+        };
+        Ok((feature, path_index, weight))
+    })?;
+
+    for row in rows {
+        let (feature, path_index, weight) = row?;
+        let feature_entry = paths.entry(feature).or_insert_with(HashMap::new);
+        let path_entry = feature_entry.entry(path_index).or_insert_with(Vec::new);
+        path_entry.push(weight);
+    }
+
+    Ok(paths)
 }
 
 mod tests {
@@ -355,5 +398,43 @@ mod tests {
             .collect();
         assert_eq!(path_nodes.len(), 2);
         db.close().unwrap();
+    }
+    #[test]
+    fn read_paths_returns_correct_structure() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let output_path = temp_dir.path();
+        create_paths(output_path).unwrap();
+        let paths = vec![
+            vec![Weight {
+                index: 1,
+                vaf: 0.5,
+                impact: Impact::High,
+                reason: "Ile -> Met".to_string(),
+                consequence: "loss".to_string(),
+                sample: "sample1".to_string(),
+            }],
+            vec![Weight {
+                index: 2,
+                vaf: 0.3,
+                impact: Impact::Low,
+                reason: "Met -> Lys".to_string(),
+                consequence: "gain".to_string(),
+                sample: "sample2".to_string(),
+            }],
+        ];
+        write_paths(
+            output_path,
+            paths,
+            "1".to_string(),
+            "some feature".to_string(),
+        )
+        .unwrap();
+        let result = read_paths(&output_path.join("paths.duckdb")).unwrap();
+        assert_eq!(result.len(), 1);
+        assert!(result.contains_key("some feature"));
+        let feature_paths = result.get("some feature").unwrap();
+        assert_eq!(feature_paths.len(), 2);
+        assert_eq!(feature_paths.get(&0).unwrap().len(), 1);
+        assert_eq!(feature_paths.get(&1).unwrap().len(), 1);
     }
 }
