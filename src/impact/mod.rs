@@ -42,8 +42,8 @@ impl fmt::Display for Impact {
 
 impl Impact {
     /// Serializes the Impact variant to a string without color
-    pub(crate) fn to_raw_string(&self) -> &'static str {
-        match *self {
+    pub(crate) fn to_raw_string(self) -> &'static str {
+        match self {
             Impact::None => "None",
             Impact::Modifier => "Modifier",
             Impact::Low => "Low",
