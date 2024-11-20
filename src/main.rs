@@ -1,5 +1,5 @@
-use crate::cli::{Command, Predictosaurus};
-use crate::graph::duck::{feature_graph, write_graphs};
+use crate::cli::{Command, Format, Predictosaurus};
+use crate::graph::duck::{feature_graph, write_graphs, write_paths};
 use crate::graph::VariantGraph;
 use crate::utils::bcf::get_targets;
 use anyhow::{Context, Result};
@@ -59,6 +59,7 @@ impl Command {
                     .filter(|record| record.feature_type() == "CDS")
                 {
                     let target = record.seqname().to_string();
+                    let cds_id = record.attributes().get("ID").unwrap().to_string();
                     if let Ok(graph) = feature_graph(
                         graph.to_owned(),
                         target.to_string(),
@@ -101,8 +102,7 @@ impl Command {
                                 ));
                             }
                         };
-                        // TODO: Implement filtering of nodes and edges based on feature coordinates to create subgraph.
-                        // Create Paths and their impacts for subgraph/feature and serialize them for usage in show command.
+                        write_paths(output, weights, target, cds_id)?;
                     } else {
                         anyhow::bail!("No variant graph found for target {}", target);
                     }
@@ -113,6 +113,12 @@ impl Command {
                 format,
                 output,
             } => {
+                // Read paths from input file and create visualization depending on format
+                match format {
+                    Format::Html => {}
+                    Format::Tsv => {}
+                    Format::Vega => {}
+                }
                 unimplemented!("Show command not implemented")
             }
         }

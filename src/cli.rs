@@ -1,4 +1,4 @@
-use clap_derive::{Parser, Subcommand};
+use clap_derive::{Parser, Subcommand, ValueEnum};
 use serde::{Deserialize, Deserializer};
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -54,12 +54,19 @@ pub(crate) enum Command {
 
         /// Output format (html, tsv, vega)
         #[clap(short, long)]
-        format: String,
+        format: Format,
 
         /// Path to the output file
         #[clap(short, long)]
         output: PathBuf,
     },
+}
+
+#[derive(Debug, Clone, ValueEnum)]
+pub(crate) enum Format {
+    Html,
+    Tsv,
+    Vega,
 }
 
 #[derive(Debug, Clone)]
