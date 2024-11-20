@@ -69,7 +69,7 @@ impl Command {
                         let strand = record.strand().expect("Strand not found");
                         let phase: u8 = record.phase().clone().try_into().unwrap();
                         let weights = match strand {
-                            Strand::Forward => graph
+                            Strand::Forward => Ok(graph
                                 .paths()
                                 .iter()
                                 .map(|path| {
@@ -81,8 +81,8 @@ impl Command {
                                     )
                                     .unwrap()
                                 })
-                                .collect_vec(),
-                            Strand::Reverse => graph
+                                .collect_vec()),
+                            Strand::Reverse => Ok(graph
                                 .reverse_paths()
                                 .iter()
                                 .map(|path| {
@@ -94,15 +94,14 @@ impl Command {
                                     )
                                     .unwrap()
                                 })
-                                .collect_vec(),
-                            Strand::Unknown => {
-                                return Err(anyhow::bail!(
-                                    "Strand is unknown for sequence {}",
-                                    record.seqname()
-                                ));
-                            }
+                                .collect_vec()),
+                            Strand::Unknown => Err(anyhow::anyhow!(
+                                "Strand is unknown for sequence {}",
+                                record.seqname()
+                            )),
                         };
-                        write_paths(output, weights, target, cds_id)?;
+
+                        write_paths(output, weights?, target, cds_id)?;
                     } else {
                         anyhow::bail!("No variant graph found for target {}", target);
                     }
