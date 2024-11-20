@@ -705,7 +705,7 @@ mod tests {
         let graph = setup_variant_graph_with_nodes();
         let temp_dir = tempfile::tempdir().unwrap();
         let file_path = temp_dir.path().join("graph.dot");
-        graph.to_file(&temp_dir.path()).unwrap();
+        graph.to_file(temp_dir.path()).unwrap();
         let written_content = fs::read_to_string(file_path).unwrap();
         assert!(written_content.contains("digraph {"));
         assert!(written_content.contains("}"));

@@ -212,8 +212,8 @@ pub(crate) fn read_paths(path: &Path) -> Result<HashMap<String, HashMap<usize, V
 
     for row in rows {
         let (feature, path_index, weight) = row?;
-        let feature_entry = paths.entry(feature).or_insert_with(HashMap::new);
-        let path_entry = feature_entry.entry(path_index).or_insert_with(Vec::new);
+        let feature_entry = paths.entry(feature).or_default();
+        let path_entry = feature_entry.entry(path_index).or_default();
         path_entry.push(weight);
     }
 
