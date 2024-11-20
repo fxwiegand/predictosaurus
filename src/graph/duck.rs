@@ -2,7 +2,7 @@ use crate::graph::node::{Node, NodeType};
 use crate::graph::paths::Weight;
 use crate::graph::{Edge, VariantGraph};
 use anyhow::Result;
-use duckdb::Connection;
+use duckdb::{params, Connection};
 use petgraph::matrix_graph::NodeIndex;
 use petgraph::Graph;
 use std::collections::HashMap;
@@ -74,14 +74,12 @@ pub(crate) fn feature_graph(
 ) -> Result<VariantGraph> {
     let db = Connection::open(path)?;
     let mut graph = Graph::<Node, Edge, petgraph::Directed>::new();
-    let mut stmt = db
-        .prepare(
-            "SELECT node_index, node_type, vaf, probs, pos, index FROM nodes WHERE target = ? AND pos >= ? AND pos <= ?",
-        )
-        .unwrap();
+    let mut stmt = db.prepare(
+    "SELECT node_index, node_type, vaf, probs, pos, index FROM nodes WHERE target = ? AND pos >= ? AND pos <= ?"
+    )?;
     let nodes: Vec<(usize, String, String, String, i64, u32)> = stmt
         .query_map(
-            [target.to_string(), start.to_string(), end.to_string()],
+            params![target.to_string(), start as i64, end as i64],
             |row| {
                 Ok((
                     row.get(0)?,
