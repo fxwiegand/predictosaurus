@@ -18,6 +18,7 @@ pub(crate) struct Weight {
     pub(crate) sample: String,
 }
 
+/// Returns the maximum impact of the individual nodes on the path
 impl HaplotypePath {
     pub(crate) fn impact(
         &self,
@@ -38,6 +39,7 @@ impl HaplotypePath {
         Ok(impact)
     }
 
+    /// Returns the weights of the individual nodes on the path as a vector of Weights
     pub(crate) fn weights(
         &self,
         graph: &VariantGraph,
