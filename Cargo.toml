@@ -18,7 +18,7 @@ varlociraptor = { git = "https://github.com/fxwiegand/varlociraptor.git", branch
 petgraph = { version = "0.6.5", features = ["serde-1"]}
 itertools = "0.13.0"
 serde = { version = "1.0.215", features = ["derive"] }
-serde_json = "1.0.132"
+serde_json = "1.0.133"
 colored = "2"
 duckdb = { version = "1.0.0", features = ["bundled"]}
 
