@@ -91,7 +91,8 @@ impl Command {
                                         phase,
                                         reference_genome.get(&target).unwrap(),
                                         strand,
-                                    ).unwrap()
+                                    )
+                                    .unwrap()
                                 })
                                 .collect_vec()),
                             Strand::Unknown => Err(anyhow::anyhow!(

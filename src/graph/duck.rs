@@ -107,8 +107,8 @@ pub(crate) fn feature_graph(
         };
         graph[NodeIndex::new(node_index)] = node;
     }
-    let mut stmt = db
-        .prepare("SELECT from_node, to_node, supporting_reads FROM edges WHERE target = ?")?;
+    let mut stmt =
+        db.prepare("SELECT from_node, to_node, supporting_reads FROM edges WHERE target = ?")?;
     let edges: Vec<(usize, usize, String)> = stmt
         .query_map(params![target.to_string()], |row| {
             Ok((row.get(0)?, row.get(1)?, row.get(2)?))
