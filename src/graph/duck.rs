@@ -63,7 +63,7 @@ pub(crate) fn write_graphs(
             )?;
         }
     }
-    db.close()?;
+    db.close().unwrap();
     Ok(())
 }
 
@@ -142,7 +142,7 @@ pub(crate) fn create_paths(output_path: &Path) -> Result<()> {
     let db = Connection::open(&path)?;
     // TODO: Rethink the schema, we need a unique identifier for each CDS that we then use to iter batchwise via GROUP BY to generate the plots with the show command
     db.execute("CREATE TABLE path_nodes (path_index INTEGER, target String, feature STRING, node_index INTEGER, vaf FLOAT, impact STRING, reason STRING, consequence STRING, sample STRING)", [])?;
-    db.close()?;
+    db.close().unwrap();
     Ok(())
 }
 
@@ -152,7 +152,7 @@ pub(crate) fn write_paths(
     target: String,
     feature: String,
 ) -> Result<()> {
-    let path = outputh_path.join("paths.duckdb");
+    let path = output_path.join("paths.duckdb");
     let db = Connection::open(&path)?;
     for (index, path) in paths.iter().enumerate() {
         for weight in path {
@@ -172,7 +172,7 @@ pub(crate) fn write_paths(
             )?;
         }
     }
-    db.close()?;
+    db.close().unwrap();
     Ok(())
 }
 
@@ -200,7 +200,7 @@ pub(crate) fn read_paths(path: &Path) -> Result<HashMap<String, HashMap<usize, V
         let weight = Weight {
             index: row.get(2)?,
             vaf: row.get(3)?,
-            impact: Impact::from_str(&row.get::<_, String>(4)?)?,
+            impact: Impact::from_str(&row.get::<_, String>(4)?).unwrap(),
             reason: row.get(5)?,
             consequence: row.get(6)?,
             sample: row.get(7)?,
