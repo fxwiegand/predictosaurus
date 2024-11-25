@@ -13,6 +13,7 @@ pub(crate) struct HaplotypePath(pub(crate) Vec<NodeIndex>);
 #[derive(Debug, Serialize, Clone)]
 pub(crate) struct Weight {
     pub(crate) index: usize,
+    pub(crate) path: Option<usize>,
     pub(crate) vaf: f32,
     pub(crate) impact: Impact,
     pub(crate) reason: Option<String>,
@@ -59,6 +60,7 @@ impl HaplotypePath {
             for (sample, vaf) in node.vaf.iter() {
                 weights.push(Weight {
                     index: node_index.index(),
+                    path: None,
                     vaf: *vaf,
                     impact,
                     reason: node.reason(ref_phase, phase, reference, strand)?,

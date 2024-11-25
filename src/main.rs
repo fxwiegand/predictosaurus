@@ -114,16 +114,19 @@ impl Command {
                 output,
             } => {
                 let paths = read_paths(input)?;
-                // TODO: Iter paths and render them, then write to output
-                // Paths are Vec<Weight> but Weight misses what Path it belongs to.
-                // We should wrap Weight into some Container struct containing something like a path index.
-                // Then flatten the outer struct for rendering?
-                match format {
-                    Format::Html => {}
-                    Format::Tsv => {}
-                    Format::Vega => {}
+                for (feature, paths) in paths {
+                    match format {
+                        Format::Html => {
+                            unimplemented!("Html format is not yet implemented");
+                        }
+                        Format::Tsv => {
+                            unimplemented!("Tsv format is not yet implemented");
+                        }
+                        Format::Vega => {
+                            show::render_vl_paths(output, paths, feature)?;
+                        }
+                    }
                 }
-                unimplemented!("Show command not implemented")
             }
         }
         Ok(())

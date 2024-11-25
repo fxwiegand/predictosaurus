@@ -186,33 +186,32 @@ pub(crate) fn write_paths(
 /// # Returns
 /// A Result containing a HashMap with the CDS ID as the key, and a HashMap of path indices
 /// mapped to vectors of Weight structs for each feature.
-pub(crate) fn read_paths(path: &Path) -> Result<HashMap<String, HashMap<usize, Vec<Weight>>>> {
+pub(crate) fn read_paths(path: &Path) -> Result<HashMap<String, Vec<Weight>>> {
     let db = duckdb::Connection::open(path)?;
     let mut stmt = db.prepare(
         "SELECT path_index, feature, node_index, vaf, impact, reason, consequence, sample
          FROM path_nodes",
     )?;
 
-    let mut paths: HashMap<String, HashMap<usize, Vec<Weight>>> = HashMap::new();
+    let mut paths: HashMap<String, Vec<Weight>> = HashMap::new();
     let rows = stmt.query_map([], |row| {
-        let path_index: usize = row.get(0)?;
         let feature: String = row.get(1)?;
         let weight = Weight {
             index: row.get(2)?,
+            path: Some(row.get(0)?),
             vaf: row.get(3)?,
             impact: Impact::from_str(&row.get::<_, String>(4)?).unwrap(),
             reason: row.get(5)?,
             consequence: row.get(6)?,
             sample: row.get(7)?,
         };
-        Ok((feature, path_index, weight))
+        Ok((feature, weight))
     })?;
 
     for row in rows {
-        let (feature, path_index, weight) = row?;
+        let (feature, weight) = row?;
         let feature_entry = paths.entry(feature).or_default();
-        let path_entry = feature_entry.entry(path_index).or_default();
-        path_entry.push(weight);
+        feature_entry.push(weight);
     }
 
     Ok(paths)
@@ -343,6 +342,7 @@ mod tests {
         let paths = vec![
             vec![Weight {
                 index: 1,
+                path: None,
                 vaf: 0.5,
                 impact: Impact::High,
                 reason: Some("Ile -> Met".to_string()),
@@ -351,6 +351,7 @@ mod tests {
             }],
             vec![Weight {
                 index: 2,
+                path: None,
                 vaf: 0.3,
                 impact: Impact::Low,
                 reason: Some("Met -> Lys".to_string()),
@@ -405,6 +406,7 @@ mod tests {
         let paths = vec![
             vec![Weight {
                 index: 1,
+                path: None,
                 vaf: 0.5,
                 impact: Impact::High,
                 reason: Some("Ile -> Met".to_string()),
@@ -413,6 +415,7 @@ mod tests {
             }],
             vec![Weight {
                 index: 2,
+                path: None,
                 vaf: 0.3,
                 impact: Impact::Low,
                 reason: Some("Met -> Lys".to_string()),
@@ -432,7 +435,5 @@ mod tests {
         assert!(result.contains_key("some feature"));
         let feature_paths = result.get("some feature").unwrap();
         assert_eq!(feature_paths.len(), 2);
-        assert_eq!(feature_paths.get(&0).unwrap().len(), 1);
-        assert_eq!(feature_paths.get(&1).unwrap().len(), 1);
     }
 }
