@@ -1,5 +1,5 @@
 use crate::cli::{Command, Format, Predictosaurus};
-use crate::graph::duck::{feature_graph, write_graphs, write_paths};
+use crate::graph::duck::{feature_graph, read_paths, write_graphs, write_paths};
 use crate::graph::VariantGraph;
 use crate::utils::bcf::get_targets;
 use anyhow::{Context, Result};
@@ -16,6 +16,7 @@ mod impact;
 mod transcription;
 mod translation;
 mod utils;
+mod show;
 
 fn main() -> Result<()> {
     let args = Predictosaurus::parse();
@@ -112,7 +113,11 @@ impl Command {
                 format,
                 output,
             } => {
-                // Read paths from input file and create visualization depending on format
+                let paths = read_paths(input)?;
+                // TODO: Iter paths and render them, then write to output
+                // Paths are Vec<Weight> but Weight misses what Path it belongs to.
+                // We should wrap Weight into some Container struct containing something like a path index.
+                // Then flatten the outer struct for rendering?
                 match format {
                     Format::Html => {}
                     Format::Tsv => {}

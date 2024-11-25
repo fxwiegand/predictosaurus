@@ -1,6 +1,6 @@
 pub(crate) mod duck;
 mod node;
-mod paths;
+pub(crate) mod paths;
 
 use crate::cli::ObservationFile;
 use crate::graph::node::{node_distance, nodes_in_between, Node, NodeType};

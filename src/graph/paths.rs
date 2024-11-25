@@ -5,11 +5,12 @@ use bio::bio_types::strand::Strand;
 use itertools::Itertools;
 use petgraph::graph::NodeIndex;
 use std::cmp::max;
+use serde::Serialize;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct HaplotypePath(pub(crate) Vec<NodeIndex>);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Serialize, Clone)]
 pub(crate) struct Weight {
     pub(crate) index: usize,
     pub(crate) vaf: f32,
