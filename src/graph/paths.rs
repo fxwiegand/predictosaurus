@@ -9,12 +9,13 @@ use std::cmp::max;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct HaplotypePath(pub(crate) Vec<NodeIndex>);
 
+#[derive(Debug, Clone)]
 pub(crate) struct Weight {
     pub(crate) index: usize,
     pub(crate) vaf: f32,
     pub(crate) impact: Impact,
-    pub(crate) reason: String,
-    pub(crate) consequence: String,
+    pub(crate) reason: Option<String>,
+    pub(crate) consequence: Option<String>,
     pub(crate) sample: String,
 }
 
@@ -60,7 +61,7 @@ impl HaplotypePath {
                     vaf: *vaf,
                     impact,
                     reason: node.reason(ref_phase, phase, reference, strand)?,
-                    consequence: "CONSEQUENCE NOT SUPPORTED YET".to_string(),
+                    consequence: None, // TODO: Implement consequence
                     sample: sample.clone(),
                 });
             }
@@ -99,8 +100,56 @@ impl HaplotypePath {
 
 mod tests {
     use crate::graph::node::{Node, NodeType};
-    use crate::graph::paths::HaplotypePath;
     use crate::graph::{Edge, EventProbs, VariantGraph};
+    use crate::impact::Impact;
+    use bio::bio_types::strand::Strand;
     use petgraph::{Directed, Graph};
     use std::collections::HashMap;
+
+    fn setup_variant_graph() -> VariantGraph {
+        let mut graph = Graph::<Node, Edge, Directed>::new();
+        let ref_node_vaf =
+            HashMap::from([("sample1".to_string(), 0.5), ("sample2".to_string(), 0.5)]);
+        let alt_node_vaf =
+            HashMap::from([("sample1".to_string(), 0.3), ("sample2".to_string(), 0.7)]);
+        let ref_node = graph.add_node(Node {
+            node_type: NodeType::Ref("".to_string()),
+            vaf: ref_node_vaf,
+            probs: EventProbs(HashMap::new()),
+            pos: 1,
+            index: 0,
+        });
+        let alt_node = graph.add_node(Node {
+            node_type: NodeType::Var("ACGTTTGTTA".to_string()),
+            vaf: alt_node_vaf,
+            probs: EventProbs(HashMap::new()),
+            pos: 6,
+            index: 1,
+        });
+        graph.add_edge(
+            ref_node,
+            alt_node,
+            Edge {
+                supporting_reads: HashMap::new(),
+            },
+        );
+        VariantGraph {
+            graph,
+            start: 0,
+            end: 0,
+            target: "test".to_string(),
+        }
+    }
+
+    #[test]
+    fn weights_returns_correct_weights() {
+        let graph = setup_variant_graph();
+        let path = &graph.paths()[0];
+        let reference = b"ACGTTTGTTA";
+        let strand = Strand::Forward;
+        let weights = path.weights(&graph, 0, reference, strand).unwrap();
+        assert_eq!(weights.len(), 4);
+        assert_eq!(weights[0].vaf, 0.5);
+        assert_eq!(weights[2].impact, Impact::Moderate);
+    }
 }

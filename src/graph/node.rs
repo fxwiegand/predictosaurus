@@ -181,7 +181,10 @@ impl Node {
         phase: u8,
         reference: &[u8],
         strand: Strand,
-    ) -> anyhow::Result<String> {
+    ) -> anyhow::Result<Option<String>> {
+        if let NodeType::Ref(_) = self.node_type {
+            return Ok(None);
+        }
         let ref_amino_acid = self
             .reference_amino_acid(ref_phase, reference, strand)?
             .map_or("None".to_string(), |a| a.to_string());
@@ -189,7 +192,7 @@ impl Node {
             .variant_amino_acids(phase, reference, strand)?
             .iter()
             .join(", ");
-        Ok(format!("{} -> {}", ref_amino_acid, alt_amino_acids))
+        Ok(Some(format!("{} -> {}", ref_amino_acid, alt_amino_acids)))
     }
 
     pub(crate) fn impact(
@@ -694,7 +697,10 @@ mod tests {
     fn reason_with_valid_reference_and_variant_amino_acids() {
         let node = Node::new(NodeType::Var("A".to_string()), 2);
         let reference = b"ATGCGCGTA";
-        let result = node.reason(0, 0, reference, Strand::Forward).unwrap();
+        let result = node
+            .reason(0, 0, reference, Strand::Forward)
+            .unwrap()
+            .unwrap();
         assert_eq!(result, "Met -> Ile");
     }
 }
