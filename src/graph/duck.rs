@@ -334,7 +334,7 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let output_path = temp_dir.path();
         assert!(create_paths(output_path).is_ok());
-        assert!(Connection::open(output_path.join("graphs.duckdb")).is_ok());
+        assert!(Connection::open(output_path.join("paths.duckdb")).is_ok());
     }
 
     #[test]
