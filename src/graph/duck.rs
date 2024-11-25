@@ -114,8 +114,7 @@ pub(crate) fn feature_graph(
         .query_map(params![target.to_string()], |row| {
             Ok((row.get(0)?, row.get(1)?, row.get(2)?))
         })?
-        .map(Result::unwrap)
-        .collect();
+        .collect::<Result<Vec<_>, _>>()?;
     for (from_node, to_node, supporting_reads) in edges {
         if graph.node_indices().nth(from_node).is_none()
             || graph.node_indices().nth(to_node).is_none()
