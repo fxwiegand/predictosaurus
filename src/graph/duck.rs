@@ -63,7 +63,7 @@ pub(crate) fn write_graphs(
             )?;
         }
     }
-    db.close().unwrap();
+    db.close()?;
     Ok(())
 }
 
@@ -99,17 +99,16 @@ pub(crate) fn feature_graph(
     }
     for (node_index, node_type, vaf, probs, pos, index) in nodes {
         let node = Node {
-            node_type: NodeType::from_str(&node_type).unwrap(),
-            vaf: serde_json::from_str(&vaf).unwrap(),
-            probs: serde_json::from_str(&probs).unwrap(),
+            node_type: NodeType::from_str(&node_type)?,
+            vaf: serde_json::from_str(&vaf)?,
+            probs: serde_json::from_str(&probs)?,
             pos,
             index,
         };
         graph[NodeIndex::new(node_index)] = node;
     }
     let mut stmt = db
-        .prepare("SELECT from_node, to_node, supporting_reads FROM edges WHERE target = ?")
-        .unwrap();
+        .prepare("SELECT from_node, to_node, supporting_reads FROM edges WHERE target = ?")?;
     let edges: Vec<(usize, usize, String)> = stmt
         .query_map(params![target.to_string()], |row| {
             Ok((row.get(0)?, row.get(1)?, row.get(2)?))
@@ -143,12 +142,12 @@ pub(crate) fn create_paths(output_path: &Path) -> Result<()> {
     let db = Connection::open(&path)?;
     // TODO: Rethink the schema, we need a unique identifier for each CDS that we then use to iter batchwise via GROUP BY to generate the plots with the show command
     db.execute("CREATE TABLE path_nodes (path_index INTEGER, target String, feature STRING, node_index INTEGER, vaf FLOAT, impact STRING, reason STRING, consequence STRING, sample STRING)", [])?;
-    db.close().unwrap();
+    db.close()?;
     Ok(())
 }
 
 pub(crate) fn write_paths(
-    outputh_path: &Path,
+    output_path: &Path,
     paths: Vec<Vec<Weight>>,
     target: String,
     feature: String,
@@ -173,7 +172,7 @@ pub(crate) fn write_paths(
             )?;
         }
     }
-    db.close().unwrap();
+    db.close()?;
     Ok(())
 }
 
@@ -201,7 +200,7 @@ pub(crate) fn read_paths(path: &Path) -> Result<HashMap<String, HashMap<usize, V
         let weight = Weight {
             index: row.get(2)?,
             vaf: row.get(3)?,
-            impact: Impact::from_str(&row.get::<_, String>(4)?).unwrap(),
+            impact: Impact::from_str(&row.get::<_, String>(4)?)?,
             reason: row.get(5)?,
             consequence: row.get(6)?,
             sample: row.get(7)?,

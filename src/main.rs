@@ -79,7 +79,9 @@ impl Command {
                                         reference_genome.get(&target).unwrap(),
                                         strand,
                                     )
-                                    .unwrap()
+                                    .map_err(|e| {
+                                        anyhow::anyhow!("Error computing weights: {:?}", e)
+                                    })?
                                 })
                                 .collect_vec()),
                             Strand::Reverse => Ok(graph
@@ -92,7 +94,9 @@ impl Command {
                                         reference_genome.get(&target).unwrap(),
                                         strand,
                                     )
-                                    .unwrap()
+                                    .map_err(|e| {
+                                        anyhow::anyhow!("Error computing weights: {:?}", e)
+                                    })?
                                 })
                                 .collect_vec()),
                             Strand::Unknown => Err(anyhow::anyhow!(
