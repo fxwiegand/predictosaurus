@@ -13,10 +13,10 @@ use std::collections::HashMap;
 mod cli;
 mod graph;
 mod impact;
+mod show;
 mod transcription;
 mod translation;
 mod utils;
-mod show;
 
 fn main() -> Result<()> {
     let args = Predictosaurus::parse();

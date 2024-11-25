@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Result};
 use colored::Colorize;
+use serde::Serialize;
 use std::fmt;
 use std::str::FromStr;
-use serde::Serialize;
 
 #[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Clone, Copy, Serialize)]
 pub(crate) enum Impact {

@@ -1,8 +1,8 @@
-use std::io::Write;
-use std::path::Path;
+use crate::graph::paths::Weight;
 use anyhow::Result;
 use itertools::Itertools;
-use crate::graph::paths::Weight;
+use std::io::Write;
+use std::path::Path;
 use tera::Tera;
 
 /// Renders a Vega-Lite JSON file visualizing the given paths and writes it to the specified output directory with the feature as the file name.
@@ -12,20 +12,26 @@ use tera::Tera;
 /// * `output_path` - A string slice that holds the path of the directory where the rendered JSON file will be saved.
 /// * `paths` - A vector of `Weight` structs that will be serialized and passed to the template.
 /// * `feature` - A string that represents the feature name, which will be used as the filename.
-pub(crate) fn render_vl_paths(output_path: &str, paths: Vec<Weight>, feature: String) -> Result<()> {
+pub(crate) fn render_vl_paths(
+    output_path: &str,
+    paths: Vec<Weight>,
+    feature: String,
+) -> Result<()> {
     let template = include_str!("../../resources/templates/paths.vl.json.tera");
     let mut context = tera::Context::new();
     context.insert("paths", &paths);
-    std::fs::write(Path::new(output_path).join(format!("{}.json", feature)), Tera::one_off(template, &context, false)?)?;
+    std::fs::write(
+        Path::new(output_path).join(format!("{}.json", feature)),
+        Tera::one_off(template, &context, false)?,
+    )?;
     Ok(())
 }
 
-
 #[cfg(test)]
 mod tests {
-    use serde_json::Value;
-    use crate::impact::Impact;
     use super::*;
+    use crate::impact::Impact;
+    use serde_json::Value;
 
     #[test]
     fn render_vl_paths_creates_file_with_correct_content() {

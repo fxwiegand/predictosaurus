@@ -4,8 +4,8 @@ use anyhow::Result;
 use bio::bio_types::strand::Strand;
 use itertools::Itertools;
 use petgraph::graph::NodeIndex;
-use std::cmp::max;
 use serde::Serialize;
+use std::cmp::max;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct HaplotypePath(pub(crate) Vec<NodeIndex>);
