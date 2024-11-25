@@ -11,15 +11,16 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.5.3", features = ["derive"] }
 clap_derive = "4.5.3"
-rust-htslib = "0.47.0"
+rust-htslib = "0.48.0"
 bio = "2.0.3"
 anyhow = "1.0.93"
-varlociraptor = "8.4.10"
+varlociraptor = { git = "https://github.com/fxwiegand/varlociraptor.git", branch = "patch-6" }
 petgraph = { version = "0.6.5", features = ["serde-1"]}
 itertools = "0.13.0"
 serde = { version = "1.0.215", features = ["derive"] }
 serde_json = "1.0.133"
 colored = "2"
+duckdb = { version = "1.1.1", features = ["bundled"]}
 
 [dev-dependencies]
 tempfile = "3.14.0"

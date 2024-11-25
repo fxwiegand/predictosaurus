@@ -1,3 +1,4 @@
+pub(crate) mod duck;
 mod node;
 mod paths;
 
@@ -16,7 +17,6 @@ use petgraph::{Directed, Graph};
 use rust_htslib::bcf::{Read, Reader, Record};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use std::hash::Hash;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use varlociraptor::calling::variants::preprocessing::read_observations;
@@ -28,16 +28,6 @@ pub(crate) struct VariantGraph {
     start: i64,
     end: i64,
     target: String,
-}
-
-pub(crate) fn write_graphs(
-    graphs: HashMap<String, VariantGraph>,
-    output_path: &Path,
-) -> Result<()> {
-    let path = output_path.join("graphs.json");
-    let file = std::fs::File::create(path)?;
-    serde_json::to_writer(file, &graphs)?;
-    Ok(())
 }
 
 impl VariantGraph {
@@ -164,7 +154,7 @@ impl VariantGraph {
                     }
                 }
             }
-            if (last_position == -1) {
+            if last_position == -1 {
                 start = position; // Set start position
             }
             last_position = position;
@@ -516,25 +506,6 @@ mod tests {
     }
 
     #[test]
-    fn write_graphs_creates_json_file_with_correct_content() {
-        let mut graphs = HashMap::new();
-        graphs.insert("graph1".to_string(), setup_variant_graph_with_nodes());
-        let temp_dir = tempfile::tempdir().unwrap();
-        let file_path = temp_dir.path().join("graphs.json");
-        write_graphs(graphs.clone(), &temp_dir.path()).unwrap();
-        let written_content = fs::read_to_string(file_path).unwrap();
-        let deserialized_graphs: HashMap<String, VariantGraph> =
-            serde_json::from_str(&written_content).unwrap();
-        assert_eq!(graphs.len(), deserialized_graphs.len());
-        let graph = graphs.get("graph1").unwrap();
-        let deserialized_graph = deserialized_graphs.get("graph1").unwrap();
-        assert_eq!(
-            graph.graph.node_count(),
-            deserialized_graph.graph.node_count()
-        );
-    }
-
-    #[test]
     fn impact_returns_none_for_ref_node_type() {
         let node = Node::new(NodeType::Ref("".to_string()), 0);
         let impact = node.impact(0, 0, &[], Strand::Forward).unwrap();
@@ -565,7 +536,7 @@ mod tests {
         assert_eq!(impact, Impact::High);
     }
 
-    fn setup_variant_graph_with_nodes() -> VariantGraph {
+    pub(crate) fn setup_variant_graph_with_nodes() -> VariantGraph {
         let mut graph = Graph::<Node, Edge, Directed>::new();
         let node1 = graph.add_node(Node::new(NodeType::Var("A".to_string()), 1));
         let node2 = graph.add_node(Node::new(NodeType::Ref("".to_string()), 2));
@@ -734,7 +705,7 @@ mod tests {
         let graph = setup_variant_graph_with_nodes();
         let temp_dir = tempfile::tempdir().unwrap();
         let file_path = temp_dir.path().join("graph.dot");
-        graph.to_file(&temp_dir.path()).unwrap();
+        graph.to_file(temp_dir.path()).unwrap();
         let written_content = fs::read_to_string(file_path).unwrap();
         assert!(written_content.contains("digraph {"));
         assert!(written_content.contains("}"));
@@ -776,20 +747,6 @@ mod tests {
         serde_json::to_writer(file, &graph).unwrap();
         let file = fs::File::open(&file_path).unwrap();
         let deserialized_graph: VariantGraph = serde_json::from_reader(file).unwrap();
-        assert_eq!(
-            graph.graph.node_count(),
-            deserialized_graph.graph.node_count()
-        );
-    }
-
-    #[test]
-    fn test_write_graph() {
-        let graph = setup_variant_graph_with_nodes();
-        let temp_dir = tempfile::tempdir().unwrap();
-        let file_path = temp_dir.path().join("graph.json");
-        graph.write(&file_path).unwrap();
-        let written_content = fs::read_to_string(file_path).unwrap();
-        let deserialized_graph: VariantGraph = serde_json::from_str(&written_content).unwrap();
         assert_eq!(
             graph.graph.node_count(),
             deserialized_graph.graph.node_count()

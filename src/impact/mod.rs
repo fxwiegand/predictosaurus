@@ -1,5 +1,7 @@
+use anyhow::{anyhow, Result};
 use colored::Colorize;
 use std::fmt;
+use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Clone, Copy)]
 pub(crate) enum Impact {
@@ -8,6 +10,21 @@ pub(crate) enum Impact {
     Low,
     Moderate,
     High,
+}
+
+impl FromStr for Impact {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        match s.to_lowercase().as_str() {
+            "none" => Ok(Impact::None),
+            "modifier" => Ok(Impact::Modifier),
+            "low" => Ok(Impact::Low),
+            "moderate" => Ok(Impact::Moderate),
+            "high" => Ok(Impact::High),
+            _ => Err(anyhow!("'{}' is not a valid Impact variant", s)),
+        }
+    }
 }
 
 impl fmt::Display for Impact {
@@ -20,6 +37,19 @@ impl fmt::Display for Impact {
             Impact::High => "High".purple(),
         };
         write!(f, "{}", colored_str)
+    }
+}
+
+impl Impact {
+    /// Serializes the Impact variant to a string without color
+    pub(crate) fn to_raw_string(self) -> &'static str {
+        match self {
+            Impact::None => "None",
+            Impact::Modifier => "Modifier",
+            Impact::Low => "Low",
+            Impact::Moderate => "Moderate",
+            Impact::High => "High",
+        }
     }
 }
 
@@ -70,5 +100,41 @@ mod impact_enum_tests {
     fn display_high_impact() {
         let impact = Impact::High;
         assert_eq!(format!("{}", impact), "High".purple().to_string());
+    }
+
+    #[test]
+    fn from_str_none() {
+        let impact = "none".parse::<Impact>().unwrap();
+        assert_eq!(impact, Impact::None);
+    }
+
+    #[test]
+    fn from_str_modifier() {
+        let impact = "modifier".parse::<Impact>().unwrap();
+        assert_eq!(impact, Impact::Modifier);
+    }
+
+    #[test]
+    fn from_str_low() {
+        let impact = "low".parse::<Impact>().unwrap();
+        assert_eq!(impact, Impact::Low);
+    }
+
+    #[test]
+    fn from_str_moderate() {
+        let impact = "moderate".parse::<Impact>().unwrap();
+        assert_eq!(impact, Impact::Moderate);
+    }
+
+    #[test]
+    fn from_str_high() {
+        let impact = "high".parse::<Impact>().unwrap();
+        assert_eq!(impact, Impact::High);
+    }
+
+    #[test]
+    fn from_str_invalid() {
+        let impact = "invalid".parse::<Impact>();
+        assert!(impact.is_err());
     }
 }
