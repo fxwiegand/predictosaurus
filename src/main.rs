@@ -1,6 +1,7 @@
 use crate::cli::{Command, Format, Predictosaurus};
 use crate::graph::duck::{feature_graph, read_paths, write_graphs, write_paths};
 use crate::graph::VariantGraph;
+use crate::show::{render_html_paths, render_tsv_paths, render_vl_paths};
 use crate::utils::bcf::get_targets;
 use anyhow::{Context, Result};
 use bio::bio_types::strand::Strand;
@@ -117,13 +118,13 @@ impl Command {
                 for (feature, paths) in paths {
                     match format {
                         Format::Html => {
-                            unimplemented!("Html format is not yet implemented");
+                            render_html_paths(output, &paths, feature)?;
                         }
                         Format::Tsv => {
-                            unimplemented!("Tsv format is not yet implemented");
+                            render_tsv_paths(output, &paths, feature)?;
                         }
                         Format::Vega => {
-                            show::render_vl_paths(output, &paths, feature)?;
+                            render_vl_paths(output, &paths, feature)?;
                         }
                     }
                 }

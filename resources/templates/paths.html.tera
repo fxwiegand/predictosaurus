@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/vega@5.30.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-lite@5.20.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-embed@6.26.0"></script>
+</head>
+<body>
+<div id="vis"/>
+<script>
+    const spec = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "data": {
+            "values": {{ paths | json_encode() }}
+        },
+        "facet": {"row": {"field": "path", "type": "ordinal"}},
+        "spec": {
+            "height": 40,
+            "encoding": {"x": {"field": "node_index", "type": "ordinal", "axis": null}},
+            "layer": [
+                {
+                    "mark": "rect",
+                    "encoding": {
+                        "color": {
+                            "field": "impact",
+                            "type": "ordinal",
+                            "scale": {
+                                "domain": ["high", "moderate", "modifier", "low"],
+                                "range": ["#8B0000", "#E44D2E", "#FBEC5D", "#FFF7C2"]
+                            }
+                        },
+                        "tooltip": [
+                            {"field": "reason", "type": "nominal"},
+                            {"field": "consequence", "type": "nominal"}
+                        ]
+                    }
+                },
+                {
+                    "mark": "line",
+                    "encoding": {
+                        "y": {"field": "vaf", "type": "quantitative"},
+                        "color": {
+                            "field": "sample",
+                            "type": "nominal",
+                            "scale": {"scheme": "greys"}
+                        }
+                    }
+                }
+            ],
+            "resolve": {"scale": {"color": "independent", "x": "shared"}}
+        },
+        "config": {"axis": {"grid": true, "tickBand": "extent"}}
+    };
+    vegaEmbed("#vis", spec, {mode: "vega-lite"}).then(console.log).catch(console.warn);
+</script>
+</body>
+</html>
