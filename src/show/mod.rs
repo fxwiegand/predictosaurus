@@ -10,8 +10,8 @@ use tera::Tera;
 ///
 /// # Arguments
 ///
-/// * `output_path` - A string slice that holds the path of the directory where the rendered JSON file will be saved.
-/// * `paths` - A vector of `Weight` structs that will be serialized and passed to the template.
+/// * `output_path` - A reference to a `PathBuf` that holds the path of the directory where the rendered JSON file will be saved.
+/// * `paths` - A slice of `Weight` structs that will be serialized and passed to the template.
 /// * `feature` - A string that represents the feature name, which will be used as the filename.
 pub(crate) fn render_vl_paths(
     output_path: &PathBuf,
@@ -28,6 +28,13 @@ pub(crate) fn render_vl_paths(
     Ok(())
 }
 
+/// Renders a TSV file from the given paths and writes it to the specified output directory with the feature as the file name.
+///
+/// # Arguments
+///
+/// * `output_path` - A reference to a `PathBuf` that holds the path of the directory where the rendered TSV file will be saved.
+/// * `paths` - A slice of `Weight` structs that will be serialized and written to the TSV file.
+/// * `feature` - A string that represents the feature name, which will be used as the filename.
 pub(crate) fn render_tsv_paths(
     output_path: &PathBuf,
     paths: &[Weight],
