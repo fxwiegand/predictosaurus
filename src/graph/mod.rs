@@ -341,7 +341,7 @@ impl EventProbs {
     }
 
     pub(crate) fn is_valid(&self) -> bool {
-        self.all_nan() || self.0.values().all(|v| v.is_finite())
+        self.all_nan() || self.0.values().all(|v| !v.is_nan())
     }
 }
 
