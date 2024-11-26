@@ -230,23 +230,23 @@ mod tests {
         let node2 = graph.add_node(Node::new(NodeType::Ref("".to_string()), 2));
         let node3 = graph.add_node(Node::new(NodeType::Var("T".to_string()), 3));
         let node4 = graph.add_node(Node::new(NodeType::Var("".to_string()), 4));
-        let node5 = graph.add_node(Node::new(NodeType::Var("A".to_string()), 8));
-        let node6 = graph.add_node(Node::new(NodeType::Var("TT".to_string()), 9));
-        let edge1 = graph.add_edge(
+        let _node5 = graph.add_node(Node::new(NodeType::Var("A".to_string()), 8));
+        let _node6 = graph.add_node(Node::new(NodeType::Var("TT".to_string()), 9));
+        let _edge1 = graph.add_edge(
             node1,
             node2,
             Edge {
                 supporting_reads: HashMap::new(),
             },
         );
-        let edge2 = graph.add_edge(
+        let _edge2 = graph.add_edge(
             node2,
             node3,
             Edge {
                 supporting_reads: HashMap::new(),
             },
         );
-        let edge3 = graph.add_edge(
+        let _edge3 = graph.add_edge(
             node3,
             node4,
             Edge {

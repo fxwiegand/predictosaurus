@@ -1,10 +1,10 @@
 use anyhow::{anyhow, Result};
 use colored::Colorize;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
 
-#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Clone, Copy, Serialize)]
+#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Clone, Copy, Serialize, Deserialize)]
 pub(crate) enum Impact {
     None,
     Modifier,

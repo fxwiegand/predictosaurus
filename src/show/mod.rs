@@ -1,5 +1,6 @@
 use crate::graph::paths::Weight;
 use anyhow::Result;
+use csv::Writer;
 use itertools::Itertools;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -14,16 +15,29 @@ use tera::Tera;
 /// * `feature` - A string that represents the feature name, which will be used as the filename.
 pub(crate) fn render_vl_paths(
     output_path: &PathBuf,
-    paths: Vec<Weight>,
+    paths: &[Weight],
     feature: String,
 ) -> Result<()> {
     let template = include_str!("../../resources/templates/paths.vl.json.tera");
     let mut context = tera::Context::new();
-    context.insert("paths", &paths);
+    context.insert("paths", paths);
     std::fs::write(
         Path::new(output_path).join(format!("{}.json", feature)),
         Tera::one_off(template, &context, false)?,
     )?;
+    Ok(())
+}
+
+pub(crate) fn render_tsv_paths(
+    output_path: &PathBuf,
+    paths: &[Weight],
+    feature: String,
+) -> Result<()> {
+    let mut wtr = Writer::from_path(Path::new(output_path).join(format!("{}.tsv", feature)))?;
+    for path in paths {
+        wtr.serialize(path)?;
+    }
+    wtr.flush()?;
     Ok(())
 }
 
@@ -47,10 +61,32 @@ mod tests {
             sample: "sample1".to_string(),
         }];
         let feature = "test_feature".to_string();
-        render_vl_paths(&output_path, paths, feature.clone()).unwrap();
+        render_vl_paths(&output_path, &paths, feature.clone()).unwrap();
         let file_path = Path::new(&output_path).join(format!("{}.json", feature));
         assert!(file_path.exists());
         let file_content = std::fs::read_to_string(file_path).unwrap();
         assert!(serde_json::from_str::<Value>(&file_content).is_ok());
+    }
+
+    #[test]
+    fn render_tsv_paths_creates_file_with_correct_content() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let output_path = temp_dir.into_path();
+        let paths = vec![Weight {
+            index: 1,
+            path: Some(1),
+            vaf: 0.5,
+            impact: Impact::High,
+            reason: Some("Ile -> Met".to_string()),
+            consequence: Some("loss".to_string()),
+            sample: "sample1".to_string(),
+        }];
+        let feature = "test_feature".to_string();
+        render_tsv_paths(&output_path, &paths, feature.clone()).unwrap();
+        let file_path = Path::new(&output_path).join(format!("{}.tsv", feature));
+        assert!(file_path.exists());
+        let mut rdr = csv::Reader::from_path(file_path).unwrap();
+        let result: Vec<Weight> = rdr.deserialize().map(|r| r.unwrap()).collect();
+        assert_eq!(result, paths);
     }
 }

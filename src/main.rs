@@ -123,7 +123,7 @@ impl Command {
                             unimplemented!("Tsv format is not yet implemented");
                         }
                         Format::Vega => {
-                            show::render_vl_paths(output, paths, feature)?;
+                            show::render_vl_paths(output, &paths, feature)?;
                         }
                     }
                 }

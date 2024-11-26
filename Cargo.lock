@@ -2642,6 +2642,7 @@ dependencies = [
  "clap 4.5.21",
  "clap_derive",
  "colored",
+ "csv",
  "duckdb",
  "itertools 0.13.0",
  "petgraph",
