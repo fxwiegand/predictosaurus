@@ -11,6 +11,7 @@ use anyhow::Result;
 use bio::stats::bayesian::bayes_factors::evidence::KassRaftery;
 use bio::stats::bayesian::BayesFactor;
 use itertools::Itertools;
+use log::warn;
 use petgraph::dot::{Config, Dot};
 use petgraph::graph::NodeIndex;
 use petgraph::{Directed, Graph};
@@ -21,7 +22,6 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use varlociraptor::calling::variants::preprocessing::read_observations;
 use varlociraptor::utils::collect_variants::collect_variants;
-use log::warn;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct VariantGraph {
@@ -110,7 +110,10 @@ impl VariantGraph {
 
             let event_probs = EventProbs::from_record(&calls_record, &tags);
             if !event_probs.is_valid() {
-                return Err(anyhow::anyhow!("Invalid event probabilities in record at position {}", position));
+                return Err(anyhow::anyhow!(
+                    "Invalid event probabilities in record at position {}",
+                    position
+                ));
             } else if event_probs.all_nan() {
                 continue;
             }
