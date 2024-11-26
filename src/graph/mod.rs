@@ -21,6 +21,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use varlociraptor::calling::variants::preprocessing::read_observations;
 use varlociraptor::utils::collect_variants::collect_variants;
+use log::warn;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct VariantGraph {
@@ -107,10 +108,17 @@ impl VariantGraph {
             let ref_allele = String::from_utf8(alleles[0].to_vec())?;
             let alt_allele = String::from_utf8(alleles[1].to_vec())?;
 
+            let event_probs = EventProbs::from_record(&calls_record, &tags);
+            if !event_probs.is_valid() {
+                return Err(anyhow::anyhow!("Invalid event probabilities in record at position {}", position));
+            } else if event_probs.all_nan() {
+                continue;
+            }
+
             let var_node = Node::from_records(
                 &calls_record,
                 &observations,
-                &tags,
+                &event_probs,
                 NodeType::Var(alt_allele),
                 &samples,
                 index,
@@ -121,7 +129,7 @@ impl VariantGraph {
                 let ref_node = Node::from_records(
                     &calls_record,
                     &observations,
-                    &tags,
+                    &event_probs,
                     NodeType::Ref(ref_allele),
                     &samples,
                     index,
@@ -325,6 +333,14 @@ impl EventProbs {
         }
         EventProbs(probs)
     }
+
+    pub(crate) fn all_nan(&self) -> bool {
+        self.0.values().all(|v| v.is_nan())
+    }
+
+    pub(crate) fn is_valid(&self) -> bool {
+        self.all_nan() || self.0.values().all(|v| v.is_finite())
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -356,6 +372,51 @@ mod tests {
         assert_eq!(event_probs.0.get("PROB_ABSENT").unwrap(), &0.036097374);
         assert_eq!(event_probs.0.get("PROB_PRESENT").unwrap(), &20.82111);
         assert_eq!(event_probs.0.get("PROB_ARTIFACT").unwrap(), &f32::INFINITY);
+    }
+
+    #[test]
+    fn all_nan_returns_true_when_all_values_are_nan() {
+        let event_probs = EventProbs(HashMap::from([
+            ("PROB_1".to_string(), f32::NAN),
+            ("PROB_2".to_string(), f32::NAN),
+        ]));
+        assert!(event_probs.all_nan());
+    }
+
+    #[test]
+    fn all_nan_returns_false_when_not_all_values_are_nan() {
+        let event_probs = EventProbs(HashMap::from([
+            ("PROB_1".to_string(), f32::NAN),
+            ("PROB_2".to_string(), 0.5),
+        ]));
+        assert!(!event_probs.all_nan());
+    }
+
+    #[test]
+    fn is_valid_returns_true_when_all_values_are_nan() {
+        let event_probs = EventProbs(HashMap::from([
+            ("PROB_1".to_string(), f32::NAN),
+            ("PROB_2".to_string(), f32::NAN),
+        ]));
+        assert!(event_probs.is_valid());
+    }
+
+    #[test]
+    fn is_valid_returns_true_when_all_values_are_finite() {
+        let event_probs = EventProbs(HashMap::from([
+            ("PROB_1".to_string(), 0.5),
+            ("PROB_2".to_string(), 1.0),
+        ]));
+        assert!(event_probs.is_valid());
+    }
+
+    #[test]
+    fn is_valid_returns_false_when_some_values_are_nan() {
+        let event_probs = EventProbs(HashMap::from([
+            ("PROB_1".to_string(), 0.5),
+            ("PROB_2".to_string(), f32::NAN),
+        ]));
+        assert!(!event_probs.is_valid());
     }
 
     #[test]

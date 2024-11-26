@@ -66,7 +66,7 @@ impl Node {
     pub(crate) fn from_records(
         calls_record: &Record,
         _observations_record: &HashMap<&&String, Vec<ProcessedReadObservation>>,
-        tags: &Vec<String>,
+        event_probs: &EventProbs,
         node_type: NodeType,
         samples: &[String],
         index: u32,
@@ -79,7 +79,7 @@ impl Node {
                 .zip(vafs.iter())
                 .map(|(s, v)| (s.to_string(), v[0]))
                 .collect(),
-            probs: EventProbs::from_record(calls_record, tags),
+            probs: event_probs.to_owned(),
             pos: calls_record.pos(),
             index,
         }
