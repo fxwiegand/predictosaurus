@@ -16,7 +16,7 @@
         "facet": {"row": {"field": "path", "type": "ordinal"}},
         "spec": {
             "height": 40,
-            "encoding": {"x": {"field": "node_index", "type": "ordinal", "axis": null}},
+            "encoding": {"x": {"field": "index", "type": "ordinal", "axis": null}},
             "layer": [
                 {
                     "mark": "rect",
@@ -25,7 +25,7 @@
                             "field": "impact",
                             "type": "ordinal",
                             "scale": {
-                                "domain": ["high", "moderate", "modifier", "low"],
+                                "domain": ["High", "Moderate", "Modifier", "Low"],
                                 "range": ["#8B0000", "#E44D2E", "#FBEC5D", "#FFF7C2"]
                             }
                         },

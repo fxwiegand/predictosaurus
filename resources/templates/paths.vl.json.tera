@@ -13,7 +13,7 @@
         "height": 40,
         "encoding": {
             "x": {
-                "field": "node_index",
+                "field": "index",
                 "type": "ordinal",
                 "axis": null
             }
@@ -27,10 +27,10 @@
                         "type": "ordinal",
                         "scale": {
                             "domain": [
-                                "high",
-                                "moderate",
-                                "modifier",
-                                "low"
+                                "High",
+                                "Moderate",
+                                "Modifier",
+                                "Low"
                             ],
                             "range": [
                                 "#8B0000",
