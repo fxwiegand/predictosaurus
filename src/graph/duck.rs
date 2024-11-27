@@ -42,8 +42,8 @@ pub(crate) fn write_graphs(
                     &target.to_string(),
                     &node_index.index().to_string(),
                     &node.node_type.to_string(),
-                    &serde_json::to_string(&node.vaf)?,
-                    &serde_json::to_string(&node.probs)?,
+                    &json5::to_string(&node.vaf)?,
+                    &json5::to_string(&node.probs)?,
                     &node.pos.to_string(),
                     &node.index.to_string(),
                 ],
@@ -100,8 +100,8 @@ pub(crate) fn feature_graph(
     for (node_index, node_type, vaf, probs, pos, index) in nodes {
         let node = Node {
             node_type: NodeType::from_str(&node_type)?,
-            vaf: serde_json::from_str(&vaf)?,
-            probs: serde_json::from_str(&probs)?,
+            vaf: json5::from_str(&vaf)?,
+            probs: json5::from_str(&probs)?,
             pos,
             index,
         };
