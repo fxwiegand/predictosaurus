@@ -29,8 +29,8 @@
                             "domain": [
                                 "High",
                                 "Moderate",
-                                "Modifier",
-                                "Low"
+                                "Low",
+                                "Modifier"
                             ],
                             "range": [
                                 "#8B0000",
