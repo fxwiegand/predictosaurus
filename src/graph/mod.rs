@@ -323,7 +323,6 @@ fn shift_phase(phase: u8, frameshift: u8) -> u8 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(dead_code)] // TODO: Remove this attribute when graph is properly serialized
 pub(crate) struct EventProbs(HashMap<String, f32>);
 
 impl EventProbs {
