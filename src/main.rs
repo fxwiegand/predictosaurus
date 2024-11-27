@@ -1,5 +1,5 @@
 use crate::cli::{Command, Format, Predictosaurus};
-use crate::graph::duck::{feature_graph, read_paths, write_graphs, write_paths};
+use crate::graph::duck::{create_paths, feature_graph, read_paths, write_graphs, write_paths};
 use crate::graph::VariantGraph;
 use crate::show::{render_html_paths, render_tsv_paths, render_vl_paths};
 use crate::utils::bcf::get_targets;
@@ -102,7 +102,7 @@ impl Command {
                                 record.seqname()
                             )),
                         };
-
+                        create_paths(output)?;
                         write_paths(output, weights?, target, cds_id)?;
                     } else {
                         anyhow::bail!("No variant graph found for target {}", target);
