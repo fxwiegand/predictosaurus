@@ -222,7 +222,7 @@ impl Node {
                                     (false, _, AminoAcid::Stop) => Ok(Impact::High),
                                     (false, AminoAcid::Stop, _) => Ok(Impact::High),
                                     (false, AminoAcid::Methionine, _) => Ok(Impact::High), // TODO: Check if this is always automatic start lost or can Met occur anywhere in the protein?
-                                    (false, _, _) => Ok(Impact::Modifier),
+                                    (false, _, _) => Ok(Impact::Moderate),
                                 };
                                 for amino_acid in alt_amino_acids {
                                     if amino_acid == AminoAcid::Stop {

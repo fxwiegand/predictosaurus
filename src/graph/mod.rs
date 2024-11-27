@@ -583,11 +583,11 @@ mod tests {
     }
 
     #[test]
-    fn impact_identifies_modifier_for_different_ref_and_alt_amino_acids() {
+    fn impact_identifies_moderate_for_different_ref_and_alt_amino_acids() {
         let node = Node::new(NodeType::Var("G".to_string()), 3);
         let reference = b"ATTTG";
         let impact = node.impact(2, 2, reference, Strand::Forward).unwrap();
-        assert_eq!(impact, Impact::Modifier);
+        assert_eq!(impact, Impact::Moderate);
     }
 
     #[test]
@@ -628,7 +628,7 @@ mod tests {
         let node_index = graph.graph.node_indices().next().unwrap();
         let path = HaplotypePath(vec![node_index]);
         let impact = path.impact(&graph, 0, b"TTC", Strand::Forward).unwrap();
-        assert_eq!(impact, Impact::Modifier);
+        assert_eq!(impact, Impact::Moderate);
     }
 
     #[test]
@@ -673,7 +673,7 @@ mod tests {
         let impact = path
             .impact(&graph, 0, b"GGGAAATTTAAC", Strand::Forward)
             .unwrap();
-        assert_eq!(impact, Impact::Modifier);
+        assert_eq!(impact, Impact::Moderate);
     }
 
     fn setup_variant_graph_with_nodes_2() -> VariantGraph {
@@ -750,7 +750,7 @@ mod tests {
         let result = path.display(&graph, 0, b"ATGCGT", Strand::Forward).unwrap();
         assert_eq!(
             result,
-            "Some(Methionine) -> [Lysine] (High)\nSome(Arginine) -> [Cysteine] (Modifier)\n"
+            "Some(Methionine) -> [Lysine] (High)\nSome(Arginine) -> [Cysteine] (Moderate)\n"
         );
     }
 
