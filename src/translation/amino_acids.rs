@@ -2,6 +2,7 @@ use anyhow::Result;
 use std::fmt::Display;
 
 /// A protein consisting of a sequence of amino acids
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Protein {
     pub(crate) sequence: Vec<AminoAcid>,
 }

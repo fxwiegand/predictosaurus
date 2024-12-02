@@ -1,5 +1,8 @@
 use crate::graph::{shift_phase, NodeType, VariantGraph};
 use crate::impact::Impact;
+use crate::translation::amino_acids::Protein;
+use crate::translation::dna_to_protein;
+use crate::utils::fasta::reverse_complement;
 use anyhow::Result;
 use bio::bio_types::strand::Strand;
 use itertools::Itertools;
@@ -78,7 +81,7 @@ impl HaplotypePath {
         phase: u8,
         reference: &[u8],
         strand: Strand,
-    ) -> anyhow::Result<String> {
+    ) -> Result<String> {
         let ref_phase = phase;
         let mut phase = phase;
         let mut protein = String::new();
@@ -99,12 +102,62 @@ impl HaplotypePath {
         }
         Ok(protein)
     }
+
+    pub(crate) fn protein(
+        &self,
+        graph: &VariantGraph,
+        phase: u8,
+        reference: &[u8],
+        strand: Strand,
+        start: usize,
+        end: usize,
+    ) -> Result<Protein> {
+        let mut frameshift = 0;
+        let mut sequence = reference[start..=end].to_vec();
+        if strand == Strand::Reverse {
+            sequence = reverse_complement(&sequence);
+        }
+        sequence = sequence[phase as usize..].to_vec();
+
+        for node_index in self.0.iter() {
+            let node = graph.graph.node_weight(*node_index).unwrap();
+            if let NodeType::Var(allele) = &node.node_type {
+                let position_in_protein = match strand {
+                    Strand::Forward => {
+                        (node.pos - start as i64 + frameshift + phase as i64) as usize
+                    }
+                    Strand::Reverse => (end as i64 - node.pos + frameshift - phase as i64) as usize,
+                    Strand::Unknown => return Err(anyhow::anyhow!("Strand is unknown")),
+                };
+                match strand {
+                    Strand::Forward => {
+                        sequence
+                            .splice(position_in_protein..position_in_protein + 1, allele.bytes());
+                    }
+                    Strand::Reverse => {
+                        sequence.splice(
+                            position_in_protein..position_in_protein + 1,
+                            String::from_utf8_lossy(
+                                reverse_complement(allele.as_bytes()).as_slice(),
+                            )
+                            .bytes(),
+                        );
+                    }
+                    Strand::Unknown => unreachable!(),
+                }
+
+                frameshift += node.frameshift();
+            }
+        }
+        dna_to_protein(&sequence)
+    }
 }
 
 mod tests {
     use crate::graph::node::{Node, NodeType};
     use crate::graph::{Edge, EventProbs, VariantGraph};
     use crate::impact::Impact;
+    use crate::translation::dna_to_protein;
     use bio::bio_types::strand::Strand;
     use petgraph::{Directed, Graph};
     use std::collections::HashMap;
@@ -154,5 +207,66 @@ mod tests {
         assert_eq!(weights.len(), 4);
         assert_eq!(weights[0].vaf, 0.5);
         assert_eq!(weights[2].impact, Impact::Moderate);
+    }
+
+    fn setup_protein_graph() -> VariantGraph {
+        let mut graph = Graph::<Node, Edge, Directed>::new();
+        let node_1 = graph.add_node(Node {
+            node_type: NodeType::Var("AT".to_string()),
+            vaf: HashMap::new(),
+            probs: EventProbs(HashMap::new()),
+            pos: 4,
+            index: 0,
+        });
+        let node_2 = graph.add_node(Node {
+            node_type: NodeType::Var("".to_string()),
+            vaf: HashMap::new(),
+            probs: EventProbs(HashMap::new()),
+            pos: 8,
+            index: 1,
+        });
+        graph.add_edge(
+            node_1,
+            node_2,
+            Edge {
+                supporting_reads: HashMap::new(),
+            },
+        );
+        VariantGraph {
+            graph,
+            start: 0,
+            end: 0,
+            target: "test".to_string(),
+        }
+    }
+
+    #[test]
+    fn protein_returns_correct_protein_sequence() {
+        let graph = setup_protein_graph();
+        let path = &graph.paths()[0];
+        let protein = path
+            .protein(&graph, 0, b"ACGTTTGTTAG", Strand::Forward, 2, 10)
+            .unwrap();
+        assert_eq!(protein, dna_to_protein(b"GTATTGTAG").unwrap());
+    }
+
+    #[test]
+    fn protein_returns_correct_protein_sequence_for_reverse_strand() {
+        let graph = setup_protein_graph();
+        let path = &graph.reverse_paths()[0];
+        let protein = path
+            .protein(&graph, 0, b"CTAACAAATGCA", Strand::Reverse, 2, 10)
+            .unwrap();
+        assert_eq!(protein, dna_to_protein(b"GCTTTATTT").unwrap());
+    }
+
+    #[test]
+    fn protein_returns_correct_protein_sequence_for_reverse_strand_with_phase_offset() {
+        let graph = setup_protein_graph();
+        let path = &graph.reverse_paths()[0];
+        let protein = path
+            .protein(&graph, 1, b"AAAAAAAAAAAAAAAAAAAAAT", Strand::Reverse, 3, 21)
+            .unwrap();
+        assert_eq!(protein, dna_to_protein(b"TTTTTTTTTTTTTTTATT").unwrap());
     }
 }
