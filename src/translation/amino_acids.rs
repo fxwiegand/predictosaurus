@@ -1,4 +1,6 @@
+use crate::cli::Interval;
 use anyhow::Result;
+use itertools::Itertools;
 use std::fmt::Display;
 
 /// A protein consisting of a sequence of amino acids
@@ -11,6 +13,23 @@ impl Protein {
     /// Creates a new protein from a sequence of amino acids
     pub(crate) fn new(sequence: Vec<AminoAcid>) -> Protein {
         Protein { sequence }
+    }
+
+    /// Creates all peptides of length k from the protein
+    pub(crate) fn k_peptides(&self, k: u32) -> Vec<Vec<AminoAcid>> {
+        self.sequence
+            .windows(k as usize)
+            .map(|window| window.to_vec())
+            .unique()
+            .collect()
+    }
+
+    pub(crate) fn peptides(&self, interval: Interval) -> Vec<Vec<AminoAcid>> {
+        interval
+            .into_iter()
+            .map(|i| self.k_peptides(i))
+            .flatten()
+            .collect()
     }
 }
 
@@ -29,7 +48,7 @@ impl Display for Protein {
 }
 
 /// Amino acids and stop
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum AminoAcid {
     Alanine,
     Arginine,
@@ -259,5 +278,98 @@ mod tests {
             AminoAcid::Stop,
         ]);
         assert_eq!(protein.to_string(), "AlaArgAsnAspCysGluGlnStop");
+    }
+
+    #[test]
+    fn k_peptides_returns_correct_peptides_of_length_3() {
+        let protein = Protein::new(vec![
+            AminoAcid::Alanine,
+            AminoAcid::Arginine,
+            AminoAcid::Asparagine,
+            AminoAcid::AsparticAcid,
+            AminoAcid::Cysteine,
+        ]);
+        let peptides = protein.k_peptides(3);
+        assert_eq!(
+            peptides,
+            vec![
+                vec![
+                    AminoAcid::Alanine,
+                    AminoAcid::Arginine,
+                    AminoAcid::Asparagine
+                ],
+                vec![
+                    AminoAcid::Arginine,
+                    AminoAcid::Asparagine,
+                    AminoAcid::AsparticAcid
+                ],
+                vec![
+                    AminoAcid::Asparagine,
+                    AminoAcid::AsparticAcid,
+                    AminoAcid::Cysteine
+                ],
+            ]
+        );
+    }
+
+    #[test]
+    fn k_peptides_returns_empty_when_length_is_greater_than_sequence() {
+        let protein = Protein::new(vec![AminoAcid::Alanine, AminoAcid::Arginine]);
+        let peptides = protein.k_peptides(3);
+        assert!(peptides.is_empty());
+    }
+
+    #[test]
+    fn k_peptides_handles_single_amino_acid_sequence() {
+        let protein = Protein::new(vec![AminoAcid::Alanine]);
+        let peptides = protein.k_peptides(1);
+        assert_eq!(peptides, vec![vec![AminoAcid::Alanine]]);
+    }
+
+    #[test]
+    fn k_peptides_return_no_duplicates() {
+        let protein = Protein::new(vec![
+            AminoAcid::Alanine,
+            AminoAcid::Alanine,
+            AminoAcid::Alanine,
+        ]);
+        let peptides = protein.k_peptides(2);
+        assert_eq!(peptides, vec![vec![AminoAcid::Alanine, AminoAcid::Alanine]]);
+    }
+
+    #[test]
+    fn peptides_returns_correct_peptides_for_interval() {
+        let protein = Protein::new(vec![
+            AminoAcid::Alanine,
+            AminoAcid::Arginine,
+            AminoAcid::Asparagine,
+            AminoAcid::AsparticAcid,
+            AminoAcid::Cysteine,
+        ]);
+        let peptides = protein.peptides(Interval { start: 2, end: 3 });
+        assert_eq!(
+            peptides,
+            vec![
+                vec![AminoAcid::Alanine, AminoAcid::Arginine],
+                vec![AminoAcid::Arginine, AminoAcid::Asparagine],
+                vec![AminoAcid::Asparagine, AminoAcid::AsparticAcid],
+                vec![AminoAcid::AsparticAcid, AminoAcid::Cysteine],
+                vec![
+                    AminoAcid::Alanine,
+                    AminoAcid::Arginine,
+                    AminoAcid::Asparagine
+                ],
+                vec![
+                    AminoAcid::Arginine,
+                    AminoAcid::Asparagine,
+                    AminoAcid::AsparticAcid
+                ],
+                vec![
+                    AminoAcid::Asparagine,
+                    AminoAcid::AsparticAcid,
+                    AminoAcid::Cysteine
+                ],
+            ]
+        );
     }
 }
