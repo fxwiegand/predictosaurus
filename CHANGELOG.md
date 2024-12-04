@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/fxwiegand/predictosaurus/compare/v0.1.0...v0.1.1) (2024-12-04)
+
+
+### Miscellaneous Chores
+
+* release 0.1.1 ([8551a11](https://github.com/fxwiegand/predictosaurus/commit/8551a110d543be8b84acdfe0f0e0e2692f17ec15))
+
 ## 0.1.0 (2024-12-04)
 
 
