@@ -1,6 +1,6 @@
 [package]
 name = "predictosaurus"
-version = "0.1.0"
+version = "0.1.1"
 description = "Uncertainty aware haplotype based genomic variant effect prediction"
 license = "MIT"
 authors = ["Felix Wiegand <felix.wiegand@tu-dortmund.de>", "Johannes Köster <johannes.koester@tu-dortmund.de>"]
@@ -11,10 +11,10 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.5.3", features = ["derive"] }
 clap_derive = "4.5.3"
-rust-htslib = "0.48.0"
+rust-htslib = "0.49.0"
 bio = "2.0.3"
 anyhow = "1.0.93"
-varlociraptor = { git = "https://github.com/fxwiegand/varlociraptor.git", branch = "patch-6" }
+varlociraptor = "8.4.14"
 petgraph = { version = "0.6.5", features = ["serde-1"]}
 itertools = "0.13.0"
 serde = { version = "1.0.215", features = ["derive"] }

@@ -1595,9 +1595,9 @@ dependencies = [
 
 [[package]]
 name = "hts-sys"
-version = "2.1.4"
+version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9f348d14cb4e50444e39fcd6b00302fe2ed2bc88094142f6278391d349a386d"
+checksum = "e38d7f1c121cd22aa214cb4dadd4277dc5447391eac518b899b29ba6356fbbb2"
 dependencies = [
  "bindgen",
  "bzip2-sys",
@@ -2646,7 +2646,7 @@ dependencies = [
 
 [[package]]
 name = "predictosaurus"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "bio",
@@ -3021,9 +3021,9 @@ dependencies = [
 
 [[package]]
 name = "rust-htslib"
-version = "0.48.0"
+version = "0.49.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8313d0733b0a2782231fd7259e8f0873cb2542657719e06179811f86f8f797af"
+checksum = "115ae57b89deb942275566eca8c31da053d8df0d8bda12e50c4c4aa994877068"
 dependencies = [
  "bio-types",
  "byteorder",
@@ -3837,8 +3837,9 @@ checksum = "f8c5f0a0af699448548ad1a2fbf920fb4bee257eae39953ba95cb84891a0446a"
 
 [[package]]
 name = "varlociraptor"
-version = "8.4.11"
-source = "git+https://github.com/fxwiegand/varlociraptor.git?branch=patch-6#60a74d7f4b7cd37e1d7eb2a0e50d62284f2cc36c"
+version = "8.4.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3a0e83d6bbf40759e8f87183c98ebf72379aa711dd9ed58ad8bdcc74bdbbbbdf"
 dependencies = [
  "GSL",
  "anyhow",
