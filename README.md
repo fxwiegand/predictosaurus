@@ -11,7 +11,6 @@
 - [Commands](#commands)
     - [Build](#build)
     - [Process](#process)
-    - [Peptides](#peptides)
     - [Show](#show)
 - [Example](#example)
 - [License](#license)
