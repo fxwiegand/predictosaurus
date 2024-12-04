@@ -2,6 +2,11 @@
 
 [![codecov](https://codecov.io/gh/fxwiegand/predictosaurus/graph/badge.svg?token=OSD3PSBS4L)](https://codecov.io/gh/fxwiegand/predictosaurus)
 
+> [!CAUTION]
+> **This tool is still experimental!**  
+> This means it may have bugs, and features are subject to change. Use it cautiously, and share feedback to help us improve. 🧪
+
+
 **Predictosaurus** is a command-line tool designed for uncertainty-aware haplotype-based genomic variant effect prediction. It provides comprehensive functionality for building variant graphs, processing genomic features, and extracting peptide sequences. The tool integrates various bioinformatics processes to support efficient data analysis and visualization.
 
 ## Table of Contents
