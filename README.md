@@ -94,7 +94,7 @@ predictosaurus show --input path/to/input_data --format html --output path/to/ou
 
 ## Example
 
-Here's a comprehensive example of using **Predictosaurus** to build a graph, process it, and visualize the results:
+This is an example of using **Predictosaurus** to build a graph, process it, and visualize the results:
 
 ```bash
 # Step 1: Build the variant graph
