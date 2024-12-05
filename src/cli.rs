@@ -24,7 +24,11 @@ pub(crate) enum Command {
         #[clap(short, long)]
         observations: Vec<ObservationFile>,
 
-        /// Output path for the stored variant graphs
+        /// Minimum probability for a variant to be considered in the graph
+        #[clap(short, long, default_value = "0.8")]
+        min_prop_present: f32,
+
+        /// Path to the output file containing the impact graph
         #[clap(long)]
         output: PathBuf,
     },
@@ -43,7 +47,7 @@ pub(crate) enum Command {
         #[clap(short, long)]
         graph: PathBuf,
 
-        /// Path to the output directory
+        /// Path to the output file containing the paths for the features given via the GFF file
         #[clap(short, long)]
         output: PathBuf,
     },
@@ -69,9 +73,8 @@ pub(crate) enum Command {
         #[clap(short, long)]
         output: PathBuf,
     },
-
     /// Create visualizations and output HTML, TSV, or Vega specs
-    Show {
+    Plot {
         /// Path to the input data file
         #[clap(short, long)]
         input: PathBuf,
@@ -80,7 +83,7 @@ pub(crate) enum Command {
         #[clap(short, long)]
         format: Format,
 
-        /// Path to the output file
+        /// Path to the output directory
         #[clap(short, long)]
         output: PathBuf,
     },

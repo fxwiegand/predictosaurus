@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0](https://github.com/fxwiegand/predictosaurus/compare/v0.1.1...v0.2.0) (2024-12-05)
+
+
+### Features
+
+* Add `--min-prop-present` parameter to build subcommand ([c4542cb](https://github.com/fxwiegand/predictosaurus/commit/c4542cb108d81db203ef1fbb0ab2f55b452ec97f))
+
+
+### Bug Fixes
+
+* Ignore samples present in calls file that are not present in given observations ([2bff91a](https://github.com/fxwiegand/predictosaurus/commit/2bff91a88314031c99d811b46e87d429da52702f))
+
 ## [0.1.1](https://github.com/fxwiegand/predictosaurus/compare/v0.1.0...v0.1.1) (2024-12-04)
 
 
