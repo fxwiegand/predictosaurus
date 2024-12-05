@@ -16,7 +16,7 @@
 - [Commands](#commands)
     - [Build](#build)
     - [Process](#process)
-    - [Show](#show)
+    - [Plot](#plot)
 - [Example](#example)
 - [License](#license)
 
@@ -82,7 +82,7 @@ Retrieves subgraphs for individual features from the provided GFF file.
 predictosaurus process --features path/to/features.gff --reference path/to/reference.fasta --graph path/to/graph.duckdb --output path/to/output/
 ```
 
-### Show
+### Plot
 
 Creates visualizations and outputs them in HTML, TSV, or Vega format.
 
@@ -95,7 +95,7 @@ Creates visualizations and outputs them in HTML, TSV, or Vega format.
 **Example:**
 
 ```bash
-predictosaurus show --input path/to/paths.duckdb --format html --output path/to/output.html
+predictosaurus plot --input path/to/paths.duckdb --format html --output path/to/output.html
 ```
 
 ## Example
@@ -109,8 +109,8 @@ predictosaurus build --calls path/to/calls.vcf --observations sample1=path/to/ob
 # Step 2: Process the graph with a GFF file
 predictosaurus process --features path/to/features.gff --reference path/to/reference.fasta --graph path/to/graph_output_dir/graphs.duckdb --output path/to/processed_data_dir
 
-# Step 3: Show visualizations
-predictosaurus show --input path/to/processed_data_dir/paths.duckdb --format html --output path/to/output_html_dir/
+# Step 3: plot visualizations
+predictosaurus plot --input path/to/processed_data_dir/paths.duckdb --format html --output path/to/output_html_dir/
 ```
 
 ## License

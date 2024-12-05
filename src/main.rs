@@ -111,7 +111,7 @@ impl Command {
                     }
                 }
             }
-            Command::Show {
+            Command::Plot {
                 input,
                 format,
                 output,

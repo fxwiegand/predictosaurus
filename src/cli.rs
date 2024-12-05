@@ -51,7 +51,7 @@ pub(crate) enum Command {
         output: PathBuf,
     },
     /// Create visualizations and output HTML, TSV, or Vega specs
-    Show {
+    Plot {
         /// Path to the input data file
         #[clap(short, long)]
         input: PathBuf,
