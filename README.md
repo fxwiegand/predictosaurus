@@ -1,6 +1,8 @@
 # Predictosaurus
 
 [![codecov](https://codecov.io/gh/fxwiegand/predictosaurus/graph/badge.svg?token=OSD3PSBS4L)](https://codecov.io/gh/fxwiegand/predictosaurus)
+![Conda Version](https://img.shields.io/conda/v/bioconda/predictosaurus?label=bioconda)
+![Conda Downloads](https://img.shields.io/conda/d/bioconda/predictosaurus?label=downloads)
 
 > [!CAUTION]
 > **This tool is still experimental!**  
