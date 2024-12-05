@@ -11,6 +11,7 @@ use anyhow::Result;
 use bio::stats::bayesian::bayes_factors::evidence::KassRaftery;
 use bio::stats::bayesian::BayesFactor;
 use itertools::Itertools;
+use log::warn;
 use petgraph::dot::{Config, Dot};
 use petgraph::graph::NodeIndex;
 use petgraph::{Directed, Graph};
@@ -48,18 +49,26 @@ impl VariantGraph {
             .map(|(sample, reader)| (sample.clone(), reader.records()))
             .collect::<HashMap<_, _>>();
 
-        let samples = calls_reader
+        let mut samples = calls_reader
             .header()
             .samples()
             .iter()
             .map(|s| String::from_utf8(s.to_vec()).unwrap())
             .collect_vec();
-        for sample in &samples {
-            assert!(
-                observation_files.iter().any(|o| o.sample == *sample),
-                "Sample {} in calls file not found in observation files",
-                sample
-            );
+
+        let observation_samples = observation_files
+            .iter()
+            .map(|o| o.sample.clone())
+            .collect_vec();
+
+        for sample in &observation_samples {
+            if !samples.contains(sample) {
+                warn!(
+                    "Sample {} in observations file is not present in calls file",
+                    sample
+                );
+                samples.retain(|s| s != sample);
+            }
         }
 
         let event_names = extract_event_names(calls_file);
