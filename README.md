@@ -24,18 +24,16 @@
 
 ## Installation
 
-To install **Predictosaurus**, you can use `cargo`, the Rust package manager:
+To install **Predictosaurus**, you can install it via [Bioconda](https://bioconda.github.io/):
+
+```bash
+conda install -c bioconda predictosaurus
+```
+
+Alternatively, you can use `cargo`, the Rust package manager:
 
 ```bash
 cargo install predictosaurus
-```
-
-Alternatively, you can clone the repository and build the tool manually:
-
-```bash
-git clone https://github.com/fxwiegand/predictosaurus.git
-cd predictosaurus
-cargo build --release
 ```
 
 ## Usage
