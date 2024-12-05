@@ -27,7 +27,7 @@ pub(crate) enum Command {
         #[clap(short, long, default_value = "0.8")]
         min_prop_present: f32,
 
-        /// Output path for the stored variant graphs
+        /// Path to the output file containing the impact graph
         #[clap(long)]
         output: PathBuf,
     },
@@ -46,7 +46,7 @@ pub(crate) enum Command {
         #[clap(short, long)]
         graph: PathBuf,
 
-        /// Path to the output file
+        /// Path to the output file containing the paths for the features given via the GFF file
         #[clap(short, long)]
         output: PathBuf,
     },
@@ -60,7 +60,7 @@ pub(crate) enum Command {
         #[clap(short, long)]
         format: Format,
 
-        /// Path to the output file
+        /// Path to the output directory
         #[clap(short, long)]
         output: PathBuf,
     },

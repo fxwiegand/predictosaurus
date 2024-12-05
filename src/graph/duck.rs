@@ -10,12 +10,8 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-pub(crate) fn write_graphs(
-    graphs: HashMap<String, VariantGraph>,
-    output_path: &Path,
-) -> Result<()> {
-    let path = output_path.join("graphs.duckdb");
-    let db = Connection::open(&path)?;
+pub(crate) fn write_graphs(graphs: HashMap<String, VariantGraph>, path: &Path) -> Result<()> {
+    let db = Connection::open(path)?;
     db.execute("CREATE TABLE graphs (target STRING PRIMARY KEY, start_position INTEGER, end_position INTEGER)", [])?;
     db.execute(
         "CREATE TABLE nodes (target STRING, node_index INTEGER PRIMARY KEY, node_type STRING, vaf STRING, probs STRING, pos INTEGER, index INTEGER)",
@@ -138,8 +134,7 @@ pub(crate) fn feature_graph(
 }
 
 pub(crate) fn create_paths(output_path: &Path) -> Result<()> {
-    let path = output_path.join("paths.duckdb");
-    let db = Connection::open(&path)?;
+    let db = Connection::open(output_path)?;
     // TODO: Rethink the schema, we need a unique identifier for each CDS that we then use to iter batchwise via GROUP BY to generate the plots with the show command
     db.execute("CREATE TABLE path_nodes (path_index INTEGER, target String, feature STRING, node_index INTEGER, vaf FLOAT, impact STRING, reason STRING, consequence STRING, sample STRING)", [])?;
     db.close().unwrap();
@@ -147,13 +142,12 @@ pub(crate) fn create_paths(output_path: &Path) -> Result<()> {
 }
 
 pub(crate) fn write_paths(
-    output_path: &Path,
+    path: &Path,
     paths: Vec<Vec<Weight>>,
     target: String,
     feature: String,
 ) -> Result<()> {
-    let path = output_path.join("paths.duckdb");
-    let db = Connection::open(&path)?;
+    let db = Connection::open(path)?;
     for (index, path) in paths.iter().enumerate() {
         for weight in path {
             db.execute(
@@ -187,7 +181,7 @@ pub(crate) fn write_paths(
 /// A Result containing a HashMap with the CDS ID as the key, and a HashMap of path indices
 /// mapped to vectors of Weight structs for each feature.
 pub(crate) fn read_paths(path: &Path) -> Result<HashMap<String, Vec<Weight>>> {
-    let db = duckdb::Connection::open(path)?;
+    let db = Connection::open(path)?;
     let mut stmt = db.prepare(
         "SELECT path_index, feature, node_index, vaf, impact, reason, consequence, sample
          FROM path_nodes",
@@ -266,9 +260,9 @@ mod tests {
         let mut graphs = HashMap::new();
         graphs.insert("graph1".to_string(), setup_graph());
         let temp_dir = tempfile::tempdir().unwrap();
-        let output_path = temp_dir.path();
-        write_graphs(graphs, output_path).unwrap();
-        let db = Connection::open(output_path.join("graphs.duckdb")).unwrap();
+        let output_path = temp_dir.path().join("graphs.duckdb");
+        write_graphs(graphs, output_path.as_path()).unwrap();
+        let db = Connection::open(output_path.as_path()).unwrap();
         let mut stmt = db.prepare("SELECT target FROM graphs").unwrap();
         let targets: Vec<String> = stmt
             .query_map([], |row| row.get(0))
@@ -311,15 +305,9 @@ mod tests {
         let mut graphs = HashMap::new();
         graphs.insert("graph1".to_string(), setup_graph());
         let temp_dir = tempfile::tempdir().unwrap();
-        let output_path = temp_dir.path();
-        write_graphs(graphs, output_path).unwrap();
-        let graph = feature_graph(
-            output_path.join("graphs.duckdb"),
-            "graph1".to_string(),
-            1,
-            3,
-        )
-        .unwrap();
+        let output_path = temp_dir.path().join("graphs.duckdb");
+        write_graphs(graphs, output_path.as_path()).unwrap();
+        let graph = feature_graph(output_path, "graph1".to_string(), 1, 3).unwrap();
         assert_eq!(graph.graph.node_count(), 3);
         assert_eq!(graph.graph.edge_count(), 2);
         assert_eq!(graph.start, 1);
@@ -329,16 +317,16 @@ mod tests {
     #[test]
     fn test_create_paths() {
         let temp_dir = tempfile::tempdir().unwrap();
-        let output_path = temp_dir.path();
-        assert!(create_paths(output_path).is_ok());
-        assert!(Connection::open(output_path.join("paths.duckdb")).is_ok());
+        let output_path = temp_dir.path().join("paths.duckdb");
+        assert!(create_paths(output_path.as_path()).is_ok());
+        assert!(Connection::open(output_path.as_path()).is_ok());
     }
 
     #[test]
     fn test_write_paths_creates_database_and_inserts_paths() {
         let temp_dir = tempfile::tempdir().unwrap();
-        let output_path = temp_dir.path();
-        create_paths(output_path).unwrap();
+        let output_path = temp_dir.path().join("paths.duckdb");
+        create_paths(output_path.as_path()).unwrap();
         let paths = vec![
             vec![Weight {
                 index: 1,
@@ -360,13 +348,13 @@ mod tests {
             }],
         ];
         write_paths(
-            output_path,
+            output_path.as_path(),
             paths,
             "1".to_string(),
             "some feature".to_string(),
         )
         .unwrap();
-        let db = Connection::open(output_path.join("paths.duckdb")).unwrap();
+        let db = Connection::open(output_path.as_path()).unwrap();
         let mut stmt = db.prepare("SELECT path_index, target, feature, node_index, vaf, impact, reason, consequence, sample FROM path_nodes").unwrap();
         let path_nodes: Vec<(
             i64,
@@ -401,8 +389,8 @@ mod tests {
     #[test]
     fn read_paths_returns_correct_structure() {
         let temp_dir = tempfile::tempdir().unwrap();
-        let output_path = temp_dir.path();
-        create_paths(output_path).unwrap();
+        let output_path = temp_dir.path().join("paths.duckdb");
+        create_paths(output_path.as_path()).unwrap();
         let paths = vec![
             vec![Weight {
                 index: 1,
@@ -424,13 +412,13 @@ mod tests {
             }],
         ];
         write_paths(
-            output_path,
+            output_path.as_path(),
             paths,
             "1".to_string(),
             "some feature".to_string(),
         )
         .unwrap();
-        let result = read_paths(&output_path.join("paths.duckdb")).unwrap();
+        let result = read_paths(&output_path.as_path()).unwrap();
         assert_eq!(result.len(), 1);
         assert!(result.contains_key("some feature"));
         let feature_paths = result.get("some feature").unwrap();
