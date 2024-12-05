@@ -61,7 +61,7 @@ Builds a full variant graph from VCF files and stores it.
 **Example:**
 
 ```bash
-predictosaurus build --calls path/to/calls.vcf --observations sample1=path/to/observations1.vcf sample2=path/to/observations2.vcf --output path/to/output
+predictosaurus build --calls path/to/calls.vcf --observations sample1=path/to/observations1.vcf sample2=path/to/observations2.vcf --output path/to/output_dir/
 ```
 
 ### Process
@@ -78,7 +78,7 @@ Retrieves subgraphs for individual features from the provided GFF file.
 **Example:**
 
 ```bash
-predictosaurus process --features path/to/features.gff --reference path/to/reference.fasta --graph path/to/graph --output path/to/output
+predictosaurus process --features path/to/features.gff --reference path/to/reference.fasta --graph path/to/graph.duckdb --output path/to/output/
 ```
 
 ### Show
