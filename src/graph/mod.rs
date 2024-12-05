@@ -35,6 +35,7 @@ impl VariantGraph {
         calls_file: &PathBuf,
         observation_files: &[ObservationFile],
         target: &str,
+        min_prob_present: f32,
     ) -> Result<VariantGraph> {
         let mut calls_reader = Reader::from_path(calls_file)?;
         let header = calls_reader.header().clone();
@@ -114,6 +115,10 @@ impl VariantGraph {
                     position
                 ));
             } else if event_probs.all_nan() {
+                continue;
+            }
+
+            if event_probs.prob_present()? < min_prob_present {
                 continue;
             }
 
@@ -342,6 +347,11 @@ impl EventProbs {
     pub(crate) fn is_valid(&self) -> bool {
         self.all_nan() || self.0.values().all(|v| !v.is_nan())
     }
+
+    /// Returns the probability of the variant being present by calculating 1 - (PROB_ABSENT + PROB_ARTIFACT)
+    pub(crate) fn prob_present(&self) -> Result<f32> {
+        Ok(1.0 - (self.0.get("PROB_ABSENT").unwrap() + self.0.get("PROB_ARTIFACT").unwrap()))
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -421,6 +431,15 @@ mod tests {
     }
 
     #[test]
+    fn prob_present_calculates_correctly_with_valid_values() {
+        let event_probs = EventProbs(HashMap::from([
+            ("PROB_ABSENT".to_string(), 0.1),
+            ("PROB_ARTIFACT".to_string(), 0.2),
+        ]));
+        assert_eq!(event_probs.prob_present().unwrap(), 0.7);
+    }
+
+    #[test]
     fn test_build_graph() {
         let calls_file = PathBuf::from("tests/resources/test_calls.vcf");
         let observations_file = PathBuf::from("tests/resources/test_observations.vcf");
@@ -428,7 +447,7 @@ mod tests {
             path: observations_file,
             sample: "sample".to_string(),
         }];
-        let variant_graph = VariantGraph::build(&calls_file, &observations, "OX512233.1");
+        let variant_graph = VariantGraph::build(&calls_file, &observations, "OX512233.1", 0.8);
         assert!(variant_graph.is_ok());
     }
 
@@ -440,7 +459,7 @@ mod tests {
             path: observations_file,
             sample: "sample".to_string(),
         }];
-        let variant_graph = VariantGraph::build(&calls_file, &observations, "not actually in file");
+        let variant_graph = VariantGraph::build(&calls_file, &observations, "not actually in file", 0.0);
         assert!(variant_graph.unwrap().is_empty());
     }
 
@@ -464,7 +483,7 @@ mod tests {
             sample: "sample".to_string(),
         }];
         let mut variant_graph =
-            VariantGraph::build(&calls_file, &observations, "OX512233.1").unwrap();
+            VariantGraph::build(&calls_file, &observations, "OX512233.1", f32::NEG_INFINITY).unwrap();
         variant_graph.graph.add_edge(
             NodeIndex::new(0),
             NodeIndex::new(2),

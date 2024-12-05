@@ -23,6 +23,10 @@ pub(crate) enum Command {
         #[clap(short, long)]
         observations: Vec<ObservationFile>,
 
+        /// Minimum probability for a variant to be considered in the graph
+        #[clap(short, long, default_value = "0.8")]
+        min_prop_present: f32,
+
         /// Output path for the stored variant graphs
         #[clap(long)]
         output: PathBuf,

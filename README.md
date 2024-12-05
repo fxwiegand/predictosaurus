@@ -56,12 +56,13 @@ Builds a full variant graph from VCF files and stores it.
 
 - `--calls <path>`: Path to the VCF calls file.
 - `--observations <sample=observations.vcf>`: One or more observation files; ensure sample names match those in the calls file.
+- `--min-prob-present <float>`: Minimum probability for a variant to be considered for the graph generation. Defaults to 0.8.
 - `--output <path>`: Path to store the generated variant graphs.
 
 **Example:**
 
 ```bash
-predictosaurus build --calls path/to/calls.vcf --observations sample1=path/to/observations1.vcf sample2=path/to/observations2.vcf --output path/to/output_dir/
+predictosaurus build --calls path/to/calls.vcf --observations sample1=path/to/observations1.vcf sample2=path/to/observations2.vcf --min-prob-present 0.65 --output path/to/output_dir/
 ```
 
 ### Process
