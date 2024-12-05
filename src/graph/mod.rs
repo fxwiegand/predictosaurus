@@ -459,7 +459,8 @@ mod tests {
             path: observations_file,
             sample: "sample".to_string(),
         }];
-        let variant_graph = VariantGraph::build(&calls_file, &observations, "not actually in file", 0.0);
+        let variant_graph =
+            VariantGraph::build(&calls_file, &observations, "not actually in file", 0.0);
         assert!(variant_graph.unwrap().is_empty());
     }
 
@@ -483,7 +484,8 @@ mod tests {
             sample: "sample".to_string(),
         }];
         let mut variant_graph =
-            VariantGraph::build(&calls_file, &observations, "OX512233.1", f32::NEG_INFINITY).unwrap();
+            VariantGraph::build(&calls_file, &observations, "OX512233.1", f32::NEG_INFINITY)
+                .unwrap();
         variant_graph.graph.add_edge(
             NodeIndex::new(0),
             NodeIndex::new(2),
