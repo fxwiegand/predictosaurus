@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.1](https://github.com/fxwiegand/predictosaurus/compare/v0.2.0...v0.2.1) (2024-12-06)
+
+
+### Bug Fixes
+
+* Fix out dir creation ([19dad8d](https://github.com/fxwiegand/predictosaurus/commit/19dad8dfec95fc7d742f645551a4b4c9860b60a3))
+
+
+### Miscellaneous Chores
+
+* release 0.2.1 ([054d16a](https://github.com/fxwiegand/predictosaurus/commit/054d16af036fb56ec93bb016ca99cc8cc84126fb))
+
 ## [0.2.0](https://github.com/fxwiegand/predictosaurus/compare/v0.1.1...v0.2.0) (2024-12-05)
 
 
