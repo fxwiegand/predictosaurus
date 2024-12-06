@@ -1,4 +1,6 @@
-# Predictosaurus
+# <img src="resources/predictosaurus.svg" alt="predictosaurus" style="width: 50%; display:block; margin:auto;">
+
+
 
 [![codecov](https://codecov.io/gh/fxwiegand/predictosaurus/graph/badge.svg?token=OSD3PSBS4L)](https://codecov.io/gh/fxwiegand/predictosaurus)
 ![Conda Version](https://img.shields.io/conda/v/bioconda/predictosaurus?label=bioconda)
