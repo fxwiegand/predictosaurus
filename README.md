@@ -95,7 +95,7 @@ Creates visualizations and outputs them in HTML, TSV, or Vega format.
 **Example:**
 
 ```bash
-predictosaurus plot --input path/to/paths.duckdb --format html --output path/to/output.html
+predictosaurus plot --input path/to/paths.duckdb --format html --output path/to/output
 ```
 
 ## Example
