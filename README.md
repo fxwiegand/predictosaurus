@@ -1,4 +1,6 @@
-# Predictosaurus
+# <p align="center"><img src="resources/predictosaurus.svg" alt="predictosaurus" style="width: 50%;"></p>
+
+
 
 [![codecov](https://codecov.io/gh/fxwiegand/predictosaurus/graph/badge.svg?token=OSD3PSBS4L)](https://codecov.io/gh/fxwiegand/predictosaurus)
 ![Conda Version](https://img.shields.io/conda/v/bioconda/predictosaurus?label=bioconda)
@@ -95,7 +97,7 @@ Creates visualizations and outputs them in HTML, TSV, or Vega format.
 **Example:**
 
 ```bash
-predictosaurus plot --input path/to/paths.duckdb --format html --output path/to/output.html
+predictosaurus plot --input path/to/paths.duckdb --format html --output /out_dir/
 ```
 
 ## Example

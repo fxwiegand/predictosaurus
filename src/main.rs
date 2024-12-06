@@ -30,15 +30,14 @@ impl Command {
             Command::Build {
                 calls,
                 observations,
-                min_prop_present,
+                min_prob_present,
                 output,
             } => {
-                utils::create_output_dir(output)?;
                 let targets = get_targets(calls)?;
                 let mut graphs = HashMap::new();
                 for target in targets {
                     let variant_graph =
-                        VariantGraph::build(calls, observations, &target, *min_prop_present)?;
+                        VariantGraph::build(calls, observations, &target, *min_prob_present)?;
                     if !variant_graph.is_empty() {
                         graphs.insert(target, variant_graph);
                     }
