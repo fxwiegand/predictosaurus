@@ -60,7 +60,14 @@ impl Command {
                     .filter(|record| record.feature_type() == "CDS")
                 {
                     let target = record.seqname().to_string();
-                    let cds_id = record.attributes().get("ID").unwrap().to_string();
+                    let cds_id = record
+                        .attributes()
+                        .get("ID")
+                        .expect(
+                            format!("No ID found for CDS in sequence {}", record.seqname())
+                                .as_str(),
+                        )
+                        .to_string();
                     if let Ok(graph) = feature_graph(
                         graph.to_owned(),
                         target.to_string(),

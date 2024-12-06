@@ -91,7 +91,16 @@ impl VariantGraph {
             let mut observations_records = observations_records
                 .iter_mut()
                 .map(|(sample, records)| {
-                    let record = records.next().unwrap().unwrap();
+                    let record = records
+                        .next()
+                        .expect(
+                            format!(
+                                "Missing observation record for calls record at position {}",
+                                position
+                            )
+                            .as_str(),
+                        )
+                        .unwrap();
                     (sample, record)
                 })
                 .collect::<HashMap<_, _>>();
