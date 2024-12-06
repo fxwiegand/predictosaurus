@@ -33,7 +33,6 @@ impl Command {
                 min_prob_present,
                 output,
             } => {
-                utils::create_output_dir(output)?;
                 let targets = get_targets(calls)?;
                 let mut graphs = HashMap::new();
                 for target in targets {
