@@ -1,4 +1,4 @@
-# <img src="resources/predictosaurus.svg" alt="predictosaurus" style="width: 50%; display:block; margin:auto;">
+# <p align="center"><img src="resources/predictosaurus.svg" alt="predictosaurus" style="width: 50%;"></p>
 
 
 
