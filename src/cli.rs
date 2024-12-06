@@ -25,7 +25,7 @@ pub(crate) enum Command {
 
         /// Minimum probability for a variant to be considered in the graph
         #[clap(short, long, default_value = "0.8")]
-        min_prop_present: f32,
+        min_prob_present: f32,
 
         /// Path to the output file containing the impact graph
         #[clap(long)]
