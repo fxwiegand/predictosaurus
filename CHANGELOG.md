@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.2](https://github.com/fxwiegand/predictosaurus/compare/v0.2.1...v0.2.2) (2024-12-06)
+
+
+### Bug Fixes
+
+* Improve error messages ([c00a01f](https://github.com/fxwiegand/predictosaurus/commit/c00a01f64d205d53c8837b8381da758c8552199b))
+* Improve error messages ([3f41035](https://github.com/fxwiegand/predictosaurus/commit/3f41035a54c39d093eea1c6ee52f2362ec8006df))
+
 ## [0.2.1](https://github.com/fxwiegand/predictosaurus/compare/v0.2.0...v0.2.1) (2024-12-06)
 
 
