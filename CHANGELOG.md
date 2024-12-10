@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/fxwiegand/predictosaurus/compare/v0.2.2...v0.2.3) (2024-12-10)
+
+
+### Bug Fixes
+
+* Fix multiple output file creation ([5ec7a40](https://github.com/fxwiegand/predictosaurus/commit/5ec7a40d6faef16745523d309927aa2f374c29e7))
+
 ## [0.2.2](https://github.com/fxwiegand/predictosaurus/compare/v0.2.1...v0.2.2) (2024-12-06)
 
 
