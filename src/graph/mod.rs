@@ -165,7 +165,7 @@ impl VariantGraph {
 
             for (sample, observations) in observations {
                 for observation in observations {
-                    let evidence = BayesFactor::new(observation.prob_alt, observation.prob_ref)
+                    let evidence = BayesFactor::new(observation.prob_alt(), observation.prob_ref())
                         .evidence_kass_raftery();
                     match evidence {
                         KassRaftery::Strong | KassRaftery::VeryStrong => {
