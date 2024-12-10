@@ -50,6 +50,7 @@ impl Command {
                 graph,
                 output,
             } => {
+                create_paths(output)?;
                 let mut feature_reader = gff::Reader::from_file(features, GffType::GFF3)
                     .context("Failed to open GFF file")?;
 
@@ -110,7 +111,6 @@ impl Command {
                                 record.seqname()
                             )),
                         };
-                        create_paths(output)?;
                         write_paths(output, weights?, target, cds_id)?;
                     } else {
                         anyhow::bail!("No variant graph found for target {}", target);
