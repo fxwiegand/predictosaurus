@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.4](https://github.com/fxwiegand/predictosaurus/compare/v0.2.3...v0.2.4) (2024-12-12)
+
+
+### Bug Fixes
+
+* Fix wrong interpretation of probabilities ([7aeadb4](https://github.com/fxwiegand/predictosaurus/commit/7aeadb4a81462c6b1afd8ec8fba5506d39ac8f23))
+
+
+### Performance Improvements
+
+* Add indexes for write_graphs tables ([731ea91](https://github.com/fxwiegand/predictosaurus/commit/731ea91120e6ea8aee835aa0a01e02207c566cbf))
+
 ## [0.2.3](https://github.com/fxwiegand/predictosaurus/compare/v0.2.2...v0.2.3) (2024-12-10)
 
 
