@@ -10,6 +10,7 @@ use crate::utils::bcf::extract_event_names;
 use anyhow::Result;
 use bio::stats::bayesian::bayes_factors::evidence::KassRaftery;
 use bio::stats::bayesian::BayesFactor;
+use bio::stats::{PHREDProb, Prob};
 use itertools::Itertools;
 use log::warn;
 use petgraph::dot::{Config, Dot};
@@ -353,7 +354,7 @@ impl EventProbs {
         let mut probs = HashMap::new();
         for tag in tags {
             let prob = record.info(tag.as_bytes()).float().unwrap().unwrap()[0];
-            probs.insert(tag.to_string(), prob);
+            probs.insert(tag.to_string(), *Prob::from(PHREDProb(prob as f64)) as f32);
         }
         EventProbs(probs)
     }
@@ -398,9 +399,9 @@ mod tests {
         ];
         let event_probs = EventProbs::from_record(&record, &tags);
         assert_eq!(event_probs.0.len(), 3);
-        assert_eq!(event_probs.0.get("PROB_ABSENT").unwrap(), &0.036097374);
-        assert_eq!(event_probs.0.get("PROB_PRESENT").unwrap(), &20.82111);
-        assert_eq!(event_probs.0.get("PROB_ARTIFACT").unwrap(), &f32::INFINITY);
+        assert_eq!(event_probs.0.get("PROB_ABSENT").unwrap(), &0.9917227);
+        assert_eq!(event_probs.0.get("PROB_PRESENT").unwrap(), &0.008277306);
+        assert_eq!(event_probs.0.get("PROB_ARTIFACT").unwrap(), &0.0);
     }
 
     #[test]
