@@ -14,7 +14,7 @@ pub(crate) fn write_graphs(graphs: HashMap<String, VariantGraph>, path: &Path) -
     let db = Connection::open(path)?;
     db.execute("CREATE TABLE graphs (target STRING PRIMARY KEY, start_position INTEGER, end_position INTEGER)", [])?;
     db.execute(
-        "CREATE TABLE nodes (target STRING, node_index INTEGER PRIMARY KEY, node_type STRING, vaf STRING, probs STRING, pos INTEGER, index INTEGER)",
+        "CREATE TABLE nodes (target STRING, node_index INTEGER, node_type STRING, vaf STRING, probs STRING, pos INTEGER, index INTEGER)",
         [],
     )?;
     db.execute(
@@ -307,6 +307,24 @@ mod tests {
     }
 
     #[test]
+    fn test_write_graph_with_multiple_targets() {
+        let mut graphs = HashMap::new();
+        graphs.insert("graph1".to_string(), setup_graph());
+        graphs.insert("graph2".to_string(), setup_graph());
+        let temp_dir = tempfile::tempdir().unwrap();
+        let output_path = temp_dir.path().join("graphs.duckdb");
+        write_graphs(graphs, output_path.as_path()).unwrap();
+        let db = Connection::open(output_path.as_path()).unwrap();
+        let mut stmt = db.prepare("SELECT target FROM graphs").unwrap();
+        let targets: Vec<String> = stmt
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .map(Result::unwrap)
+            .collect();
+        assert_eq!(targets, vec!["graph1", "graph2"]);
+    }
+
+    #[test]
     fn test_feature_graphs() {
         let mut graphs = HashMap::new();
         graphs.insert("graph1".to_string(), setup_graph());
@@ -392,6 +410,7 @@ mod tests {
         assert_eq!(path_nodes.len(), 2);
         db.close().unwrap();
     }
+
     #[test]
     fn read_paths_returns_correct_structure() {
         let temp_dir = tempfile::tempdir().unwrap();
