@@ -1,6 +1,6 @@
 [package]
 name = "predictosaurus"
-version = "0.2.4"
+version = "0.2.5"
 description = "Uncertainty aware haplotype based genomic variant effect prediction"
 license = "MIT"
 authors = ["Felix Wiegand <felix.wiegand@tu-dortmund.de>", "Johannes Köster <johannes.koester@tu-dortmund.de>"]
