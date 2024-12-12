@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.5](https://github.com/fxwiegand/predictosaurus/compare/v0.2.4...v0.2.5) (2024-12-12)
+
+
+### Bug Fixes
+
+* Remove primary key constraint on nodes table ([e62ac37](https://github.com/fxwiegand/predictosaurus/commit/e62ac3759bfbc9ae410b6101b82f53485d28be1b))
+
 ## [0.2.4](https://github.com/fxwiegand/predictosaurus/compare/v0.2.3...v0.2.4) (2024-12-12)
 
 
