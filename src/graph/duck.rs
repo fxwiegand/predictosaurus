@@ -59,6 +59,12 @@ pub(crate) fn write_graphs(graphs: HashMap<String, VariantGraph>, path: &Path) -
             )?;
         }
     }
+    db.execute(
+        "CREATE INDEX idx_nodes_target_pos ON nodes (target, pos)",
+        [],
+    )?;
+    db.execute("CREATE INDEX idx_edges_target ON edges (target)", [])?;
+    db.execute("CREATE INDEX idx_graphs_target ON graphs (target)", [])?;
     db.close().unwrap();
     Ok(())
 }
