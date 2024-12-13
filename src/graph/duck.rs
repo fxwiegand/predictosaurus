@@ -96,8 +96,13 @@ pub(crate) fn feature_graph(
         )?
         .map(Result::unwrap)
         .collect();
-    for _ in 0..nodes.len() {
-        graph.add_node(Node::new(NodeType::Ref("".to_string()), 0)); // Add placeholder nodes
+    let max_index = *nodes
+        .iter()
+        .map(|(index, _, _, _, _, _)| index)
+        .max()
+        .unwrap_or(&0);
+    for _ in 0..=max_index {
+        graph.add_node(Node::new(NodeType::Ref("".to_string()), -1)); // Add placeholder nodes
     }
     for (node_index, node_type, vaf, probs, pos, index) in nodes {
         let node = Node {
@@ -218,11 +223,11 @@ pub(crate) fn read_paths(path: &Path) -> Result<HashMap<String, Vec<Weight>>> {
 }
 
 mod tests {
-    use itertools::Itertools;
     use super::*;
     use crate::graph::node::{Node, NodeType};
     use crate::graph::Edge;
     use crate::impact::Impact;
+    use itertools::Itertools;
     use petgraph::{Directed, Graph};
 
     pub(crate) fn setup_graph() -> VariantGraph {

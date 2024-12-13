@@ -318,6 +318,18 @@ impl VariantGraph {
             }
         }
 
+        all_paths = all_paths
+            .into_iter()
+            .filter(|path| {
+                let nodes = path
+                    .0
+                    .iter()
+                    .map(|n| self.graph.node_weight(*n).unwrap())
+                    .collect_vec();
+                nodes.iter().all(|n| n.pos != -1)
+            })
+            .collect();
+
         all_paths
     }
 
