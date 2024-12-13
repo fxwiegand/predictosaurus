@@ -133,11 +133,7 @@ impl VariantGraph {
                     "Invalid event probabilities in record at position {}",
                     position
                 ));
-            } else if event_probs.all_nan() {
-                continue;
-            }
-
-            if event_probs.prob_present()? < min_prob_present {
+            } else if event_probs.all_nan() || event_probs.prob_present()? < min_prob_present {
                 continue;
             }
 
