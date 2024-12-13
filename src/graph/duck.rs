@@ -218,6 +218,7 @@ pub(crate) fn read_paths(path: &Path) -> Result<HashMap<String, Vec<Weight>>> {
 }
 
 mod tests {
+    use itertools::Itertools;
     use super::*;
     use crate::graph::node::{Node, NodeType};
     use crate::graph::Edge;
@@ -320,6 +321,7 @@ mod tests {
             .query_map([], |row| row.get(0))
             .unwrap()
             .map(Result::unwrap)
+            .sorted_by(|a: &String, b| a.cmp(b))
             .collect();
         assert_eq!(targets, vec!["graph1", "graph2"]);
     }
