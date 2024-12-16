@@ -13,6 +13,7 @@ use itertools::Itertools;
 use log::{debug, info};
 use rayon::prelude::*;
 use std::collections::HashMap;
+use crate::utils::create_output_dir;
 
 mod cli;
 mod graph;
@@ -139,6 +140,7 @@ impl Command {
                 format,
                 output,
             } => {
+                create_output_dir(output)?;
                 let paths = read_paths(input)?;
                 for (feature, paths) in paths {
                     match format {
