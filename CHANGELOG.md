@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.6](https://github.com/fxwiegand/predictosaurus/compare/v0.2.5...v0.2.6) (2024-12-16)
+
+
+### Bug Fixes
+
+* Create output dir if non existent ([79b1383](https://github.com/fxwiegand/predictosaurus/commit/79b1383075071d506bbfbeff13e2622a5295dd54))
+* Fix feature graph generation ([283feec](https://github.com/fxwiegand/predictosaurus/commit/283feec842e031a288dacbdbd1e28fd0a4ebfb5d))
+
 ## [0.2.5](https://github.com/fxwiegand/predictosaurus/compare/v0.2.4...v0.2.5) (2024-12-12)
 
 
