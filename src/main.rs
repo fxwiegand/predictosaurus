@@ -3,6 +3,7 @@ use crate::graph::duck::{create_paths, feature_graph, read_paths, write_graphs, 
 use crate::graph::VariantGraph;
 use crate::show::{render_html_paths, render_tsv_paths, render_vl_paths};
 use crate::utils::bcf::get_targets;
+use crate::utils::create_output_dir;
 use anyhow::{Context, Result};
 use bio::bio_types::strand::Strand;
 use bio::io::gff;
@@ -13,7 +14,6 @@ use itertools::Itertools;
 use log::{debug, info};
 use rayon::prelude::*;
 use std::collections::HashMap;
-use crate::utils::create_output_dir;
 
 mod cli;
 mod graph;
