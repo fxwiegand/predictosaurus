@@ -48,6 +48,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Install GSL
+        run: sudo apt-get update && sudo apt-get install -y libgsl-dev
+
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -67,6 +70,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+
+      - name: Install GSL
+        run: sudo apt-get update && sudo apt-get install -y libgsl-dev
 
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
