@@ -14,7 +14,7 @@ pub(crate) fn write_graphs(graphs: HashMap<String, VariantGraph>, path: &Path) -
     let db = Connection::open(path)?;
     db.execute("CREATE TABLE graphs (target STRING PRIMARY KEY, start_position INTEGER, end_position INTEGER)", [])?;
     db.execute(
-        "CREATE TABLE nodes (target STRING, node_index INTEGER PRIMARY KEY, node_type STRING, vaf STRING, probs STRING, pos INTEGER, index INTEGER)",
+        "CREATE TABLE nodes (target STRING, node_index INTEGER, node_type STRING, vaf STRING, probs STRING, pos INTEGER, index INTEGER)",
         [],
     )?;
     db.execute(
@@ -59,6 +59,12 @@ pub(crate) fn write_graphs(graphs: HashMap<String, VariantGraph>, path: &Path) -
             )?;
         }
     }
+    db.execute(
+        "CREATE INDEX idx_nodes_target_pos ON nodes (target, pos)",
+        [],
+    )?;
+    db.execute("CREATE INDEX idx_edges_target ON edges (target)", [])?;
+    db.execute("CREATE INDEX idx_graphs_target ON graphs (target)", [])?;
     db.close().unwrap();
     Ok(())
 }
@@ -90,8 +96,13 @@ pub(crate) fn feature_graph(
         )?
         .map(Result::unwrap)
         .collect();
-    for _ in 0..nodes.len() {
-        graph.add_node(Node::new(NodeType::Ref("".to_string()), 0)); // Add placeholder nodes
+    let max_index = *nodes
+        .iter()
+        .map(|(index, _, _, _, _, _)| index)
+        .max()
+        .unwrap_or(&0);
+    for _ in 0..=max_index {
+        graph.add_node(Node::new(NodeType::Ref("".to_string()), -1)); // Add placeholder nodes
     }
     for (node_index, node_type, vaf, probs, pos, index) in nodes {
         let node = Node {
@@ -216,6 +227,7 @@ mod tests {
     use crate::graph::node::{Node, NodeType};
     use crate::graph::Edge;
     use crate::impact::Impact;
+    use itertools::Itertools;
     use petgraph::{Directed, Graph};
 
     pub(crate) fn setup_graph() -> VariantGraph {
@@ -298,6 +310,25 @@ mod tests {
             .collect();
         assert_eq!(edges.len(), 3);
         db.close().unwrap();
+    }
+
+    #[test]
+    fn test_write_graph_with_multiple_targets() {
+        let mut graphs = HashMap::new();
+        graphs.insert("graph1".to_string(), setup_graph());
+        graphs.insert("graph2".to_string(), setup_graph());
+        let temp_dir = tempfile::tempdir().unwrap();
+        let output_path = temp_dir.path().join("graphs.duckdb");
+        write_graphs(graphs, output_path.as_path()).unwrap();
+        let db = Connection::open(output_path.as_path()).unwrap();
+        let mut stmt = db.prepare("SELECT target FROM graphs").unwrap();
+        let targets: Vec<String> = stmt
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .map(Result::unwrap)
+            .sorted_by(|a: &String, b| a.cmp(b))
+            .collect();
+        assert_eq!(targets, vec!["graph1", "graph2"]);
     }
 
     #[test]
@@ -386,6 +417,7 @@ mod tests {
         assert_eq!(path_nodes.len(), 2);
         db.close().unwrap();
     }
+
     #[test]
     fn read_paths_returns_correct_structure() {
         let temp_dir = tempfile::tempdir().unwrap();

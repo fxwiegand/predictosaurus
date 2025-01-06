@@ -3,12 +3,16 @@ use crate::graph::duck::{create_paths, feature_graph, read_paths, write_graphs, 
 use crate::graph::VariantGraph;
 use crate::show::{render_html_paths, render_tsv_paths, render_vl_paths};
 use crate::utils::bcf::get_targets;
+use crate::utils::create_output_dir;
 use anyhow::{Context, Result};
 use bio::bio_types::strand::Strand;
 use bio::io::gff;
 use bio::io::gff::GffType;
 use clap::Parser;
+use env_logger::Env;
 use itertools::Itertools;
+use log::{debug, info};
+use rayon::prelude::*;
 use std::collections::HashMap;
 
 mod cli;
@@ -21,6 +25,8 @@ mod utils;
 
 fn main() -> Result<()> {
     let args = Predictosaurus::parse();
+    let log_level = if args.verbose { "info" } else { "off" };
+    env_logger::Builder::from_env(Env::default().default_filter_or(log_level)).init();
     args.command.run()
 }
 
@@ -36,8 +42,14 @@ impl Command {
                 let targets = get_targets(calls)?;
                 let mut graphs = HashMap::new();
                 for target in targets {
+                    info!("Building graph for target {}", target);
                     let variant_graph =
                         VariantGraph::build(calls, observations, &target, *min_prob_present)?;
+                    info!(
+                        "Finished building graph for target {} with {} nodes",
+                        target,
+                        variant_graph.graph.node_count()
+                    );
                     if !variant_graph.is_empty() {
                         graphs.insert(target, variant_graph);
                     }
@@ -53,8 +65,9 @@ impl Command {
                 create_paths(output)?;
                 let mut feature_reader = gff::Reader::from_file(features, GffType::GFF3)
                     .context("Failed to open GFF file")?;
-                let reference_genome = utils::fasta::read_reference(reference);
 
+                info!("Reading reference genome from {:?}", reference);
+                let reference_genome = utils::fasta::read_reference(reference);
                 for record in feature_reader
                     .records()
                     .filter_map(Result::ok)
@@ -69,12 +82,19 @@ impl Command {
                                 .as_str(),
                         )
                         .to_string();
+                    info!("Processing CDS {} in sequence {}", cds_id, target);
                     if let Ok(graph) = feature_graph(
                         graph.to_owned(),
                         target.to_string(),
                         *record.start(),
                         *record.end(),
                     ) {
+                        info!(
+                            "Subgraph for CDS {} with target {} has {} nodes",
+                            cds_id,
+                            target,
+                            graph.graph.node_count()
+                        );
                         let strand = record.strand().expect("Strand not found");
                         let phase: u8 = record.phase().clone().try_into().unwrap();
                         let weights = match strand {
@@ -191,6 +211,7 @@ impl Command {
                 format,
                 output,
             } => {
+                create_output_dir(output)?;
                 let paths = read_paths(input)?;
                 for (feature, paths) in paths {
                     match format {

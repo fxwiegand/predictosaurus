@@ -10,6 +10,9 @@ use std::str::FromStr;
 pub(crate) struct Predictosaurus {
     #[clap(subcommand)]
     pub(crate) command: Command,
+
+    #[clap(short, long, global = true)]
+    pub(crate) verbose: bool,
 }
 
 #[derive(Subcommand, Debug)]
