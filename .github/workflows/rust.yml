@@ -81,7 +81,9 @@ jobs:
           override: true
 
       - name: Run cargo-tarpaulin
-        uses: actions-rs/tarpaulin@v0.1
+        run: |
+          cargo install tarpaulin
+          cargo tarpaulin --out Xml
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4
