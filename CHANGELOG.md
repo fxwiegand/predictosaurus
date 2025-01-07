@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.8](https://github.com/fxwiegand/predictosaurus/compare/v0.2.7...v0.2.8) (2025-01-07)
+
+
+### Miscellaneous Chores
+
+* release 0.2.8 ([1668725](https://github.com/fxwiegand/predictosaurus/commit/1668725766ee90157cb67c3d4c1a30980d0c66bb))
+
 ## [0.2.7](https://github.com/fxwiegand/predictosaurus/compare/v0.2.6...v0.2.7) (2025-01-07)
 
 
