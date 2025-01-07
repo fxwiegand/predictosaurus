@@ -38,7 +38,13 @@
                 {
                     "mark": "line",
                     "encoding": {
-                        "y": {"field": "vaf", "type": "quantitative"},
+                        "y": {
+                            "field": "vaf",
+                            "type": "quantitative",
+                            "scale": {
+                                "domain": [0, 1]
+                            }
+                        },
                         "color": {
                             "field": "sample",
                             "type": "nominal",
