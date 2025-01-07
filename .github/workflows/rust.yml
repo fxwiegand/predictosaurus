@@ -82,7 +82,7 @@ jobs:
 
       - name: Run cargo-tarpaulin
         run: |
-          cargo install tarpaulin
+          cargo install cargo install cargo-tarpaulin
           cargo tarpaulin --out Xml
 
       - name: Upload coverage reports to Codecov
