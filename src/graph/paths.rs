@@ -5,7 +5,6 @@ use crate::translation::dna_to_protein;
 use crate::utils::fasta::reverse_complement;
 use anyhow::Result;
 use bio::bio_types::strand::Strand;
-use env_logger::Target;
 use itertools::Itertools;
 use petgraph::graph::NodeIndex;
 use serde::{Deserialize, Serialize};
