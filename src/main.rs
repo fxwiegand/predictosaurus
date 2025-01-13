@@ -147,11 +147,10 @@ impl Command {
                     .filter_map(Result::ok)
                     .filter(|record| record.feature_type() == "CDS")
                 {
-                    let target = record.seqname().to_string();
-                    let cds_id = record.attributes().get("ID").unwrap().to_string();
+                    let cds = Cds::from_record(&record)?;
                     if let Ok(graph) = feature_graph(
                         graph.to_owned(),
-                        target.to_string(),
+                        cds.target.to_string(),
                         *record.start(),
                         *record.end(),
                     ) {
@@ -165,7 +164,7 @@ impl Command {
                                     path.protein(
                                         &graph,
                                         phase,
-                                        reference_genome.get(&target).unwrap(),
+                                        reference_genome.get(&cds.target).unwrap(),
                                         strand,
                                         *record.start() as usize,
                                         *record.end() as usize,
@@ -180,7 +179,7 @@ impl Command {
                                     path.protein(
                                         &graph,
                                         phase,
-                                        reference_genome.get(&target).unwrap(),
+                                        reference_genome.get(&cds.target).unwrap(),
                                         strand,
                                         *record.start() as usize,
                                         *record.end() as usize,
@@ -197,7 +196,7 @@ impl Command {
                             peptides.push(protein.peptides(interval.to_owned()));
                         });
                     } else {
-                        anyhow::bail!("No variant graph found for target {}", target);
+                        anyhow::bail!("No variant graph found for target {}", cds.target);
                     }
                 }
             }
