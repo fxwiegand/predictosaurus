@@ -1,5 +1,6 @@
 use crate::cli::{Command, Format, Predictosaurus};
 use crate::graph::duck::{create_paths, feature_graph, read_paths, write_graphs, write_paths};
+use crate::graph::paths::Cds;
 use crate::graph::VariantGraph;
 use crate::show::{render_html_paths, render_tsv_paths, render_vl_paths};
 use crate::utils::bcf::get_targets;
@@ -77,10 +78,9 @@ impl Command {
                     let cds_id = record
                         .attributes()
                         .get("ID")
-                        .expect(
-                            format!("No ID found for CDS in sequence {}", record.seqname())
-                                .as_str(),
-                        )
+                        .ok_or_else(|| {
+                            anyhow::anyhow!("No ID found for CDS in sequence {}", record.seqname())
+                        })?
                         .to_string();
                     info!("Processing CDS {} in sequence {}", cds_id, target);
                     if let Ok(graph) = feature_graph(
@@ -129,7 +129,15 @@ impl Command {
                                 record.seqname()
                             )),
                         };
-                        write_paths(output, weights?, target, cds_id)?;
+                        let cds = Cds::new(
+                            cds_id.to_string(),
+                            target.clone(),
+                            *record.start(),
+                            *record.end(),
+                        );
+                        let weights = weights?;
+                        info!("Writing {} paths for CDS {}", weights.len(), cds.name());
+                        write_paths(output, weights, cds)?;
                     } else {
                         anyhow::bail!("No variant graph found for target {}", target);
                     }
@@ -213,16 +221,16 @@ impl Command {
             } => {
                 create_output_dir(output)?;
                 let paths = read_paths(input)?;
-                for (feature, paths) in paths {
+                for (cds, paths) in paths {
                     match format {
                         Format::Html => {
-                            render_html_paths(output, &paths, feature)?;
+                            render_html_paths(output, &paths, cds)?;
                         }
                         Format::Tsv => {
-                            render_tsv_paths(output, &paths, feature)?;
+                            render_tsv_paths(output, &paths, cds)?;
                         }
                         Format::Vega => {
-                            render_vl_paths(output, &paths, feature)?;
+                            render_vl_paths(output, &paths, cds)?;
                         }
                     }
                 }

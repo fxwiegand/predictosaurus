@@ -48,6 +48,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Install GSL
+        run: sudo apt-get update && sudo apt-get install -y libgsl-dev
+
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -68,6 +71,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Install GSL
+        run: sudo apt-get update && sudo apt-get install -y libgsl-dev
+
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -75,9 +81,9 @@ jobs:
           override: true
 
       - name: Run cargo-tarpaulin
-        uses: actions-rs/tarpaulin@v0.1
-        with:
-           version: 0.22.0
+        run: |
+          cargo install cargo-tarpaulin
+          cargo tarpaulin --out Xml
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4

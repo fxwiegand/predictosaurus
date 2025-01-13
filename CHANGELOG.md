@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.8](https://github.com/fxwiegand/predictosaurus/compare/v0.2.7...v0.2.8) (2025-01-07)
+
+
+### Miscellaneous Chores
+
+* release 0.2.8 ([1668725](https://github.com/fxwiegand/predictosaurus/commit/1668725766ee90157cb67c3d4c1a30980d0c66bb))
+
+## [0.2.7](https://github.com/fxwiegand/predictosaurus/compare/v0.2.6...v0.2.7) (2025-01-07)
+
+
+### Bug Fixes
+
+* Ensure `vaf` scale domain is fixed between 0 and 1 ([01fd353](https://github.com/fxwiegand/predictosaurus/commit/01fd353a2a86064a9c5d939b1ea2c979e36a1d2a))
+
 ## [0.2.6](https://github.com/fxwiegand/predictosaurus/compare/v0.2.5...v0.2.6) (2024-12-16)
 
 

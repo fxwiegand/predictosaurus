@@ -24,6 +24,32 @@ pub(crate) struct Weight {
     pub(crate) sample: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct Cds {
+    pub(crate) feature: String,
+    pub(crate) target: String,
+    pub(crate) start: u64,
+    pub(crate) end: u64,
+}
+
+impl Cds {
+    pub(crate) fn new(feature: String, target: String, start: u64, end: u64) -> Cds {
+        Cds {
+            feature,
+            target,
+            start,
+            end,
+        }
+    }
+
+    pub(crate) fn name(&self) -> String {
+        format!(
+            "{}:{}:{}-{}",
+            self.feature, self.target, self.start, self.end
+        )
+    }
+}
+
 /// Returns the maximum impact of the individual nodes on the path
 impl HaplotypePath {
     pub(crate) fn impact(
@@ -155,6 +181,7 @@ impl HaplotypePath {
 
 mod tests {
     use crate::graph::node::{Node, NodeType};
+    use crate::graph::paths::Cds;
     use crate::graph::{Edge, EventProbs, VariantGraph};
     use crate::impact::Impact;
     use crate::translation::dna_to_protein;
@@ -268,5 +295,11 @@ mod tests {
             .protein(&graph, 1, b"AAAAAAAAAAAAAAAAAAAAAT", Strand::Reverse, 3, 21)
             .unwrap();
         assert_eq!(protein, dna_to_protein(b"TTTTTTTTTTTTTTTATT").unwrap());
+    }
+
+    #[test]
+    fn name_formats_cds_correctly() {
+        let cds = Cds::new("gene".to_string(), "target1".to_string(), 100, 200);
+        assert_eq!(cds.name(), "gene:target1:100-200");
     }
 }

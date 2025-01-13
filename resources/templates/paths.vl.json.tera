@@ -57,7 +57,10 @@
                 "encoding": {
                     "y": {
                         "field": "vaf",
-                        "type": "quantitative"
+                        "type": "quantitative",
+                        "scale": {
+                            "domain": [0, 1]
+                        }
                     },
                     "color": {
                         "field": "sample",
