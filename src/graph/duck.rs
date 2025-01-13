@@ -136,6 +136,9 @@ pub(crate) fn feature_graph(
             },
         );
     }
+    dbg!(&graph);
+    let temp_graph = graph.clone();
+    graph.retain_nodes(|_, node| temp_graph.node_weight(node).unwrap().pos != -1);
     Ok(VariantGraph {
         graph,
         start: start as i64,
@@ -233,7 +236,7 @@ mod tests {
         let node3 = graph.add_node(Node::new(NodeType::Var("T".to_string()), 3));
         let node4 = graph.add_node(Node::new(NodeType::Var("".to_string()), 4));
         let _node5 = graph.add_node(Node::new(NodeType::Var("A".to_string()), 8));
-        let _node6 = graph.add_node(Node::new(NodeType::Var("TT".to_string()), 9));
+        let node6 = graph.add_node(Node::new(NodeType::Var("TT".to_string()), 9));
         let _edge1 = graph.add_edge(
             node1,
             node2,
@@ -255,10 +258,17 @@ mod tests {
                 supporting_reads: HashMap::new(),
             },
         );
+        let _edge4 = graph.add_edge(
+            node4,
+            node6,
+            Edge {
+                supporting_reads: HashMap::new(),
+            },
+        );
         VariantGraph {
             graph,
             start: 0,
-            end: 2,
+            end: 10,
             target: "test".to_string(),
         }
     }
@@ -304,7 +314,7 @@ mod tests {
             .unwrap()
             .map(Result::unwrap)
             .collect();
-        assert_eq!(edges.len(), 3);
+        assert_eq!(edges.len(), 4);
         db.close().unwrap();
     }
 
@@ -339,6 +349,21 @@ mod tests {
         assert_eq!(graph.graph.edge_count(), 2);
         assert_eq!(graph.start, 1);
         assert_eq!(graph.end, 3);
+    }
+
+    #[test]
+    fn test_feature_graphs_2() {
+        let mut graphs = HashMap::new();
+        graphs.insert("graph1".to_string(), setup_graph());
+        let temp_dir = tempfile::tempdir().unwrap();
+        let output_path = temp_dir.path().join("graphs.duckdb");
+        write_graphs(graphs, output_path.as_path()).unwrap();
+        let graph = feature_graph(output_path, "graph1".to_string(), 3, 10).unwrap();
+        assert_eq!(graph.graph.node_count(), 4);
+        assert_eq!(graph.graph.edge_count(), 2);
+        dbg!(&graph);
+        assert_eq!(graph.start, 3);
+        assert_eq!(graph.end, 10);
     }
 
     #[test]
