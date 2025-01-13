@@ -129,8 +129,15 @@ impl Command {
                                 record.seqname()
                             )),
                         };
-                        let cds = Cds::new(cds_id, target.clone(), *record.start(), *record.end());
-                        write_paths(output, weights?, cds)?;
+                        let cds = Cds::new(
+                            cds_id.to_string(),
+                            target.clone(),
+                            *record.start(),
+                            *record.end(),
+                        );
+                        let weights = weights?;
+                        info!("Writing {} paths for CDS {}", weights.len(), cds.name());
+                        write_paths(output, weights, cds)?;
                     } else {
                         anyhow::bail!("No variant graph found for target {}", target);
                     }
