@@ -136,7 +136,6 @@ pub(crate) fn feature_graph(
             },
         );
     }
-    dbg!(&graph);
     let temp_graph = graph.clone();
     graph.retain_nodes(|_, node| temp_graph.node_weight(node).unwrap().pos != -1);
     Ok(VariantGraph {
