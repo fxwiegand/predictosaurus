@@ -1,4 +1,4 @@
-use crate::graph::paths::{Weight, Cds};
+use crate::graph::paths::{Cds, Weight};
 use anyhow::Result;
 use csv::Writer;
 use itertools::Itertools;

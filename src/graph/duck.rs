@@ -1,5 +1,5 @@
 use crate::graph::node::{Node, NodeType};
-use crate::graph::paths::{Weight, Cds};
+use crate::graph::paths::{Cds, Weight};
 use crate::graph::{Edge, VariantGraph};
 use crate::impact::Impact;
 use anyhow::Result;
