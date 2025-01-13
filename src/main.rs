@@ -78,9 +78,9 @@ impl Command {
                     let cds_id = record
                         .attributes()
                         .get("ID")
-                        .unwrap_or_else(|| {
-                            panic!("No ID found for CDS in sequence {}", record.seqname())
-                        })
+                        .ok_or_else(|| {
+                            anyhow::anyhow!("No ID found for CDS in sequence {}", record.seqname())
+                        })?
                         .to_string();
                     info!("Processing CDS {} in sequence {}", cds_id, target);
                     if let Ok(graph) = feature_graph(
