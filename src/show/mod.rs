@@ -1,4 +1,4 @@
-use crate::graph::paths::{Weight, CDS};
+use crate::graph::paths::{Weight, Cds};
 use anyhow::Result;
 use csv::Writer;
 use itertools::Itertools;
@@ -13,7 +13,7 @@ use tera::Tera;
 /// * `output_path` - A reference to a `PathBuf` that holds the path of the directory where the rendered JSON file will be saved.
 /// * `paths` - A slice of `Weight` structs that will be serialized and passed to the template.
 /// * `feature` - A string that represents the feature name, which will be used as the filename.
-pub(crate) fn render_vl_paths(output_path: &PathBuf, paths: &[Weight], cds: CDS) -> Result<()> {
+pub(crate) fn render_vl_paths(output_path: &PathBuf, paths: &[Weight], cds: Cds) -> Result<()> {
     let template = include_str!("../../resources/templates/paths.vl.json.tera");
     let mut context = tera::Context::new();
     context.insert("paths", paths);
@@ -31,7 +31,7 @@ pub(crate) fn render_vl_paths(output_path: &PathBuf, paths: &[Weight], cds: CDS)
 /// * `output_path` - A reference to a `PathBuf` that holds the path of the directory where the rendered TSV file will be saved.
 /// * `paths` - A slice of `Weight` structs that will be serialized and written to the TSV file.
 /// * `feature` - A string that represents the feature name, which will be used as the filename.
-pub(crate) fn render_tsv_paths(output_path: &PathBuf, paths: &[Weight], cds: CDS) -> Result<()> {
+pub(crate) fn render_tsv_paths(output_path: &PathBuf, paths: &[Weight], cds: Cds) -> Result<()> {
     let mut wtr = Writer::from_path(Path::new(output_path).join(format!("{}.tsv", cds.name())))?;
     for path in paths {
         wtr.serialize(path)?;
@@ -47,7 +47,7 @@ pub(crate) fn render_tsv_paths(output_path: &PathBuf, paths: &[Weight], cds: CDS
 /// * `output_path` - A reference to a `PathBuf` that holds the path of the directory where the rendered HTML file will be saved.
 /// * `paths` - A slice of `Weight` structs that will be serialized and passed to the template.
 /// * `feature` - A string that represents the feature name, which will be used as the filename.
-pub(crate) fn render_html_paths(output_path: &PathBuf, paths: &[Weight], cds: CDS) -> Result<()> {
+pub(crate) fn render_html_paths(output_path: &PathBuf, paths: &[Weight], cds: Cds) -> Result<()> {
     let template = include_str!("../../resources/templates/paths.html.tera");
     let mut context = tera::Context::new();
     context.insert("paths", paths);
@@ -77,7 +77,7 @@ mod tests {
             consequence: Some("loss".to_string()),
             sample: "sample1".to_string(),
         }];
-        let cds = CDS::new("1".to_string(), "some feature".to_string(), 1, 100);
+        let cds = Cds::new("1".to_string(), "some feature".to_string(), 1, 100);
         render_vl_paths(&output_path, &paths, cds.clone()).unwrap();
         let file_path = Path::new(&output_path).join(format!("{}.json", cds.name()));
         assert!(file_path.exists());
@@ -98,7 +98,7 @@ mod tests {
             consequence: Some("loss".to_string()),
             sample: "sample1".to_string(),
         }];
-        let cds = CDS::new("1".to_string(), "some feature".to_string(), 1, 100);
+        let cds = Cds::new("1".to_string(), "some feature".to_string(), 1, 100);
         render_tsv_paths(&output_path, &paths, cds.clone()).unwrap();
         let file_path = Path::new(&output_path).join(format!("{}.tsv", cds.name()));
         assert!(file_path.exists());
@@ -120,7 +120,7 @@ mod tests {
             consequence: Some("loss".to_string()),
             sample: "sample1".to_string(),
         }];
-        let cds = CDS::new("1".to_string(), "some feature".to_string(), 1, 100);
+        let cds = Cds::new("1".to_string(), "some feature".to_string(), 1, 100);
         render_html_paths(&output_path, &paths, cds.clone()).unwrap();
         let file_path = Path::new(&output_path).join(format!("{}.html", cds.name()));
         assert!(file_path.exists());

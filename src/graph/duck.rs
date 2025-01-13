@@ -1,5 +1,5 @@
 use crate::graph::node::{Node, NodeType};
-use crate::graph::paths::{Weight, CDS};
+use crate::graph::paths::{Weight, Cds};
 use crate::graph::{Edge, VariantGraph};
 use crate::impact::Impact;
 use anyhow::Result;
@@ -151,7 +151,7 @@ pub(crate) fn create_paths(output_path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn write_paths(path: &Path, paths: Vec<Vec<Weight>>, cds: CDS) -> Result<()> {
+pub(crate) fn write_paths(path: &Path, paths: Vec<Vec<Weight>>, cds: Cds) -> Result<()> {
     let db = Connection::open(path)?;
     for (index, path) in paths.iter().enumerate() {
         for weight in path {
@@ -187,16 +187,16 @@ pub(crate) fn write_paths(path: &Path, paths: Vec<Vec<Weight>>, cds: CDS) -> Res
 /// # Returns
 /// A Result containing a HashMap with the CDS ID as the key, and a HashMap of path indices
 /// mapped to vectors of Weight structs for each feature.
-pub(crate) fn read_paths(path: &Path) -> Result<HashMap<CDS, Vec<Weight>>> {
+pub(crate) fn read_paths(path: &Path) -> Result<HashMap<Cds, Vec<Weight>>> {
     let db = Connection::open(path)?;
     let mut stmt = db.prepare(
         "SELECT path_index, feature, node_index, vaf, impact, reason, consequence, sample, feature_start, feature_end, target
          FROM path_nodes",
     )?;
 
-    let mut paths: HashMap<CDS, Vec<Weight>> = HashMap::new();
+    let mut paths: HashMap<Cds, Vec<Weight>> = HashMap::new();
     let rows = stmt.query_map([], |row| {
-        let cds = CDS::new(row.get(1)?, row.get(10)?, row.get(8)?, row.get(9)?);
+        let cds = Cds::new(row.get(1)?, row.get(10)?, row.get(8)?, row.get(9)?);
         let weight = Weight {
             index: row.get(2)?,
             path: Some(row.get(0)?),
@@ -374,7 +374,7 @@ mod tests {
                 sample: "sample2".to_string(),
             }],
         ];
-        let cds = CDS::new("1".to_string(), "some feature".to_string(), 1, 100);
+        let cds = Cds::new("1".to_string(), "some feature".to_string(), 1, 100);
         write_paths(output_path.as_path(), paths, cds).unwrap();
         let db = Connection::open(output_path.as_path()).unwrap();
         let mut stmt = db.prepare("SELECT path_index, target, feature, node_index, vaf, impact, reason, consequence, sample FROM path_nodes").unwrap();
@@ -434,9 +434,9 @@ mod tests {
                 sample: "sample2".to_string(),
             }],
         ];
-        let cds = CDS::new("1".to_string(), "some feature".to_string(), 1, 100);
+        let cds = Cds::new("1".to_string(), "some feature".to_string(), 1, 100);
         write_paths(output_path.as_path(), paths, cds.clone()).unwrap();
-        let result = read_paths(&output_path.as_path()).unwrap();
+        let result = read_paths(output_path.as_path()).unwrap();
         assert_eq!(result.len(), 1);
         assert!(result.contains_key(&cds));
         let feature_paths = result.get(&cds).unwrap();

@@ -1,6 +1,6 @@
 use crate::cli::{Command, Format, Predictosaurus};
 use crate::graph::duck::{create_paths, feature_graph, read_paths, write_graphs, write_paths};
-use crate::graph::paths::CDS;
+use crate::graph::paths::Cds;
 use crate::graph::VariantGraph;
 use crate::show::{render_html_paths, render_tsv_paths, render_vl_paths};
 use crate::utils::bcf::get_targets;
@@ -78,10 +78,7 @@ impl Command {
                     let cds_id = record
                         .attributes()
                         .get("ID")
-                        .expect(
-                            format!("No ID found for CDS in sequence {}", record.seqname())
-                                .as_str(),
-                        )
+                        .unwrap_or_else(|| panic!("No ID found for CDS in sequence {}", record.seqname()))
                         .to_string();
                     info!("Processing CDS {} in sequence {}", cds_id, target);
                     if let Ok(graph) = feature_graph(
@@ -130,7 +127,7 @@ impl Command {
                                 record.seqname()
                             )),
                         };
-                        let cds = CDS::new(cds_id, target.clone(), *record.start(), *record.end());
+                        let cds = Cds::new(cds_id, target.clone(), *record.start(), *record.end());
                         write_paths(output, weights?, cds)?;
                     } else {
                         anyhow::bail!("No variant graph found for target {}", target);

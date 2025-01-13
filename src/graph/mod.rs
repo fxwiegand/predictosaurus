@@ -94,13 +94,8 @@ impl VariantGraph {
                 .map(|(sample, records)| {
                     let record = records
                         .next()
-                        .expect(
-                            format!(
-                                "Missing observation record for calls record at position {}",
-                                position
-                            )
-                            .as_str(),
-                        )
+                        .unwrap_or_else(|| panic!("Missing observation record for calls record at position {}",
+                                position))
                         .unwrap();
                     (sample, record)
                 })
@@ -318,17 +313,14 @@ impl VariantGraph {
             }
         }
 
-        all_paths = all_paths
-            .into_iter()
-            .filter(|path| {
+        all_paths.retain(|path| {
                 let nodes = path
                     .0
                     .iter()
                     .map(|n| self.graph.node_weight(*n).unwrap())
                     .collect_vec();
                 nodes.iter().all(|n| n.pos != -1)
-            })
-            .collect();
+            });
 
         all_paths
     }

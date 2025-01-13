@@ -26,16 +26,16 @@ pub(crate) struct Weight {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct CDS {
+pub(crate) struct Cds {
     pub(crate) feature: String,
     pub(crate) target: String,
     pub(crate) start: u64,
     pub(crate) end: u64,
 }
 
-impl CDS {
-    pub(crate) fn new(feature: String, target: String, start: u64, end: u64) -> CDS {
-        CDS {
+impl Cds {
+    pub(crate) fn new(feature: String, target: String, start: u64, end: u64) -> Cds {
+        Cds {
             feature,
             target,
             start,
@@ -182,7 +182,7 @@ impl HaplotypePath {
 
 mod tests {
     use crate::graph::node::{Node, NodeType};
-    use crate::graph::paths::CDS;
+    use crate::graph::paths::Cds;
     use crate::graph::{Edge, EventProbs, VariantGraph};
     use crate::impact::Impact;
     use crate::translation::dna_to_protein;
@@ -300,7 +300,7 @@ mod tests {
 
     #[test]
     fn name_formats_cds_correctly() {
-        let cds = CDS::new("gene".to_string(), "target1".to_string(), 100, 200);
+        let cds = Cds::new("gene".to_string(), "target1".to_string(), 100, 200);
         assert_eq!(cds.name(), "gene:target1:100-200");
     }
 }
