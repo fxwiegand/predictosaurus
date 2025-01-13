@@ -1,4 +1,4 @@
-use crate::graph::paths::Weight;
+use crate::graph::paths::{Weight, CDS};
 use anyhow::Result;
 use csv::Writer;
 use itertools::Itertools;
@@ -13,16 +13,12 @@ use tera::Tera;
 /// * `output_path` - A reference to a `PathBuf` that holds the path of the directory where the rendered JSON file will be saved.
 /// * `paths` - A slice of `Weight` structs that will be serialized and passed to the template.
 /// * `feature` - A string that represents the feature name, which will be used as the filename.
-pub(crate) fn render_vl_paths(
-    output_path: &PathBuf,
-    paths: &[Weight],
-    feature: String,
-) -> Result<()> {
+pub(crate) fn render_vl_paths(output_path: &PathBuf, paths: &[Weight], cds: CDS) -> Result<()> {
     let template = include_str!("../../resources/templates/paths.vl.json.tera");
     let mut context = tera::Context::new();
     context.insert("paths", paths);
     std::fs::write(
-        Path::new(output_path).join(format!("{}.json", feature)),
+        Path::new(output_path).join(format!("{}.json", cds.name())),
         Tera::one_off(template, &context, false)?,
     )?;
     Ok(())
@@ -35,12 +31,8 @@ pub(crate) fn render_vl_paths(
 /// * `output_path` - A reference to a `PathBuf` that holds the path of the directory where the rendered TSV file will be saved.
 /// * `paths` - A slice of `Weight` structs that will be serialized and written to the TSV file.
 /// * `feature` - A string that represents the feature name, which will be used as the filename.
-pub(crate) fn render_tsv_paths(
-    output_path: &PathBuf,
-    paths: &[Weight],
-    feature: String,
-) -> Result<()> {
-    let mut wtr = Writer::from_path(Path::new(output_path).join(format!("{}.tsv", feature)))?;
+pub(crate) fn render_tsv_paths(output_path: &PathBuf, paths: &[Weight], cds: CDS) -> Result<()> {
+    let mut wtr = Writer::from_path(Path::new(output_path).join(format!("{}.tsv", cds.name())))?;
     for path in paths {
         wtr.serialize(path)?;
     }
@@ -55,16 +47,12 @@ pub(crate) fn render_tsv_paths(
 /// * `output_path` - A reference to a `PathBuf` that holds the path of the directory where the rendered HTML file will be saved.
 /// * `paths` - A slice of `Weight` structs that will be serialized and passed to the template.
 /// * `feature` - A string that represents the feature name, which will be used as the filename.
-pub(crate) fn render_html_paths(
-    output_path: &PathBuf,
-    paths: &[Weight],
-    feature: String,
-) -> Result<()> {
+pub(crate) fn render_html_paths(output_path: &PathBuf, paths: &[Weight], cds: CDS) -> Result<()> {
     let template = include_str!("../../resources/templates/paths.html.tera");
     let mut context = tera::Context::new();
     context.insert("paths", paths);
     std::fs::write(
-        Path::new(output_path).join(format!("{}.html", feature)),
+        Path::new(output_path).join(format!("{}.html", cds.name())),
         Tera::one_off(template, &context, false)?,
     )?;
     Ok(())
@@ -89,9 +77,9 @@ mod tests {
             consequence: Some("loss".to_string()),
             sample: "sample1".to_string(),
         }];
-        let feature = "test_feature".to_string();
-        render_vl_paths(&output_path, &paths, feature.clone()).unwrap();
-        let file_path = Path::new(&output_path).join(format!("{}.json", feature));
+        let cds = CDS::new("1".to_string(), "some feature".to_string(), 1, 100);
+        render_vl_paths(&output_path, &paths, cds.clone()).unwrap();
+        let file_path = Path::new(&output_path).join(format!("{}.json", cds.name()));
         assert!(file_path.exists());
         let file_content = std::fs::read_to_string(file_path).unwrap();
         assert!(serde_json::from_str::<Value>(&file_content).is_ok());
@@ -110,9 +98,9 @@ mod tests {
             consequence: Some("loss".to_string()),
             sample: "sample1".to_string(),
         }];
-        let feature = "test_feature".to_string();
-        render_tsv_paths(&output_path, &paths, feature.clone()).unwrap();
-        let file_path = Path::new(&output_path).join(format!("{}.tsv", feature));
+        let cds = CDS::new("1".to_string(), "some feature".to_string(), 1, 100);
+        render_tsv_paths(&output_path, &paths, cds.clone()).unwrap();
+        let file_path = Path::new(&output_path).join(format!("{}.tsv", cds.name()));
         assert!(file_path.exists());
         let mut rdr = csv::Reader::from_path(file_path).unwrap();
         let result: Vec<Weight> = rdr.deserialize().map(|r| r.unwrap()).collect();
@@ -132,9 +120,9 @@ mod tests {
             consequence: Some("loss".to_string()),
             sample: "sample1".to_string(),
         }];
-        let feature = "test_feature".to_string();
-        render_html_paths(&output_path, &paths, feature.clone()).unwrap();
-        let file_path = Path::new(&output_path).join(format!("{}.html", feature));
+        let cds = CDS::new("1".to_string(), "some feature".to_string(), 1, 100);
+        render_html_paths(&output_path, &paths, cds.clone()).unwrap();
+        let file_path = Path::new(&output_path).join(format!("{}.html", cds.name()));
         assert!(file_path.exists());
     }
 }

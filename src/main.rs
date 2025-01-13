@@ -1,5 +1,6 @@
 use crate::cli::{Command, Format, Predictosaurus};
 use crate::graph::duck::{create_paths, feature_graph, read_paths, write_graphs, write_paths};
+use crate::graph::paths::CDS;
 use crate::graph::VariantGraph;
 use crate::show::{render_html_paths, render_tsv_paths, render_vl_paths};
 use crate::utils::bcf::get_targets;
@@ -129,7 +130,8 @@ impl Command {
                                 record.seqname()
                             )),
                         };
-                        write_paths(output, weights?, target, cds_id)?;
+                        let cds = CDS::new(cds_id, target.clone(), *record.start(), *record.end());
+                        write_paths(output, weights?, cds)?;
                     } else {
                         anyhow::bail!("No variant graph found for target {}", target);
                     }
@@ -142,16 +144,16 @@ impl Command {
             } => {
                 create_output_dir(output)?;
                 let paths = read_paths(input)?;
-                for (feature, paths) in paths {
+                for (cds, paths) in paths {
                     match format {
                         Format::Html => {
-                            render_html_paths(output, &paths, feature)?;
+                            render_html_paths(output, &paths, cds)?;
                         }
                         Format::Tsv => {
-                            render_tsv_paths(output, &paths, feature)?;
+                            render_tsv_paths(output, &paths, cds)?;
                         }
                         Format::Vega => {
-                            render_vl_paths(output, &paths, feature)?;
+                            render_vl_paths(output, &paths, cds)?;
                         }
                     }
                 }
