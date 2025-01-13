@@ -5,6 +5,7 @@ use crate::translation::dna_to_protein;
 use crate::utils::fasta::reverse_complement;
 use anyhow::Result;
 use bio::bio_types::strand::Strand;
+use bio::io::gff;
 use itertools::Itertools;
 use petgraph::graph::NodeIndex;
 use serde::{Deserialize, Serialize};
@@ -40,6 +41,23 @@ impl Cds {
             start,
             end,
         }
+    }
+
+    pub(crate) fn from_record(record: &gff::Record) -> Result<Cds> {
+        let cds_id = record
+            .attributes()
+            .get("ID")
+            .ok_or_else(|| anyhow::anyhow!("No ID found for CDS in sequence {}", record.seqname()))?
+            .to_string();
+        let target = record.seqname().to_string();
+        let start = *record.start();
+        let end = *record.end();
+        Ok(Cds {
+            feature: cds_id,
+            target,
+            start,
+            end,
+        })
     }
 
     pub(crate) fn name(&self) -> String {
@@ -186,6 +204,8 @@ mod tests {
     use crate::impact::Impact;
     use crate::translation::dna_to_protein;
     use bio::bio_types::strand::Strand;
+    use bio::io::gff;
+    use bio::io::gff::GffType;
     use petgraph::{Directed, Graph};
     use std::collections::HashMap;
 
@@ -301,5 +321,26 @@ mod tests {
     fn name_formats_cds_correctly() {
         let cds = Cds::new("gene".to_string(), "target1".to_string(), 100, 200);
         assert_eq!(cds.name(), "gene:target1:100-200");
+    }
+
+    #[test]
+    fn from_record_creates_cds_with_correct_values() {
+        let mut feature_reader = gff::Reader::from_file(
+            "tests/resources/Homo_sapiens.GRCh38.112.chromosome.6.gff3",
+            GffType::GFF3,
+        )
+        .unwrap();
+        let record = feature_reader
+            .records()
+            .filter_map(Result::ok)
+            .filter(|record| record.feature_type() == "CDS")
+            .map(|r| Cds::from_record(&r).unwrap())
+            .collect::<Vec<_>>()
+            .pop()
+            .unwrap();
+        assert_eq!(record.feature, "CDS:ENSP00000379873");
+        assert_eq!(record.target, "6");
+        assert_eq!(record.start, 29942554);
+        assert_eq!(record.end, 29942626);
     }
 }

@@ -74,25 +74,18 @@ impl Command {
                     .filter_map(Result::ok)
                     .filter(|record| record.feature_type() == "CDS")
                 {
-                    let target = record.seqname().to_string();
-                    let cds_id = record
-                        .attributes()
-                        .get("ID")
-                        .ok_or_else(|| {
-                            anyhow::anyhow!("No ID found for CDS in sequence {}", record.seqname())
-                        })?
-                        .to_string();
-                    info!("Processing CDS {} in sequence {}", cds_id, target);
+                    let cds = Cds::from_record(&record)?;
+                    info!("Processing CDS {} in sequence {}", cds.feature, cds.target);
                     if let Ok(graph) = feature_graph(
                         graph.to_owned(),
-                        target.to_string(),
+                        cds.target.to_string(),
                         *record.start(),
                         *record.end(),
                     ) {
                         info!(
                             "Subgraph for CDS {} with target {} has {} nodes",
-                            cds_id,
-                            target,
+                            cds.feature,
+                            cds.target,
                             graph.graph.node_count()
                         );
                         let strand = record.strand().expect("Strand not found");
@@ -105,7 +98,7 @@ impl Command {
                                     path.weights(
                                         &graph,
                                         phase,
-                                        reference_genome.get(&target).unwrap(),
+                                        reference_genome.get(&cds.target).unwrap(),
                                         strand,
                                     )
                                     .unwrap()
@@ -118,7 +111,7 @@ impl Command {
                                     path.weights(
                                         &graph,
                                         phase,
-                                        reference_genome.get(&target).unwrap(),
+                                        reference_genome.get(&cds.target).unwrap(),
                                         strand,
                                     )
                                     .unwrap()
@@ -129,17 +122,11 @@ impl Command {
                                 record.seqname()
                             )),
                         };
-                        let cds = Cds::new(
-                            cds_id.to_string(),
-                            target.clone(),
-                            *record.start(),
-                            *record.end(),
-                        );
                         let weights = weights?;
                         info!("Writing {} paths for CDS {}", weights.len(), cds.name());
                         write_paths(output, weights, cds)?;
                     } else {
-                        anyhow::bail!("No variant graph found for target {}", target);
+                        anyhow::bail!("No variant graph found for target {}", cds.target);
                     }
                 }
             }
