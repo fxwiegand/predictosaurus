@@ -1,0 +1,19 @@
+##gff-version 3
+##sequence-region   6 1 170805979
+#!genome-build Genome Reference Consortium GRCh38.p14
+#!genome-version GRCh38
+#!genome-date 2013-12
+#!genome-build-accession GCA_000001405.29
+#!genebuild-last-updated 2023-12
+6	GRCh38	chromosome	1	170805979	.	.	.	ID=chromosome:6;Alias=CM000668.2,chr6,NC_000006.12
+###
+6	ensembl_havana	gene	29941260	29949572	.	+	.	ID=gene:ENSG00000206503;Name=HLA-A;biotype=protein_coding;description=major histocompatibility complex%2C class I%2C A [Source:HGNC Symbol%3BAcc:HGNC:4931];gene_id=ENSG00000206503;logic_name=ensembl_havana_gene_homo_sapiens;version=15
+6	havana	mRNA	29941260	29945884	.	+	.	ID=transcript:ENST00000396634;Parent=gene:ENSG00000206503;Name=HLA-A-204;biotype=protein_coding;ccdsid=CCDS34373.1;tag=basic;transcript_id=ENST00000396634;transcript_support_level=NA;version=5
+6	havana	exon	29941260	29941319	.	+	.	Parent=transcript:ENST00000396634;Name=ENSE00001677386;constitutive=0;ensembl_end_phase=-1;ensembl_phase=-1;exon_id=ENSE00001677386;rank=1;version=1
+6	havana	five_prime_UTR	29941260	29941319	.	+	.	Parent=transcript:ENST00000396634
+6	havana	exon	29941966	29942096	.	+	.	Parent=transcript:ENST00000396634;Name=ENSE00001617475;constitutive=0;ensembl_end_phase=-1;ensembl_phase=-1;exon_id=ENSE00001617475;rank=2;version=1
+6	havana	five_prime_UTR	29941966	29942096	.	+	.	Parent=transcript:ENST00000396634
+6	havana	five_prime_UTR	29942404	29942553	.	+	.	Parent=transcript:ENST00000396634
+6	havana	exon	29942404	29942626	.	+	.	Parent=transcript:ENST00000396634;Name=ENSE00001633002;constitutive=0;ensembl_end_phase=1;ensembl_phase=-1;exon_id=ENSE00001633002;rank=3;version=1
+6	havana	CDS	29942554	29942626	.	+	0	ID=CDS:ENSP00000379873;Parent=transcript:ENST00000396634;protein_id=ENSP00000379873
+###
