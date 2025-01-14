@@ -72,6 +72,21 @@ pub(crate) enum Command {
         #[clap(short, long, default_value_t = Interval::default())]
         interval: Interval,
 
+        #[clap(short, long)]
+        events: Vec<String>,
+
+        #[clap(long)]
+        min_event_prob: f32,
+
+        #[clap(short, long)]
+        background_events: Vec<String>,
+
+        #[clap(long)]
+        min_background_event_prob: f32,
+
+        #[clap(long)]
+        min_kmer_prob: f32,
+
         /// Path to the output directory for the fastq files
         #[clap(short, long)]
         output: PathBuf,

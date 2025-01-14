@@ -136,6 +136,11 @@ impl Command {
                 graph,
                 interval,
                 output,
+                events,
+                min_event_prob,
+                background_events,
+                min_background_event_prob,
+                min_kmer_prob,
             } => {
                 let mut feature_reader = gff::Reader::from_file(features, GffType::GFF3)
                     .context("Failed to open GFF file")?;
