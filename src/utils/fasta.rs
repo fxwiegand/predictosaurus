@@ -26,6 +26,7 @@ pub(crate) fn reverse_complement(seq: &[u8]) -> Vec<u8> {
             b'T' => b'A',
             b'C' => b'G',
             b'G' => b'C',
+            b'N' => b'N',
             _ => unreachable!("Invalid nucleotide in sequence"),
         })
         .collect()
