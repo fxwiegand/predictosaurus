@@ -211,7 +211,7 @@ impl VariantGraph {
                 node_distance(
                     &weights.node_weight(*v[0]).unwrap().index,
                     &weights.node_weight(*v[1]).unwrap().index,
-                ) <= 1
+                ) == 1
                     || nodes_in_between(
                         &weights.node_weight(*v[0]).unwrap().index,
                         &weights.node_weight(*v[1]).unwrap().index,
