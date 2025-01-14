@@ -166,32 +166,36 @@ impl Command {
                                 .paths()
                                 .iter()
                                 .map(|path| {
-                                    (path.clone(),
-                                    path.protein(
-                                        &graph,
-                                        phase,
-                                        reference_genome.get(&cds.target).unwrap(),
-                                        strand,
-                                        *record.start() as usize,
-                                        *record.end() as usize,
+                                    (
+                                        path.clone(),
+                                        path.protein(
+                                            &graph,
+                                            phase,
+                                            reference_genome.get(&cds.target).unwrap(),
+                                            strand,
+                                            *record.start() as usize,
+                                            *record.end() as usize,
+                                        )
+                                        .unwrap(),
                                     )
-                                    .unwrap())
                                 })
                                 .collect_vec()),
                             Strand::Reverse => Ok(graph
                                 .reverse_paths()
                                 .iter()
                                 .map(|path| {
-                                    (path.clone(),
-                                    path.protein(
-                                        &graph,
-                                        phase,
-                                        reference_genome.get(&cds.target).unwrap(),
-                                        strand,
-                                        *record.start() as usize,
-                                        *record.end() as usize,
+                                    (
+                                        path.clone(),
+                                        path.protein(
+                                            &graph,
+                                            phase,
+                                            reference_genome.get(&cds.target).unwrap(),
+                                            strand,
+                                            *record.start() as usize,
+                                            *record.end() as usize,
+                                        )
+                                        .unwrap(),
                                     )
-                                    .unwrap())
                                 })
                                 .collect_vec()),
                             Strand::Unknown => Err(anyhow::anyhow!(
