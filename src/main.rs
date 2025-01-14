@@ -166,6 +166,7 @@ impl Command {
                                 .paths()
                                 .iter()
                                 .map(|path| {
+                                    (path.clone(),
                                     path.protein(
                                         &graph,
                                         phase,
@@ -174,13 +175,14 @@ impl Command {
                                         *record.start() as usize,
                                         *record.end() as usize,
                                     )
-                                    .unwrap()
+                                    .unwrap())
                                 })
                                 .collect_vec()),
                             Strand::Reverse => Ok(graph
                                 .reverse_paths()
                                 .iter()
                                 .map(|path| {
+                                    (path.clone(),
                                     path.protein(
                                         &graph,
                                         phase,
@@ -189,7 +191,7 @@ impl Command {
                                         *record.start() as usize,
                                         *record.end() as usize,
                                     )
-                                    .unwrap()
+                                    .unwrap())
                                 })
                                 .collect_vec()),
                             Strand::Unknown => Err(anyhow::anyhow!(
@@ -197,7 +199,10 @@ impl Command {
                                 record.seqname()
                             )),
                         };
-                        proteins?.iter().for_each(|protein| {
+                        proteins?.iter().for_each(|(path, protein)| {
+                            // TODO: Implement event filtering and probability calculation per peptide/kmer
+                            // We also need to pay attention to the strand here (probably need to pass this information to the prob calculation function)
+                            // We also need to think about how we wanna handle peptides that need to be blacklisted if they derive from background events
                             peptides.push(protein.peptides(interval.to_owned()));
                         });
                     } else {
