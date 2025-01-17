@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.9](https://github.com/fxwiegand/predictosaurus/compare/v0.2.8...v0.2.9) (2025-01-17)
+
+
+### Bug Fixes
+
+* Adjust predictosaurus for non-unique CDS identifiers ([#60](https://github.com/fxwiegand/predictosaurus/issues/60)) ([e9c54ed](https://github.com/fxwiegand/predictosaurus/commit/e9c54ed58b4d33dd978b5d6ea50d8670da441bed))
+* Allow  Ns in reverse_complement ([c684ece](https://github.com/fxwiegand/predictosaurus/commit/c684ece0c47cec7ff0a3f7435c73611bf1ee00e6))
+* Remove edges between nodes with same position ([8879214](https://github.com/fxwiegand/predictosaurus/commit/8879214419cbb4299da7042e0593228e8b38853e))
+* Remove edges between nodes with same position. ([1ab8ede](https://github.com/fxwiegand/predictosaurus/commit/1ab8edecb05bfb90f035ab5d6ac6392bc9b9acb8))
+* Remove unused and potentially breaking placeholder nodes ([1d6f6bf](https://github.com/fxwiegand/predictosaurus/commit/1d6f6bf9377086b180cd4d6cf5f22789c7b6d468))
+* Reverse reference sequence as expected by amino acid translations ([590c415](https://github.com/fxwiegand/predictosaurus/commit/590c4159498b6276f801af2e42159601faee2bde))
+
 ## [0.2.8](https://github.com/fxwiegand/predictosaurus/compare/v0.2.7...v0.2.8) (2025-01-07)
 
 
