@@ -104,7 +104,7 @@ impl VariantGraph {
                     (sample, record)
                 })
                 .collect::<HashMap<_, _>>();
-            let _variants = collect_variants(&mut calls_record, false, None)?;
+            let _variants = collect_variants(&mut calls_record, false, None, None, None)?;
             let observations = observations_records
                 .iter_mut()
                 .map(|(sample, record)| {
