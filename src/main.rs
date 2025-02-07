@@ -111,7 +111,9 @@ impl Command {
                                     path.weights(
                                         &graph,
                                         phase,
-                                        reference_genome.get(&cds.target).unwrap(),
+                                        &utils::fasta::reverse_complement(
+                                            reference_genome.get(&cds.target).unwrap(),
+                                        ),
                                         strand,
                                     )
                                     .unwrap()
