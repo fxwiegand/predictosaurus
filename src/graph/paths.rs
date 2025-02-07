@@ -3,13 +3,15 @@ use crate::impact::Impact;
 use crate::translation::amino_acids::Protein;
 use crate::translation::dna_to_protein;
 use crate::utils::fasta::reverse_complement;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use bio::bio_types::strand::Strand;
 use bio::io::gff;
 use itertools::Itertools;
 use petgraph::graph::NodeIndex;
 use serde::{Deserialize, Serialize};
 use std::cmp::max;
+use std::collections::HashMap;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct HaplotypePath(pub(crate) Vec<NodeIndex>);
@@ -25,46 +27,87 @@ pub(crate) struct Weight {
     pub(crate) sample: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct Cds {
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub(crate) struct Transcript {
     pub(crate) feature: String,
     pub(crate) target: String,
-    pub(crate) start: u64,
-    pub(crate) end: u64,
+    pub(crate) strand: Strand,
+    pub(crate) coding_sequences: Vec<Cds>,
 }
 
-impl Cds {
-    pub(crate) fn new(feature: String, target: String, start: u64, end: u64) -> Cds {
-        Cds {
+impl Transcript {
+    pub(crate) fn new(
+        feature: String,
+        target: String,
+        strand: Strand,
+        coding_sequences: Vec<Cds>,
+    ) -> Transcript {
+        Transcript {
             feature,
             target,
-            start,
-            end,
+            strand,
+            coding_sequences,
         }
     }
 
-    pub(crate) fn from_record(record: &gff::Record) -> Result<Cds> {
-        let cds_id = record
-            .attributes()
-            .get("ID")
-            .ok_or_else(|| anyhow::anyhow!("No ID found for CDS in sequence {}", record.seqname()))?
-            .to_string();
+    pub(crate) fn name(&self) -> String {
+        format!("{}:{}", self.feature, self.target)
+    }
+
+    pub(crate) fn start(&self) -> Result<u64> {
+        self.coding_sequences
+            .iter()
+            .map(|cds| cds.start)
+            .min()
+            .ok_or_else(|| anyhow::anyhow!("No CDS found for transcript {}", self.name()))
+    }
+
+    pub(crate) fn end(&self) -> Result<u64> {
+        self.coding_sequences
+            .iter()
+            .map(|cds| cds.end)
+            .max()
+            .ok_or_else(|| anyhow::anyhow!("No CDS found for transcript {}", self.name()))
+    }
+}
+
+pub(crate) fn transcripts(gff_file: &PathBuf) -> Result<Vec<Transcript>> {
+    let mut feature_reader = gff::Reader::from_file(gff_file, gff::GffType::GFF3)?;
+    let mut transcripts = HashMap::new();
+    for record in feature_reader
+        .records()
+        .filter_map(Result::ok)
+        .filter(|record| record.feature_type() == "CDS")
+    {
+        let ensp = record.attributes().get("ID").ok_or_else(|| {
+            anyhow::anyhow!("No ID found for CDS in sequence {}", record.seqname())
+        })?;
         let target = record.seqname().to_string();
         let start = *record.start();
         let end = *record.end();
-        Ok(Cds {
-            feature: cds_id,
-            target,
-            start,
-            end,
-        })
+        let phase = record.phase().try_into()?;
+        let strand = record.strand().ok_or_else(|| {
+            anyhow::anyhow!("No strand found for CDS in sequence {}", record.seqname())
+        })?;
+        let cds = Cds::new(start, end, phase);
+        let transcript = transcripts.entry(ensp.to_string()).or_insert_with(|| {
+            Transcript::new(ensp.to_string(), target.clone(), strand, Vec::new())
+        });
+        transcript.coding_sequences.push(cds);
     }
+    Ok(transcripts.values().collect())
+}
 
-    pub(crate) fn name(&self) -> String {
-        format!(
-            "{}:{}:{}-{}",
-            self.feature, self.target, self.start, self.end
-        )
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct Cds {
+    pub(crate) start: u64,
+    pub(crate) end: u64,
+    pub(crate) phase: u8,
+}
+
+impl Cds {
+    pub(crate) fn new(start: u64, end: u64, phase: u8) -> Cds {
+        Cds { start, end, phase }
     }
 }
 

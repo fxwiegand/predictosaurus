@@ -1,6 +1,6 @@
 use crate::cli::{Command, Format, Predictosaurus};
 use crate::graph::duck::{create_paths, feature_graph, read_paths, write_graphs, write_paths};
-use crate::graph::paths::Cds;
+use crate::graph::paths::{transcripts, Cds};
 use crate::graph::VariantGraph;
 use crate::show::{render_html_paths, render_tsv_paths, render_vl_paths};
 use crate::utils::bcf::get_targets;
@@ -64,28 +64,19 @@ impl Command {
                 output,
             } => {
                 create_paths(output)?;
-                let mut feature_reader = gff::Reader::from_file(features, GffType::GFF3)
-                    .context("Failed to open GFF file")?;
-
                 info!("Reading reference genome from {:?}", reference);
                 let reference_genome = utils::fasta::read_reference(reference);
-                for record in feature_reader
-                    .records()
-                    .filter_map(Result::ok)
-                    .filter(|record| record.feature_type() == "CDS")
-                {
-                    let cds = Cds::from_record(&record)?;
-                    info!("Processing CDS {} in sequence {}", cds.feature, cds.target);
+                for transcript in transcripts(features)? {
+                    info!("Processing transcript {}", transcript.name());
                     if let Ok(graph) = feature_graph(
                         graph.to_owned(),
-                        cds.target.to_string(),
-                        *record.start(),
-                        *record.end(),
+                        transcript.target.to_string(),
+                        transcript.start()?,
+                        transcript.end()?,
                     ) {
                         info!(
-                            "Subgraph for CDS {} with target {} has {} nodes",
-                            cds.feature,
-                            cds.target,
+                            "Subgraph for transcript {} has {} nodes",
+                            transcript.name(),
                             graph.graph.node_count()
                         );
                         let strand = record.strand().expect("Strand not found");
@@ -98,7 +89,7 @@ impl Command {
                                     path.weights(
                                         &graph,
                                         phase,
-                                        reference_genome.get(&cds.target).unwrap(),
+                                        reference_genome.get(&transcript.target).unwrap(),
                                         strand,
                                     )
                                     .unwrap()
@@ -112,7 +103,7 @@ impl Command {
                                         &graph,
                                         phase,
                                         &utils::fasta::reverse_complement(
-                                            reference_genome.get(&cds.target).unwrap(),
+                                            reference_genome.get(&transcript.target).unwrap(),
                                         ),
                                         strand,
                                     )
@@ -120,8 +111,8 @@ impl Command {
                                 })
                                 .collect_vec()),
                             Strand::Unknown => Err(anyhow::anyhow!(
-                                "Strand is unknown for sequence {}",
-                                record.seqname()
+                                "Strand is unknown for transcript {}",
+                                transcript.name()
                             )),
                         };
                         let weights = weights?;
