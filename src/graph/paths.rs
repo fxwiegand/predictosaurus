@@ -1,12 +1,15 @@
+use crate::graph::duck::feature_graph;
 use crate::graph::{shift_phase, NodeType, VariantGraph};
 use crate::impact::Impact;
 use crate::translation::amino_acids::Protein;
 use crate::translation::dna_to_protein;
+use crate::utils;
 use crate::utils::fasta::reverse_complement;
 use anyhow::{anyhow, Result};
 use bio::bio_types::strand::Strand;
 use bio::io::gff;
 use itertools::Itertools;
+use log::info;
 use petgraph::graph::NodeIndex;
 use serde::{Deserialize, Serialize};
 use std::cmp::max;
@@ -69,6 +72,84 @@ impl Transcript {
             .max()
             .ok_or_else(|| anyhow::anyhow!("No CDS found for transcript {}", self.name()))
     }
+
+    /// Returns an iterator over the coding sequences of the transcript
+    /// The iterator is sorted by start position in ascending order
+    /// If the strand is reverse, the iterator is reversed
+    pub(crate) fn cds(&self) -> impl Iterator<Item = &Cds> {
+        match self.strand {
+            Strand::Reverse => self
+                .coding_sequences
+                .iter()
+                .sorted_by_key(|cds| cds.start)
+                .rev(),
+            _ => self.coding_sequences.iter().sorted_by_key(|cds| cds.start),
+        }
+    }
+
+    pub(crate) fn weights(
+        &self,
+        graph: &PathBuf,
+        reference: &HashMap<String, Vec<u8>>,
+    ) -> Result<Vec<Vec<Weight>>> {
+        let mut cds_weights = HashMap::new();
+        let mut frameshift_from_last_cds: i64 = 0;
+        for (index, cds) in self.cds().enumerate() {
+            if let Ok(graph) = feature_graph(
+                graph.to_owned(),
+                self.target.to_string(),
+                cds.start()?,
+                cds.end()?,
+            ) {
+                info!(
+                    "Subgraph for transcript {} has {} nodes",
+                    self.name(),
+                    graph.graph.node_count()
+                );
+                let paths = match self.strand {
+                    Strand::Forward => Ok(graph.paths()),
+                    Strand::Reverse => Ok(graph.reverse_paths()),
+                    Strand::Unknown => {
+                        return Err(anyhow::anyhow!(
+                            "Strand is unknown for transcript {}",
+                            self.name()
+                        ))
+                    }
+                }?;
+                let reference_sequence = match self.strand {
+                    Strand::Forward => reference.get(&self.target).unwrap(),
+                    Strand::Reverse => {
+                        &utils::fasta::reverse_complement(reference.get(&self.target).unwrap())
+                    }
+                    Strand::Unknown => {
+                        unreachable!();
+                    }
+                };
+                let phase = shift_phase(cds.phase, ((frameshift_from_last_cds + 3) % 3) as u8);
+                let weights = paths
+                    .iter()
+                    .map(|path| {
+                        path.weights(&graph, phase, reference_sequence, self.strand)
+                            .unwrap()
+                    })
+                    .collect_vec();
+                let frameshifts = paths
+                    .iter()
+                    .map(|path| path.frameshift(&graph))
+                    .collect_vec();
+                // We need to store the paths in the following way:
+                // Outer Vec where each element corresponds to a CDS
+                // That Vec holds Hashmaps where the keys are the frameshifts from last CDS (beginning with 0) and the values are vecs containing hashmaps of form Hashmap<Frameshift, Vec<Vec<Weight>>> where the keys are the frameshifts of the path
+                // In the end we must then concatenate the key of the inner hashmap with the key of the outer hashmap
+                // Example:
+                // Outer Vec: [CDS1, CDS2]
+                // CDS1: {0: [ { 0: [P1], 1: [P2, P3] } ] }
+                // CDS2: {0: [ { 0: [P4], 1: [P5, P6] }, 1: [ { 0: [P7], 1: [P8, P9] } ] }
+                // Result: [[P1, P4], [P1, P5], [P1, P6], [P2, P7], [P2, P8], [P2, P9], [P3, P7], [P3, P8], [P3, P9]]
+            }
+        }
+        unimplemented!()
+    }
 }
 
 pub(crate) fn transcripts(gff_file: &PathBuf) -> Result<Vec<Transcript>> {
@@ -111,8 +192,8 @@ impl Cds {
     }
 }
 
-/// Returns the maximum impact of the individual nodes on the path
 impl HaplotypePath {
+    /// Returns the maximum impact of the individual nodes on the path
     pub(crate) fn impact(
         &self,
         graph: &VariantGraph,
@@ -160,6 +241,14 @@ impl HaplotypePath {
             }
         }
         Ok(weights)
+    }
+
+    /// Returns the overall frameshift caused by the path
+    pub(crate) fn frameshift(&self, graph: &VariantGraph) -> i64 {
+        self.0
+            .iter()
+            .map(|node_index| graph.graph.node_weight(*node_index).unwrap().frameshift())
+            .sum()
     }
 
     pub(crate) fn display(

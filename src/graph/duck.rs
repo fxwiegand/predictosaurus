@@ -1,5 +1,5 @@
 use crate::graph::node::{Node, NodeType};
-use crate::graph::paths::{Cds, Weight};
+use crate::graph::paths::{Cds, Transcript, Weight};
 use crate::graph::{Edge, VariantGraph};
 use crate::impact::Impact;
 use anyhow::Result;
@@ -153,18 +153,20 @@ pub(crate) fn create_paths(output_path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn write_paths(path: &Path, paths: Vec<Vec<Weight>>, cds: Cds) -> Result<()> {
+pub(crate) fn write_paths(
+    path: &Path,
+    paths: Vec<Vec<Weight>>,
+    transcript: Transcript,
+) -> Result<()> {
     let db = Connection::open(path)?;
     for (index, path) in paths.iter().enumerate() {
         for weight in path {
             db.execute(
-                "INSERT INTO path_nodes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO path_nodes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 [
                     index.to_string(),
-                    cds.target.to_string(),
-                    cds.feature.to_string(),
-                    cds.start.to_string(),
-                    cds.end.to_string(),
+                    transcript.target.to_string(),
+                    transcript.feature.to_string(),
                     weight.index.to_string(),
                     weight.vaf.to_string(),
                     weight.impact.to_raw_string().parse()?,
@@ -189,16 +191,16 @@ pub(crate) fn write_paths(path: &Path, paths: Vec<Vec<Weight>>, cds: Cds) -> Res
 /// # Returns
 /// A Result containing a HashMap with the CDS ID as the key, and a HashMap of path indices
 /// mapped to vectors of Weight structs for each feature.
-pub(crate) fn read_paths(path: &Path) -> Result<HashMap<Cds, Vec<Weight>>> {
+pub(crate) fn read_paths(path: &Path) -> Result<HashMap<String, Vec<Weight>>> {
     let db = Connection::open(path)?;
     let mut stmt = db.prepare(
-        "SELECT path_index, feature, node_index, vaf, impact, reason, consequence, sample, feature_start, feature_end, target
+        "SELECT path_index, feature, node_index, vaf, impact, reason, consequence, sample
          FROM path_nodes",
     )?;
 
-    let mut paths: HashMap<Cds, Vec<Weight>> = HashMap::new();
+    let mut paths: HashMap<String, Vec<Weight>> = HashMap::new();
     let rows = stmt.query_map([], |row| {
-        let cds = Cds::new(row.get(1)?, row.get(10)?, row.get(8)?, row.get(9)?);
+        let transcript_id = row.get::<_, String>(1)?;
         let weight = Weight {
             index: row.get(2)?,
             path: Some(row.get(0)?),
@@ -208,7 +210,7 @@ pub(crate) fn read_paths(path: &Path) -> Result<HashMap<Cds, Vec<Weight>>> {
             consequence: row.get(6)?,
             sample: row.get(7)?,
         };
-        Ok((cds, weight))
+        Ok((transcript_id, weight))
     })?;
 
     for row in rows {

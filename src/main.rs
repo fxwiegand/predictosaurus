@@ -68,6 +68,8 @@ impl Command {
                 let reference_genome = utils::fasta::read_reference(reference);
                 for transcript in transcripts(features)? {
                     info!("Processing transcript {}", transcript.name());
+                    let weights = transcript.weights(graph, &reference_genome)?;
+                    // -------- old ----------
                     if let Ok(graph) = feature_graph(
                         graph.to_owned(),
                         transcript.target.to_string(),
@@ -116,11 +118,16 @@ impl Command {
                             )),
                         };
                         let weights = weights?;
-                        info!("Writing {} paths for CDS {}", weights.len(), cds.name());
-                        write_paths(output, weights, cds)?;
+                        // ------------ old ------------
                     } else {
-                        anyhow::bail!("No variant graph found for target {}", cds.target);
+                        anyhow::bail!("No variant graph found for target {}", transcript.target);
                     }
+                    info!(
+                        "Writing {} paths for Transcript {}",
+                        weights.len(),
+                        transcript.name()
+                    );
+                    write_paths(output, weights, transcript)?;
                 }
             }
             Command::Plot {
