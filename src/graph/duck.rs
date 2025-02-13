@@ -148,7 +148,7 @@ pub(crate) fn feature_graph(
 
 pub(crate) fn create_paths(output_path: &Path) -> Result<()> {
     let db = Connection::open(output_path)?;
-    db.execute("CREATE TABLE path_nodes (path_index INTEGER, target String, feature STRING, feature_start INTEGER, feature_end INTEGER, node_index INTEGER, vaf FLOAT, impact STRING, reason STRING, consequence STRING, sample STRING)", [])?;
+    db.execute("CREATE TABLE path_nodes (path_index INTEGER, target String, feature STRING, node_index INTEGER, vaf FLOAT, impact STRING, reason STRING, consequence STRING, sample STRING)", [])?;
     db.close().unwrap();
     Ok(())
 }
@@ -227,6 +227,7 @@ mod tests {
     use crate::graph::node::{Node, NodeType};
     use crate::graph::Edge;
     use crate::impact::Impact;
+    use bio::bio_types::strand::Strand;
     use itertools::Itertools;
     use petgraph::{Directed, Graph};
 
@@ -400,8 +401,13 @@ mod tests {
                 sample: "sample2".to_string(),
             }],
         ];
-        let cds = Cds::new("1".to_string(), "some feature".to_string(), 1, 100);
-        write_paths(output_path.as_path(), paths, cds).unwrap();
+        let transcript = Transcript::new(
+            "1".to_string(),
+            "some feature".to_string(),
+            Strand::Forward,
+            vec![Cds::new(0, 100, 0)],
+        );
+        write_paths(output_path.as_path(), paths, transcript).unwrap();
         let db = Connection::open(output_path.as_path()).unwrap();
         let mut stmt = db.prepare("SELECT path_index, target, feature, node_index, vaf, impact, reason, consequence, sample FROM path_nodes").unwrap();
         let path_nodes: Vec<(
@@ -460,12 +466,17 @@ mod tests {
                 sample: "sample2".to_string(),
             }],
         ];
-        let cds = Cds::new("1".to_string(), "some feature".to_string(), 1, 100);
-        write_paths(output_path.as_path(), paths, cds.clone()).unwrap();
+        let transcript = Transcript::new(
+            "some feature".to_string(),
+            "chr1".to_string(),
+            Strand::Forward,
+            vec![Cds::new(0, 100, 0)],
+        );
+        write_paths(output_path.as_path(), paths, transcript).unwrap();
         let result = read_paths(output_path.as_path()).unwrap();
         assert_eq!(result.len(), 1);
-        assert!(result.contains_key(&cds));
-        let feature_paths = result.get(&cds).unwrap();
+        assert!(result.contains_key("some feature"));
+        let feature_paths = result.get("some feature").unwrap();
         assert_eq!(feature_paths.len(), 2);
     }
 }

@@ -69,59 +69,6 @@ impl Command {
                 for transcript in transcripts(features)? {
                     info!("Processing transcript {}", transcript.name());
                     let weights = transcript.weights(graph, &reference_genome)?;
-                    // -------- old ----------
-                    if let Ok(graph) = feature_graph(
-                        graph.to_owned(),
-                        transcript.target.to_string(),
-                        transcript.start()?,
-                        transcript.end()?,
-                    ) {
-                        info!(
-                            "Subgraph for transcript {} has {} nodes",
-                            transcript.name(),
-                            graph.graph.node_count()
-                        );
-                        let strand = record.strand().expect("Strand not found");
-                        let phase: u8 = record.phase().clone().try_into().unwrap();
-                        let weights = match strand {
-                            Strand::Forward => Ok(graph
-                                .paths()
-                                .iter()
-                                .map(|path| {
-                                    path.weights(
-                                        &graph,
-                                        phase,
-                                        reference_genome.get(&transcript.target).unwrap(),
-                                        strand,
-                                    )
-                                    .unwrap()
-                                })
-                                .collect_vec()),
-                            Strand::Reverse => Ok(graph
-                                .reverse_paths()
-                                .iter()
-                                .map(|path| {
-                                    path.weights(
-                                        &graph,
-                                        phase,
-                                        &utils::fasta::reverse_complement(
-                                            reference_genome.get(&transcript.target).unwrap(),
-                                        ),
-                                        strand,
-                                    )
-                                    .unwrap()
-                                })
-                                .collect_vec()),
-                            Strand::Unknown => Err(anyhow::anyhow!(
-                                "Strand is unknown for transcript {}",
-                                transcript.name()
-                            )),
-                        };
-                        let weights = weights?;
-                        // ------------ old ------------
-                    } else {
-                        anyhow::bail!("No variant graph found for target {}", transcript.target);
-                    }
                     info!(
                         "Writing {} paths for Transcript {}",
                         weights.len(),
@@ -137,16 +84,16 @@ impl Command {
             } => {
                 create_output_dir(output)?;
                 let paths = read_paths(input)?;
-                for (cds, paths) in paths {
+                for (transcript, paths) in paths {
                     match format {
                         Format::Html => {
-                            render_html_paths(output, &paths, cds)?;
+                            render_html_paths(output, &paths, transcript)?;
                         }
                         Format::Tsv => {
-                            render_tsv_paths(output, &paths, cds)?;
+                            render_tsv_paths(output, &paths, transcript)?;
                         }
                         Format::Vega => {
-                            render_vl_paths(output, &paths, cds)?;
+                            render_vl_paths(output, &paths, transcript)?;
                         }
                     }
                 }

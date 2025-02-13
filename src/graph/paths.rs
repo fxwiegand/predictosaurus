@@ -76,14 +76,15 @@ impl Transcript {
     /// Returns an iterator over the coding sequences of the transcript
     /// The iterator is sorted by start position in ascending order
     /// If the strand is reverse, the iterator is reversed
-    pub(crate) fn cds(&self) -> impl Iterator<Item = &Cds> {
+    pub(crate) fn cds(&self) -> Box<dyn Iterator<Item = &Cds> + '_> {
         match self.strand {
-            Strand::Reverse => self
-                .coding_sequences
-                .iter()
-                .sorted_by_key(|cds| cds.start)
-                .rev(),
-            _ => self.coding_sequences.iter().sorted_by_key(|cds| cds.start),
+            Strand::Reverse => Box::new(
+                self.coding_sequences
+                    .iter()
+                    .sorted_by_key(|cds| cds.start)
+                    .rev(),
+            ),
+            _ => Box::new(self.coding_sequences.iter().sorted_by_key(|cds| cds.start)),
         }
     }
 
@@ -92,14 +93,13 @@ impl Transcript {
         graph: &PathBuf,
         reference: &HashMap<String, Vec<u8>>,
     ) -> Result<Vec<Vec<Weight>>> {
-        let mut cds_weights = HashMap::new();
-        let mut frameshift_from_last_cds: i64 = 0;
-        for (index, cds) in self.cds().enumerate() {
+        let mut weights = Vec::new();
+        for cds in self.cds() {
             if let Ok(graph) = feature_graph(
                 graph.to_owned(),
                 self.target.to_string(),
-                cds.start()?,
-                cds.end()?,
+                cds.start,
+                cds.end,
             ) {
                 info!(
                     "Subgraph for transcript {} has {} nodes",
@@ -109,46 +109,61 @@ impl Transcript {
                 let paths = match self.strand {
                     Strand::Forward => Ok(graph.paths()),
                     Strand::Reverse => Ok(graph.reverse_paths()),
-                    Strand::Unknown => {
-                        return Err(anyhow::anyhow!(
-                            "Strand is unknown for transcript {}",
-                            self.name()
-                        ))
-                    }
+                    Strand::Unknown => Err(anyhow::anyhow!(
+                        "Strand is unknown for transcript {}",
+                        self.name()
+                    )),
                 }?;
                 let reference_sequence = match self.strand {
                     Strand::Forward => reference.get(&self.target).unwrap(),
-                    Strand::Reverse => {
-                        &utils::fasta::reverse_complement(reference.get(&self.target).unwrap())
-                    }
+                    Strand::Reverse => &reverse_complement(reference.get(&self.target).unwrap()),
                     Strand::Unknown => {
                         unreachable!();
                     }
                 };
-                let phase = shift_phase(cds.phase, ((frameshift_from_last_cds + 3) % 3) as u8);
-                let weights = paths
-                    .iter()
-                    .map(|path| {
-                        path.weights(&graph, phase, reference_sequence, self.strand)
-                            .unwrap()
-                    })
-                    .collect_vec();
-                let frameshifts = paths
-                    .iter()
-                    .map(|path| path.frameshift(&graph))
-                    .collect_vec();
-                // We need to store the paths in the following way:
-                // Outer Vec where each element corresponds to a CDS
-                // That Vec holds Hashmaps where the keys are the frameshifts from last CDS (beginning with 0) and the values are vecs containing hashmaps of form Hashmap<Frameshift, Vec<Vec<Weight>>> where the keys are the frameshifts of the path
-                // In the end we must then concatenate the key of the inner hashmap with the key of the outer hashmap
-                // Example:
-                // Outer Vec: [CDS1, CDS2]
-                // CDS1: {0: [ { 0: [P1], 1: [P2, P3] } ] }
-                // CDS2: {0: [ { 0: [P4], 1: [P5, P6] }, 1: [ { 0: [P7], 1: [P8, P9] } ] }
-                // Result: [[P1, P4], [P1, P5], [P1, P6], [P2, P7], [P2, P8], [P2, P9], [P3, P7], [P3, P8], [P3, P9]]
+                if weights.is_empty() {
+                    let cds_weights = paths
+                        .iter()
+                        .map(|path| {
+                            (
+                                path.weights(&graph, cds.phase, reference_sequence, self.strand)
+                                    .unwrap(),
+                                path.frameshift(&graph),
+                            )
+                        })
+                        .collect_vec();
+                    for w in cds_weights {
+                        weights.push(w);
+                    }
+                } else {
+                    for (p, frameshift) in weights.iter_mut() {
+                        let phase = shift_phase(cds.phase, ((*frameshift + 3) % 3) as u8);
+                        let cds_weights = paths
+                            .iter()
+                            .map(|path| {
+                                (
+                                    path.weights(&graph, phase, reference_sequence, self.strand)
+                                        .unwrap(),
+                                    path.frameshift(&graph),
+                                )
+                            })
+                            .collect_vec();
+                        for (w, f) in cds_weights {
+                            *frameshift = *frameshift + f;
+                            p.extend(w);
+                        }
+                    }
+                }
             }
         }
-        unimplemented!()
+        let weights = weights.iter().map(|(w, fs)| w.clone()).collect_vec();
+        for path in &weights {
+            for (i, weight) in path.iter().enumerate() {
+                let mut weight = weight.clone();
+                weight.index = i;
+            }
+        }
+        Ok(weights)
     }
 }
 
@@ -166,7 +181,7 @@ pub(crate) fn transcripts(gff_file: &PathBuf) -> Result<Vec<Transcript>> {
         let target = record.seqname().to_string();
         let start = *record.start();
         let end = *record.end();
-        let phase = record.phase().try_into()?;
+        let phase = record.phase().clone().try_into().unwrap();
         let strand = record.strand().ok_or_else(|| {
             anyhow::anyhow!("No strand found for CDS in sequence {}", record.seqname())
         })?;
@@ -176,7 +191,7 @@ pub(crate) fn transcripts(gff_file: &PathBuf) -> Result<Vec<Transcript>> {
         });
         transcript.coding_sequences.push(cds);
     }
-    Ok(transcripts.values().collect())
+    Ok(transcripts.into_values().collect())
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
@@ -331,7 +346,7 @@ impl HaplotypePath {
 
 mod tests {
     use crate::graph::node::{Node, NodeType};
-    use crate::graph::paths::Cds;
+    use crate::graph::paths::{Cds, Transcript};
     use crate::graph::{Edge, EventProbs, VariantGraph};
     use crate::impact::Impact;
     use crate::translation::dna_to_protein;
@@ -450,29 +465,13 @@ mod tests {
     }
 
     #[test]
-    fn name_formats_cds_correctly() {
-        let cds = Cds::new("gene".to_string(), "target1".to_string(), 100, 200);
-        assert_eq!(cds.name(), "gene:target1:100-200");
-    }
-
-    #[test]
-    fn from_record_creates_cds_with_correct_values() {
-        let mut feature_reader = gff::Reader::from_file(
-            "tests/resources/Homo_sapiens.GRCh38.112.chromosome.6.gff3",
-            GffType::GFF3,
-        )
-        .unwrap();
-        let record = feature_reader
-            .records()
-            .filter_map(Result::ok)
-            .filter(|record| record.feature_type() == "CDS")
-            .map(|r| Cds::from_record(&r).unwrap())
-            .collect::<Vec<_>>()
-            .pop()
-            .unwrap();
-        assert_eq!(record.feature, "CDS:ENSP00000379873");
-        assert_eq!(record.target, "6");
-        assert_eq!(record.start, 29942554);
-        assert_eq!(record.end, 29942626);
+    fn name_formats_transcript_correctly() {
+        let transcript = Transcript::new(
+            "ENSP00000493376".to_string(),
+            "test".to_string(),
+            Strand::Forward,
+            vec![Cds::new(1, 10, 0)],
+        );
+        assert_eq!(transcript.name(), "ENSP00000493376:test");
     }
 }
