@@ -16,4 +16,5 @@
 6	havana	five_prime_UTR	29942404	29942553	.	+	.	Parent=transcript:ENST00000396634
 6	havana	exon	29942404	29942626	.	+	.	Parent=transcript:ENST00000396634;Name=ENSE00001633002;constitutive=0;ensembl_end_phase=1;ensembl_phase=-1;exon_id=ENSE00001633002;rank=3;version=1
 6	havana	CDS	29942554	29942626	.	+	0	ID=CDS:ENSP00000379873;Parent=transcript:ENST00000396634;protein_id=ENSP00000379873
+6	havana	CDS	29942726	29942926	.	+	0	ID=CDS:ENSP00000379873;Parent=transcript:ENST00000396634;protein_id=ENSP00000379873
 ###

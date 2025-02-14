@@ -102,7 +102,9 @@ impl Transcript {
                 cds.end,
             ) {
                 info!(
-                    "Subgraph for transcript {} has {} nodes",
+                    "Subgraph for CDS ({}-{}) of transcript {} has {} nodes",
+                    cds.start,
+                    cds.end,
                     self.name(),
                     graph.graph.node_count()
                 );
@@ -136,9 +138,11 @@ impl Transcript {
                         weights.push(w);
                     }
                 } else {
-                    for (p, frameshift) in weights.iter_mut() {
-                        let phase = shift_phase(cds.phase, ((*frameshift + 3) % 3) as u8);
-                        let cds_weights = paths
+                    let mut new_weights = Vec::new();
+
+                    for (accumulated_weights, accumulated_fs) in &weights {
+                        let phase = shift_phase(cds.phase, ((*accumulated_fs + 3) % 3) as u8);
+                        let cds_options = paths
                             .iter()
                             .map(|path| {
                                 (
@@ -148,21 +152,32 @@ impl Transcript {
                                 )
                             })
                             .collect_vec();
-                        for (w, f) in cds_weights {
-                            *frameshift = *frameshift + f;
-                            p.extend(w);
+
+                        // For each option from the current CDS,
+                        // create a new combination that appends its weights
+                        // and adds its frameshift to the accumulated one.
+                        // Offset weight index by max index in accumulated weights
+                        for (mut new_weights_option, delta_fs) in cds_options {
+                            let mut combined = accumulated_weights.clone();
+                            let offset = accumulated_weights.iter().map(|w| w.index).max().unwrap();
+                            for mut w in new_weights_option {
+                                w.index += offset + 1;
+                                combined.push(w);
+                            }
+                            new_weights.push((combined, *accumulated_fs + delta_fs));
                         }
                     }
+
+                    // Replace the old combinations with the newly computed ones.
+                    weights = new_weights;
                 }
+            }
+            // print indexes of weights
+            for (p, _) in &weights {
+                println!("{:?}", p.iter().map(|w| w.index).collect::<Vec<usize>>());
             }
         }
         let weights = weights.iter().map(|(w, fs)| w.clone()).collect_vec();
-        for path in &weights {
-            for (i, weight) in path.iter().enumerate() {
-                let mut weight = weight.clone();
-                weight.index = i;
-            }
-        }
         Ok(weights)
     }
 }
@@ -351,8 +366,6 @@ mod tests {
     use crate::impact::Impact;
     use crate::translation::dna_to_protein;
     use bio::bio_types::strand::Strand;
-    use bio::io::gff;
-    use bio::io::gff::GffType;
     use petgraph::{Directed, Graph};
     use std::collections::HashMap;
 
