@@ -1,6 +1,6 @@
 use crate::cli::{Command, Format, Predictosaurus};
 use crate::graph::duck::{create_paths, feature_graph, read_paths, write_graphs, write_paths};
-use crate::graph::paths::Cds;
+use crate::graph::paths::{transcripts, Cds};
 use crate::graph::VariantGraph;
 use crate::show::{render_html_paths, render_tsv_paths, render_vl_paths};
 use crate::utils::bcf::get_targets;
@@ -64,72 +64,17 @@ impl Command {
                 output,
             } => {
                 create_paths(output)?;
-                let mut feature_reader = gff::Reader::from_file(features, GffType::GFF3)
-                    .context("Failed to open GFF file")?;
-
                 info!("Reading reference genome from {:?}", reference);
                 let reference_genome = utils::fasta::read_reference(reference);
-                for record in feature_reader
-                    .records()
-                    .filter_map(Result::ok)
-                    .filter(|record| record.feature_type() == "CDS")
-                {
-                    let cds = Cds::from_record(&record)?;
-                    info!("Processing CDS {} in sequence {}", cds.feature, cds.target);
-                    if let Ok(graph) = feature_graph(
-                        graph.to_owned(),
-                        cds.target.to_string(),
-                        *record.start(),
-                        *record.end(),
-                    ) {
-                        info!(
-                            "Subgraph for CDS {} with target {} has {} nodes",
-                            cds.feature,
-                            cds.target,
-                            graph.graph.node_count()
-                        );
-                        let strand = record.strand().expect("Strand not found");
-                        let phase: u8 = record.phase().clone().try_into().unwrap();
-                        let weights = match strand {
-                            Strand::Forward => Ok(graph
-                                .paths()
-                                .iter()
-                                .map(|path| {
-                                    path.weights(
-                                        &graph,
-                                        phase,
-                                        reference_genome.get(&cds.target).unwrap(),
-                                        strand,
-                                    )
-                                    .unwrap()
-                                })
-                                .collect_vec()),
-                            Strand::Reverse => Ok(graph
-                                .reverse_paths()
-                                .iter()
-                                .map(|path| {
-                                    path.weights(
-                                        &graph,
-                                        phase,
-                                        &utils::fasta::reverse_complement(
-                                            reference_genome.get(&cds.target).unwrap(),
-                                        ),
-                                        strand,
-                                    )
-                                    .unwrap()
-                                })
-                                .collect_vec()),
-                            Strand::Unknown => Err(anyhow::anyhow!(
-                                "Strand is unknown for sequence {}",
-                                record.seqname()
-                            )),
-                        };
-                        let weights = weights?;
-                        info!("Writing {} paths for CDS {}", weights.len(), cds.name());
-                        write_paths(output, weights, cds)?;
-                    } else {
-                        anyhow::bail!("No variant graph found for target {}", cds.target);
-                    }
+                for transcript in transcripts(features)? {
+                    info!("Processing transcript {}", transcript.name());
+                    let weights = transcript.weights(graph, &reference_genome)?;
+                    info!(
+                        "Writing {} paths for Transcript {}",
+                        weights.len(),
+                        transcript.name()
+                    );
+                    write_paths(output, weights, transcript)?;
                 }
             }
             Command::Plot {
@@ -139,16 +84,16 @@ impl Command {
             } => {
                 create_output_dir(output)?;
                 let paths = read_paths(input)?;
-                for (cds, paths) in paths {
+                for (transcript, paths) in paths {
                     match format {
                         Format::Html => {
-                            render_html_paths(output, &paths, cds)?;
+                            render_html_paths(output, &paths, transcript)?;
                         }
                         Format::Tsv => {
-                            render_tsv_paths(output, &paths, cds)?;
+                            render_tsv_paths(output, &paths, transcript)?;
                         }
                         Format::Vega => {
-                            render_vl_paths(output, &paths, cds)?;
+                            render_vl_paths(output, &paths, transcript)?;
                         }
                     }
                 }

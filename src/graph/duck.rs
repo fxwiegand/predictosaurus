@@ -1,5 +1,5 @@
 use crate::graph::node::{Node, NodeType};
-use crate::graph::paths::{Cds, Weight};
+use crate::graph::paths::{Cds, Transcript, Weight};
 use crate::graph::{Edge, VariantGraph};
 use crate::impact::Impact;
 use anyhow::Result;
@@ -148,23 +148,25 @@ pub(crate) fn feature_graph(
 
 pub(crate) fn create_paths(output_path: &Path) -> Result<()> {
     let db = Connection::open(output_path)?;
-    db.execute("CREATE TABLE path_nodes (path_index INTEGER, target String, feature STRING, feature_start INTEGER, feature_end INTEGER, node_index INTEGER, vaf FLOAT, impact STRING, reason STRING, consequence STRING, sample STRING)", [])?;
+    db.execute("CREATE TABLE path_nodes (path_index INTEGER, target String, feature STRING, node_index INTEGER, vaf FLOAT, impact STRING, reason STRING, consequence STRING, sample STRING)", [])?;
     db.close().unwrap();
     Ok(())
 }
 
-pub(crate) fn write_paths(path: &Path, paths: Vec<Vec<Weight>>, cds: Cds) -> Result<()> {
+pub(crate) fn write_paths(
+    path: &Path,
+    paths: Vec<Vec<Weight>>,
+    transcript: Transcript,
+) -> Result<()> {
     let db = Connection::open(path)?;
     for (index, path) in paths.iter().enumerate() {
         for weight in path {
             db.execute(
-                "INSERT INTO path_nodes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO path_nodes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 [
                     index.to_string(),
-                    cds.target.to_string(),
-                    cds.feature.to_string(),
-                    cds.start.to_string(),
-                    cds.end.to_string(),
+                    transcript.target.to_string(),
+                    transcript.feature.to_string(),
                     weight.index.to_string(),
                     weight.vaf.to_string(),
                     weight.impact.to_raw_string().parse()?,
@@ -189,16 +191,16 @@ pub(crate) fn write_paths(path: &Path, paths: Vec<Vec<Weight>>, cds: Cds) -> Res
 /// # Returns
 /// A Result containing a HashMap with the CDS ID as the key, and a HashMap of path indices
 /// mapped to vectors of Weight structs for each feature.
-pub(crate) fn read_paths(path: &Path) -> Result<HashMap<Cds, Vec<Weight>>> {
+pub(crate) fn read_paths(path: &Path) -> Result<HashMap<String, Vec<Weight>>> {
     let db = Connection::open(path)?;
     let mut stmt = db.prepare(
-        "SELECT path_index, feature, node_index, vaf, impact, reason, consequence, sample, feature_start, feature_end, target
+        "SELECT path_index, feature, node_index, vaf, impact, reason, consequence, sample
          FROM path_nodes",
     )?;
 
-    let mut paths: HashMap<Cds, Vec<Weight>> = HashMap::new();
+    let mut paths: HashMap<String, Vec<Weight>> = HashMap::new();
     let rows = stmt.query_map([], |row| {
-        let cds = Cds::new(row.get(1)?, row.get(10)?, row.get(8)?, row.get(9)?);
+        let transcript_id = row.get::<_, String>(1)?;
         let weight = Weight {
             index: row.get(2)?,
             path: Some(row.get(0)?),
@@ -208,7 +210,7 @@ pub(crate) fn read_paths(path: &Path) -> Result<HashMap<Cds, Vec<Weight>>> {
             consequence: row.get(6)?,
             sample: row.get(7)?,
         };
-        Ok((cds, weight))
+        Ok((transcript_id, weight))
     })?;
 
     for row in rows {
@@ -225,6 +227,7 @@ mod tests {
     use crate::graph::node::{Node, NodeType};
     use crate::graph::Edge;
     use crate::impact::Impact;
+    use bio::bio_types::strand::Strand;
     use itertools::Itertools;
     use petgraph::{Directed, Graph};
 
@@ -398,8 +401,13 @@ mod tests {
                 sample: "sample2".to_string(),
             }],
         ];
-        let cds = Cds::new("1".to_string(), "some feature".to_string(), 1, 100);
-        write_paths(output_path.as_path(), paths, cds).unwrap();
+        let transcript = Transcript::new(
+            "1".to_string(),
+            "some feature".to_string(),
+            Strand::Forward,
+            vec![Cds::new(0, 100, 0)],
+        );
+        write_paths(output_path.as_path(), paths, transcript).unwrap();
         let db = Connection::open(output_path.as_path()).unwrap();
         let mut stmt = db.prepare("SELECT path_index, target, feature, node_index, vaf, impact, reason, consequence, sample FROM path_nodes").unwrap();
         let path_nodes: Vec<(
@@ -458,12 +466,17 @@ mod tests {
                 sample: "sample2".to_string(),
             }],
         ];
-        let cds = Cds::new("1".to_string(), "some feature".to_string(), 1, 100);
-        write_paths(output_path.as_path(), paths, cds.clone()).unwrap();
+        let transcript = Transcript::new(
+            "some feature".to_string(),
+            "chr1".to_string(),
+            Strand::Forward,
+            vec![Cds::new(0, 100, 0)],
+        );
+        write_paths(output_path.as_path(), paths, transcript).unwrap();
         let result = read_paths(output_path.as_path()).unwrap();
         assert_eq!(result.len(), 1);
-        assert!(result.contains_key(&cds));
-        let feature_paths = result.get(&cds).unwrap();
+        assert!(result.contains_key("some feature"));
+        let feature_paths = result.get("some feature").unwrap();
         assert_eq!(feature_paths.len(), 2);
     }
 }
