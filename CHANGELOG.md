@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.10](https://github.com/fxwiegand/predictosaurus/compare/v0.2.9...v0.2.10) (2025-02-14)
+
+
+### Bug Fixes
+
+* Consider splicing for each transcript by joining paths for CDSs ([#72](https://github.com/fxwiegand/predictosaurus/issues/72)) ([5c766c9](https://github.com/fxwiegand/predictosaurus/commit/5c766c9b1c8b0466da46961dad82d4efd5cc5ac2))
+
 ## [0.2.9](https://github.com/fxwiegand/predictosaurus/compare/v0.2.8...v0.2.9) (2025-01-17)
 
 
