@@ -495,7 +495,7 @@ dependencies = [
  "itertools-num",
  "lazy_static",
  "multimap",
- "ndarray 0.16.1",
+ "ndarray",
  "newtype_derive",
  "num-integer",
  "num-traits",
@@ -1098,17 +1098,6 @@ dependencies = [
  "proc-macro2 0.4.30",
  "quote 0.6.13",
  "syn 0.15.44",
-]
-
-[[package]]
-name = "derive-new"
-version = "0.5.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3418329ca0ad70234b9735dc4ceed10af4df60eff9c8e7b06cb5e520d92c3535"
-dependencies = [
- "proc-macro2 1.0.89",
- "quote 1.0.37",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -2306,20 +2295,6 @@ dependencies = [
 
 [[package]]
 name = "ndarray"
-version = "0.15.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "adb12d4e967ec485a5f71c6311fe28158e9d6f4bc4a447b474184d0f91a8fa32"
-dependencies = [
- "matrixmultiply 0.3.9",
- "num-complex",
- "num-integer",
- "num-traits",
- "rawpointer 0.2.1",
- "serde",
-]
-
-[[package]]
-name = "ndarray"
 version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "882ed72dce9365842bf196bdeedf5055305f11fc8c03dee7bb0194a6cad34841"
@@ -2331,6 +2306,7 @@ dependencies = [
  "portable-atomic",
  "portable-atomic-util",
  "rawpointer 0.2.1",
+ "serde",
 ]
 
 [[package]]
@@ -3878,9 +3854,9 @@ checksum = "f8c5f0a0af699448548ad1a2fbf920fb4bee257eae39953ba95cb84891a0446a"
 
 [[package]]
 name = "varlociraptor"
-version = "8.6.0"
+version = "8.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "688690a984f950c667654df016966e2ea0caa47be80c82c765737ab60a24ff98"
+checksum = "9ac128a439e41432eee92daa57f84a30557228c2ae88097f9aba78fd3e94dffa"
 dependencies = [
  "GSL",
  "anyhow",
@@ -3899,7 +3875,7 @@ dependencies = [
  "csv",
  "data-encoding",
  "derefable",
- "derive-new 0.5.9",
+ "derive-new 0.7.0",
  "derive_builder",
  "eval",
  "fern",
@@ -3913,7 +3889,7 @@ dependencies = [
  "log",
  "lru",
  "lru_time_cache",
- "ndarray 0.15.6",
+ "ndarray",
  "num-traits",
  "ordered-float 1.1.1",
  "paste",
