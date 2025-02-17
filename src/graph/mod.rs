@@ -1,6 +1,8 @@
 pub(crate) mod duck;
 mod node;
 pub(crate) mod paths;
+pub(crate) mod peptide;
+pub(crate) mod transcript;
 
 use crate::cli::ObservationFile;
 use crate::graph::node::{node_distance, nodes_in_between, Node, NodeType};

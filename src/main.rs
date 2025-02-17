@@ -1,6 +1,7 @@
 use crate::cli::{Command, Format, Predictosaurus};
 use crate::graph::duck::{create_paths, feature_graph, read_paths, write_graphs, write_paths};
-use crate::graph::paths::{transcripts, Cds};
+use crate::graph::paths::Cds;
+use crate::graph::transcript::transcripts;
 use crate::graph::VariantGraph;
 use crate::show::{render_html_paths, render_tsv_paths, render_vl_paths};
 use crate::utils::bcf::get_targets;
@@ -89,76 +90,10 @@ impl Command {
                 min_background_event_prob,
                 min_kmer_prob,
             } => {
-                let mut feature_reader = gff::Reader::from_file(features, GffType::GFF3)
-                    .context("Failed to open GFF file")?;
+                info!("Reading reference genome from {:?}", reference);
                 let reference_genome = utils::fasta::read_reference(reference);
-                let mut peptides = Vec::new();
-
-                for record in feature_reader
-                    .records()
-                    .filter_map(Result::ok)
-                    .filter(|record| record.feature_type() == "CDS")
-                {
-                    let cds = Cds::from_record(&record)?;
-                    if let Ok(graph) = feature_graph(
-                        graph.to_owned(),
-                        cds.target.to_string(),
-                        *record.start(),
-                        *record.end(),
-                    ) {
-                        let strand = record.strand().expect("Strand not found");
-                        let phase: u8 = record.phase().clone().try_into().unwrap();
-                        let proteins = match strand {
-                            Strand::Forward => Ok(graph
-                                .paths()
-                                .iter()
-                                .map(|path| {
-                                    (
-                                        path.clone(),
-                                        path.protein(
-                                            &graph,
-                                            phase,
-                                            reference_genome.get(&cds.target).unwrap(),
-                                            strand,
-                                            *record.start() as usize,
-                                            *record.end() as usize,
-                                        )
-                                        .unwrap(),
-                                    )
-                                })
-                                .collect_vec()),
-                            Strand::Reverse => Ok(graph
-                                .reverse_paths()
-                                .iter()
-                                .map(|path| {
-                                    (
-                                        path.clone(),
-                                        path.protein(
-                                            &graph,
-                                            phase,
-                                            reference_genome.get(&cds.target).unwrap(),
-                                            strand,
-                                            *record.start() as usize,
-                                            *record.end() as usize,
-                                        )
-                                        .unwrap(),
-                                    )
-                                })
-                                .collect_vec()),
-                            Strand::Unknown => Err(anyhow::anyhow!(
-                                "Strand is unknown for sequence {}",
-                                record.seqname()
-                            )),
-                        };
-                        proteins?.iter().for_each(|(path, protein)| {
-                            // TODO: Implement event filtering and probability calculation per peptide/kmer
-                            // We also need to pay attention to the strand here (probably need to pass this information to the prob calculation function)
-                            // We also need to think about how we wanna handle peptides that need to be blacklisted if they derive from background events
-                            peptides.push(protein.peptides(interval.to_owned()));
-                        });
-                    } else {
-                        anyhow::bail!("No variant graph found for target {}", cds.target);
-                    }
+                for transcript in transcripts(features)? {
+                    info!("Processing transcript {}", transcript.name());
                 }
             }
             Command::Plot {
