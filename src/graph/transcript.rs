@@ -1,4 +1,5 @@
 use crate::graph::duck::feature_graph;
+use crate::graph::node::NodeType;
 use crate::graph::paths::{Cds, HaplotypePath, Weight};
 use crate::graph::peptide::Peptide;
 use crate::graph::{shift_phase, EventProbs, VariantGraph};
@@ -8,10 +9,10 @@ use bio::bio_types::strand::Strand;
 use bio::io::gff;
 use itertools::Itertools;
 use log::info;
+use rust_htslib::bgzf::CompressionLevel::Default;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use crate::graph::node::NodeType;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub(crate) struct Transcript {
@@ -76,9 +77,20 @@ impl Transcript {
             Strand::Forward => Ok(graph.paths()),
             Strand::Reverse => Ok(graph.reverse_paths()),
             Strand::Unknown => Err(anyhow::anyhow!(
-            "Strand is unknown for transcript {}",
-            self.name()
-        )),
+                "Strand is unknown for transcript {}",
+                self.name()
+            )),
+        }
+    }
+
+    fn reference(&self, reference: &HashMap<String, Vec<u8>>) -> Result<Vec<u8>> {
+        match self.strand {
+            Strand::Forward => Ok(reference.get(&self.target).unwrap().to_vec()),
+            Strand::Reverse => Ok(reverse_complement(reference.get(&self.target).unwrap())),
+            Strand::Unknown => Err(anyhow::anyhow!(
+                "Strand is unknown for transcript {}",
+                self.name()
+            )),
         }
     }
 
@@ -103,19 +115,13 @@ impl Transcript {
                     graph.graph.node_count()
                 );
                 let paths = self.paths(&graph)?;
-                let reference_sequence = match self.strand {
-                    Strand::Forward => reference.get(&self.target).unwrap(),
-                    Strand::Reverse => &reverse_complement(reference.get(&self.target).unwrap()),
-                    Strand::Unknown => {
-                        unreachable!();
-                    }
-                };
+                let reference_sequence = self.reference(reference)?;
                 if weights.is_empty() {
                     let cds_weights = paths
                         .iter()
                         .map(|path| {
                             (
-                                path.weights(&graph, cds.phase, reference_sequence, self.strand)
+                                path.weights(&graph, cds.phase, &reference_sequence, self.strand)
                                     .unwrap(),
                                 path.frameshift(&graph),
                             )
@@ -133,7 +139,7 @@ impl Transcript {
                             .iter()
                             .map(|path| {
                                 (
-                                    path.weights(&graph, phase, reference_sequence, self.strand)
+                                    path.weights(&graph, phase, &reference_sequence, self.strand)
                                         .unwrap(),
                                     path.frameshift(&graph),
                                 )
@@ -174,8 +180,10 @@ impl Transcript {
         graph: &PathBuf,
         reference: &HashMap<String, Vec<u8>>,
     ) -> Result<Vec<RnaPath>> {
+        let reference = reference.get(&self.target).unwrap();
         let mut rna = Vec::new();
         for cds in self.cds() {
+            let mut cds_rna = Vec::new();
             if let Ok(graph) = feature_graph(
                 graph.to_owned(),
                 self.target.to_string(),
@@ -189,55 +197,101 @@ impl Transcript {
                     self.name(),
                     graph.graph.node_count()
                 );
-                let mut sequence = reference[cds.start..=cds.end].to_vec();
+                let mut sequence = reference[cds.start as usize..=cds.end as usize].to_vec();
                 if self.strand == Strand::Reverse {
                     sequence = reverse_complement(&sequence);
                 }
                 sequence = sequence[cds.phase as usize..].to_vec();
                 for path in self.paths(&graph)? {
+                    let mut variants = HashMap::new();
                     let mut frameshift = 0;
+                    let mut path_sequence = sequence.clone();
                     for node_index in path.0.iter() {
                         let node = graph.graph.node_weight(*node_index).unwrap();
                         if let NodeType::Var(allele) = &node.node_type {
-                            let position_in_protein = match self.strand {
+                            let position_in_cds = match self.strand {
                                 Strand::Forward => {
-                                    (node.pos - cds.start as i64 + frameshift + cds.phase as i64) as usize
-                                }
-                                Strand::Reverse => (cds.end as i64 - node.pos + frameshift - cds.phase as i64) as usize,
-                                Strand::Unknown => return Err(anyhow::anyhow!("Strand is unknown")),
-                            };
-                            match self.strand {
-                                Strand::Forward => {
-                                    sequence
-                                        .splice(position_in_protein..position_in_protein + 1, allele.bytes());
+                                    (node.pos - cds.start as i64 + frameshift + cds.phase as i64)
+                                        as usize
                                 }
                                 Strand::Reverse => {
-                                    sequence.splice(
-                                        position_in_protein..position_in_protein + 1,
+                                    (cds.end as i64 - node.pos + frameshift - cds.phase as i64)
+                                        as usize
+                                }
+                                Strand::Unknown => {
+                                    return Err(anyhow::anyhow!("Strand is unknown"))
+                                }
+                            };
+                            variants.insert(
+                                position_in_cds,
+                                (
+                                    graph.graph.node_weight(*node_index).unwrap().probs.clone(),
+                                    node.frameshift(),
+                                ),
+                            );
+                            match self.strand {
+                                Strand::Forward => {
+                                    path_sequence.splice(
+                                        position_in_cds..position_in_cds + 1,
+                                        allele.bytes(),
+                                    );
+                                }
+                                Strand::Reverse => {
+                                    path_sequence.splice(
+                                        position_in_cds..position_in_cds + 1,
                                         String::from_utf8_lossy(
                                             reverse_complement(allele.as_bytes()).as_slice(),
                                         )
-                                            .bytes(),
+                                        .bytes(),
                                     );
                                 }
                                 Strand::Unknown => unreachable!(),
                             }
-
                             frameshift += node.frameshift();
                         }
                     }
+                    let rna_path = RnaPath::new(path_sequence, variants);
+                    cds_rna.push(rna_path);
                 }
-                // sequence holds the RNA sequence for the current CDS with all variants of the path applied
+            }
+            if rna.is_empty() {
+                rna = cds_rna;
+            } else {
+                let mut new_rna = Vec::new();
+                for rna_path in &rna {
+                    for cds_rna_path in &cds_rna {
+                        new_rna.push(rna_path.merge(cds_rna_path.clone())?);
+                    }
+                }
+                rna = new_rna;
             }
         }
-        unimplemented!()
+        Ok(rna)
     }
 }
 
 /// Represents an RNA sequence for a transcript and holds all variants on it
+#[derive(Clone, Debug)]
 pub(crate) struct RnaPath {
     pub(crate) sequence: Vec<u8>,
-    pub(crate) variants: HashMap<usize, EventProbs>,
+    pub(crate) variants: HashMap<usize, (EventProbs, i64)>,
+}
+
+impl RnaPath {
+    pub(crate) fn new(sequence: Vec<u8>, variants: HashMap<usize, (EventProbs, i64)>) -> RnaPath {
+        RnaPath { sequence, variants }
+    }
+
+    pub(crate) fn merge(&self, other: RnaPath) -> Result<RnaPath> {
+        let mut sequence = self.sequence.clone();
+        let mut variants = self.variants.clone();
+        let offset = self.sequence.len();
+        sequence.extend(other.sequence);
+        for (position, probs) in other.variants {
+            variants.insert(position + offset, probs);
+        }
+        Ok(RnaPath { sequence, variants })
+    }
 }
 
 pub(crate) fn transcripts(gff_file: &PathBuf) -> anyhow::Result<Vec<Transcript>> {
@@ -270,6 +324,10 @@ pub(crate) fn transcripts(gff_file: &PathBuf) -> anyhow::Result<Vec<Transcript>>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::graph::duck::write_graphs;
+    use crate::graph::node::Node;
+    use crate::graph::Edge;
+    use petgraph::{Directed, Graph};
 
     #[test]
     fn name_formats_transcript_correctly() {
@@ -280,5 +338,88 @@ mod tests {
             vec![Cds::new(1, 10, 0)],
         );
         assert_eq!(transcript.name(), "ENSP00000493376:test");
+    }
+
+    fn setup_graph() -> VariantGraph {
+        let mut graph = Graph::<Node, Edge, Directed>::new();
+        let alt_node_vaf_1 = HashMap::from([("s1".to_string(), 0.5)]);
+        let alt_node_vaf_2 = HashMap::from([("s1".to_string(), 0.3)]);
+        let alt_node_1 = graph.add_node(Node {
+            node_type: NodeType::Var("".to_string()),
+            vaf: alt_node_vaf_1,
+            probs: EventProbs(HashMap::new()),
+            pos: 1,
+            index: 0,
+        });
+        let alt_node_2 = graph.add_node(Node {
+            node_type: NodeType::Var("G".to_string()),
+            vaf: alt_node_vaf_2.clone(),
+            probs: EventProbs(HashMap::new()),
+            pos: 4,
+            index: 1,
+        });
+        let alt_node_3 = graph.add_node(Node {
+            node_type: NodeType::Var("A".to_string()),
+            vaf: alt_node_vaf_2.clone(),
+            probs: EventProbs(HashMap::new()),
+            pos: 14,
+            index: 3,
+        });
+        let ref_node_1 = graph.add_node(Node {
+            node_type: NodeType::Ref("".to_string()),
+            vaf: alt_node_vaf_2,
+            probs: EventProbs(HashMap::new()),
+            pos: 12,
+            index: 2,
+        });
+        graph.add_edge(
+            alt_node_1,
+            alt_node_2,
+            Edge {
+                supporting_reads: HashMap::new(),
+            },
+        );
+        graph.add_edge(
+            ref_node_1,
+            alt_node_3,
+            Edge {
+                supporting_reads: HashMap::new(),
+            },
+        );
+        VariantGraph {
+            graph,
+            start: 0,
+            end: 15,
+            target: "test".to_string(),
+        }
+    }
+
+    #[test]
+    fn rna_generates_correct_paths_for_forward_strand() {
+        let transcript = Transcript::new(
+            "ENSP00000493376".to_string(),
+            "test".to_string(),
+            Strand::Forward,
+            vec![Cds::new(0, 10, 0), Cds::new(12, 15, 0)],
+        );
+        let graph = setup_graph();
+        let tmp = tempfile::tempdir().unwrap();
+        let graph_path = tmp.path().join("graph.duckdb");
+        write_graphs(HashMap::from([("test".to_string(), graph)]), &graph_path).unwrap();
+        let reference = HashMap::from([(
+            "test".to_string(),
+            vec![
+                b'A', b'T', b'G', b'C', b'A', b'T', b'G', b'C', b'A', b'T', b'T', b'T', b'T', b'T',
+                b'T', b'T', b'T', b'T',
+            ],
+        )]);
+        let rna_paths = transcript.rna(&graph_path, &reference).unwrap();
+        assert_eq!(rna_paths.len(), 1);
+        assert_eq!(
+            rna_paths[0].sequence,
+            vec![
+                b'A', b'G', b'C', b'G', b'T', b'G', b'C', b'A', b'T', b'T', b'T', b'T', b'A', b'T'
+            ]
+        );
     }
 }
