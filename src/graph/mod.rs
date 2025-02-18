@@ -377,6 +377,13 @@ impl EventProbs {
     pub(crate) fn prob_present(&self) -> Result<f32> {
         Ok(1.0 - (self.0.get("PROB_ABSENT").unwrap() + self.0.get("PROB_ARTIFACT").unwrap()))
     }
+
+    pub(crate) fn prob(&self, event: &str) -> Result<f32> {
+        Ok(*self
+            .0
+            .get(event)
+            .ok_or_else(|| anyhow::anyhow!("Event '{}' not found", event))?)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

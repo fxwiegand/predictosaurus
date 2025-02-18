@@ -170,8 +170,15 @@ impl Transcript {
         Ok(weights)
     }
 
-    pub(crate) fn peptides() -> Result<Vec<Peptide>> {
-        unimplemented!()
+    pub(crate) fn peptides(
+        &self,
+        graph: &PathBuf,
+        reference: &HashMap<String, Vec<u8>>,
+    ) -> Result<Vec<Peptide>> {
+        let rnas = self.rna(graph, reference)?;
+        let mut peptides = Vec::new();
+        for rna in rnas {}
+        Ok(peptides)
     }
 
     // Generate RNA sequences for the transcript, create all possible paths by combining the CDSs paths and then apply the variants to the RNA sequences
@@ -291,6 +298,40 @@ impl RnaPath {
             variants.insert(position + offset, probs);
         }
         Ok(RnaPath { sequence, variants })
+    }
+
+    pub(crate) fn peptides(&self, length: u32) -> Result<Vec<Peptide>> {
+        // TODO: Consider frameshift variants prior to interval for current peptide
+        let mut peptides = Vec::new();
+        for (i, p) in self
+            .sequence
+            .windows(length as usize * 3)
+            .step_by(3)
+            .enumerate()
+        {
+            let interval = (i * 3, i * 3 + length as usize * 3);
+            let variants_in_interval = self
+                .variants
+                .iter()
+                .filter(|(pos, _)| *pos >= &interval.0 && *pos < &interval.1)
+                .map(|(_, (probs, _))| probs)
+                .collect_vec();
+            let mut probs = HashMap::new();
+            for variant in variants_in_interval {
+                for (event, prob) in variant.0.iter() {
+                    // Add event or multiply probability if it already exists
+                    match probs.get_mut(event) {
+                        Some(p) => *p *= prob,
+                        None => {
+                            probs.insert(event.clone(), *prob);
+                        }
+                    }
+                }
+            }
+            let peptide = Peptide::from_rna(p.to_vec(), EventProbs(probs))?;
+            peptides.push(peptide);
+        }
+        Ok(peptides)
     }
 }
 

@@ -1,8 +1,8 @@
 use crate::graph::duck::feature_graph;
 use crate::graph::{shift_phase, NodeType, VariantGraph};
 use crate::impact::Impact;
-use crate::translation::amino_acids::Protein;
-use crate::translation::dna_to_protein;
+use crate::translation::amino_acids::{AminoAcid, Protein};
+use crate::translation::dna_to_amino_acids;
 use crate::utils;
 use crate::utils::fasta::reverse_complement;
 use anyhow::{anyhow, Result};
@@ -138,7 +138,7 @@ impl HaplotypePath {
         strand: Strand,
         start: usize,
         end: usize,
-    ) -> Result<Protein> {
+    ) -> Result<Vec<AminoAcid>> {
         let mut frameshift = 0;
         let mut sequence = reference[start..=end].to_vec();
         if strand == Strand::Reverse {
@@ -176,7 +176,7 @@ impl HaplotypePath {
                 frameshift += node.frameshift();
             }
         }
-        dna_to_protein(&sequence)
+        dna_to_amino_acids(&sequence)
     }
 }
 
@@ -185,7 +185,7 @@ mod tests {
     use crate::graph::transcript::Transcript;
     use crate::graph::{Edge, EventProbs, VariantGraph};
     use crate::impact::Impact;
-    use crate::translation::dna_to_protein;
+    use crate::translation::dna_to_amino_acids;
     use bio::bio_types::strand::Strand;
     use petgraph::{Directed, Graph};
     use std::collections::HashMap;
@@ -275,7 +275,7 @@ mod tests {
         let protein = path
             .protein(&graph, 0, b"ACGTTTGTTAG", Strand::Forward, 2, 10)
             .unwrap();
-        assert_eq!(protein, dna_to_protein(b"GTATTGTAG").unwrap());
+        assert_eq!(protein, dna_to_amino_acids(b"GTATTGTAG").unwrap());
     }
 
     #[test]
@@ -285,7 +285,7 @@ mod tests {
         let protein = path
             .protein(&graph, 0, b"CTAACAAATGCA", Strand::Reverse, 2, 10)
             .unwrap();
-        assert_eq!(protein, dna_to_protein(b"GCTTTATTT").unwrap());
+        assert_eq!(protein, dna_to_amino_acids(b"GCTTTATTT").unwrap());
     }
 
     #[test]
@@ -295,6 +295,6 @@ mod tests {
         let protein = path
             .protein(&graph, 1, b"AAAAAAAAAAAAAAAAAAAAAT", Strand::Reverse, 3, 21)
             .unwrap();
-        assert_eq!(protein, dna_to_protein(b"TTTTTTTTTTTTTTTATT").unwrap());
+        assert_eq!(protein, dna_to_amino_acids(b"TTTTTTTTTTTTTTTATT").unwrap());
     }
 }
