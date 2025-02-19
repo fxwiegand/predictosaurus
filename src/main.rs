@@ -1,6 +1,7 @@
 use crate::cli::{Command, Format, Predictosaurus};
 use crate::graph::duck::{create_paths, feature_graph, read_paths, write_graphs, write_paths};
 use crate::graph::paths::Cds;
+use crate::graph::peptide::write_peptides;
 use crate::graph::transcript::transcripts;
 use crate::graph::VariantGraph;
 use crate::show::{render_html_paths, render_tsv_paths, render_vl_paths};
@@ -88,13 +89,25 @@ impl Command {
                 min_event_prob,
                 background_events,
                 min_background_event_prob,
-                min_kmer_prob,
             } => {
                 info!("Reading reference genome from {:?}", reference);
                 let reference_genome = utils::fasta::read_reference(reference);
+                let mut peptides = Vec::new();
                 for transcript in transcripts(features)? {
                     info!("Processing transcript {}", transcript.name());
+                    let transcript_peptides = transcript.peptides(
+                        graph,
+                        &reference_genome,
+                        interval.clone(),
+                        events,
+                        *min_event_prob,
+                        background_events,
+                        *min_background_event_prob,
+                    )?;
+                    peptides.extend(transcript_peptides);
                 }
+                info!("Writing peptides to {:?}", output);
+                write_peptides(peptides, output)?;
             }
             Command::Plot {
                 input,

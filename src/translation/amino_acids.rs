@@ -129,6 +129,32 @@ impl AminoAcid {
         }
     }
 
+    pub(crate) fn short_abbreviation(&self) -> char {
+        match self {
+            AminoAcid::Alanine => 'A',
+            AminoAcid::Arginine => 'R',
+            AminoAcid::Asparagine => 'N',
+            AminoAcid::AsparticAcid => 'D',
+            AminoAcid::Cysteine => 'C',
+            AminoAcid::GlutamicAcid => 'E',
+            AminoAcid::Glutamine => 'Q',
+            AminoAcid::Glycine => 'G',
+            AminoAcid::Histidine => 'H',
+            AminoAcid::Isoleucine => 'I',
+            AminoAcid::Leucine => 'L',
+            AminoAcid::Lysine => 'K',
+            AminoAcid::Methionine => 'M',
+            AminoAcid::Phenylalanine => 'F',
+            AminoAcid::Proline => 'P',
+            AminoAcid::Serine => 'S',
+            AminoAcid::Threonine => 'T',
+            AminoAcid::Tryptophan => 'W',
+            AminoAcid::Tyrosine => 'Y',
+            AminoAcid::Valine => 'V',
+            AminoAcid::Stop => 'X',
+        }
+    }
+
     /// Returns true if the amino acid is a stop codon
     pub(crate) fn is_stop(&self) -> bool {
         matches!(self, AminoAcid::Stop)

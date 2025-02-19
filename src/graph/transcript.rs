@@ -176,6 +176,10 @@ impl Transcript {
         graph: &PathBuf,
         reference: &HashMap<String, Vec<u8>>,
         interval: Interval,
+        events: &Vec<String>,
+        min_event_prob: f32,
+        background_events: &Vec<String>,
+        min_background_event_prob: f32,
     ) -> Result<Vec<Peptide>> {
         let rnas = self.rna(graph, reference)?;
         let mut peptides = Vec::new();
@@ -187,6 +191,14 @@ impl Transcript {
                 }
             }
         }
+        peptides = peptides
+            .iter()
+            .filter(|peptide| {
+                peptide.prob(events).unwrap() >= min_event_prob
+                    && peptide.prob(background_events).unwrap() <= min_background_event_prob
+            })
+            .cloned()
+            .collect_vec();
         Ok(peptides)
     }
 
@@ -319,7 +331,7 @@ impl RnaPath {
         {
             let interval = (i * 3, i * 3 + length as usize * 3);
             // We consider a variant to influence the peptide if it is in the interval or if it is before the interval and causes a frameshift not equal to 0
-            let variants_in_interval = self
+            let probs_variants_in_interval = self
                 .variants
                 .iter()
                 .filter(|(pos, (_, fs))| {
@@ -328,7 +340,7 @@ impl RnaPath {
                 .map(|(_, (probs, _))| probs)
                 .collect_vec();
             let mut probs = HashMap::new();
-            for variant in variants_in_interval {
+            for variant in probs_variants_in_interval {
                 for (event, prob) in variant.0.iter() {
                     // Add event or multiply probability if it already exists
                     match probs.get_mut(event) {
@@ -379,6 +391,7 @@ mod tests {
     use crate::graph::duck::write_graphs;
     use crate::graph::node::Node;
     use crate::graph::Edge;
+    use crate::translation::amino_acids::AminoAcid;
     use petgraph::{Directed, Graph};
 
     #[test]
@@ -396,31 +409,35 @@ mod tests {
         let mut graph = Graph::<Node, Edge, Directed>::new();
         let alt_node_vaf_1 = HashMap::from([("s1".to_string(), 0.5)]);
         let alt_node_vaf_2 = HashMap::from([("s1".to_string(), 0.3)]);
+        let event_probs = EventProbs(HashMap::from([
+            ("germline".to_string(), 0.3),
+            ("somatic".to_string(), 0.8),
+        ]));
         let alt_node_1 = graph.add_node(Node {
             node_type: NodeType::Var("".to_string()),
             vaf: alt_node_vaf_1,
-            probs: EventProbs(HashMap::new()),
+            probs: event_probs.clone(),
             pos: 1,
             index: 0,
         });
         let alt_node_2 = graph.add_node(Node {
             node_type: NodeType::Var("G".to_string()),
             vaf: alt_node_vaf_2.clone(),
-            probs: EventProbs(HashMap::new()),
+            probs: event_probs.clone(),
             pos: 4,
             index: 1,
         });
         let alt_node_3 = graph.add_node(Node {
             node_type: NodeType::Var("A".to_string()),
             vaf: alt_node_vaf_2.clone(),
-            probs: EventProbs(HashMap::new()),
+            probs: event_probs.clone(),
             pos: 14,
             index: 3,
         });
         let ref_node_1 = graph.add_node(Node {
             node_type: NodeType::Ref("".to_string()),
             vaf: alt_node_vaf_2,
-            probs: EventProbs(HashMap::new()),
+            probs: event_probs.clone(),
             pos: 12,
             index: 2,
         });
@@ -473,5 +490,49 @@ mod tests {
                 b'A', b'G', b'C', b'G', b'T', b'G', b'C', b'A', b'T', b'T', b'T', b'T', b'A', b'T'
             ]
         );
+    }
+
+    #[test]
+    fn peptides_generate_correctly_for_valid_input() {
+        let transcript = Transcript::new(
+            "ENSP00000493376".to_string(),
+            "test".to_string(),
+            Strand::Forward,
+            vec![Cds::new(0, 10, 0)],
+        );
+        let graph = setup_graph();
+        let tmp = tempfile::tempdir().unwrap();
+        let graph_path = tmp.path().join("graph.duckdb");
+        write_graphs(HashMap::from([("test".to_string(), graph)]), &graph_path).unwrap();
+        let reference = HashMap::from([(
+            "test".to_string(),
+            vec![
+                b'T', b'T', b'T', b'T', b'T', b'T', b'T', b'T', b'T', b'T', b'T', b'T',
+            ],
+        )]);
+        let interval = Interval { start: 2, end: 2 };
+        let events = vec!["somatic".to_string()];
+        let background_events = vec!["germline".to_string()];
+        let peptides = transcript
+            .peptides(
+                &graph_path,
+                &reference,
+                interval,
+                &events,
+                0.4,
+                &background_events,
+                0.1,
+            )
+            .unwrap();
+        let peptide_sequences = peptides
+            .iter()
+            .map(|p| p.sequence.clone())
+            .unique()
+            .collect::<Vec<Vec<AminoAcid>>>();
+        let expected = vec![
+            vec![AminoAcid::Phenylalanine, AminoAcid::Valine],
+            vec![AminoAcid::Valine, AminoAcid::Phenylalanine],
+        ];
+        assert_eq!(peptide_sequences, expected);
     }
 }
