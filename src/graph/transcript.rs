@@ -1,3 +1,4 @@
+use crate::cli::Interval;
 use crate::graph::duck::feature_graph;
 use crate::graph::node::NodeType;
 use crate::graph::paths::{Cds, HaplotypePath, Weight};
@@ -174,10 +175,18 @@ impl Transcript {
         &self,
         graph: &PathBuf,
         reference: &HashMap<String, Vec<u8>>,
+        interval: Interval,
     ) -> Result<Vec<Peptide>> {
         let rnas = self.rna(graph, reference)?;
         let mut peptides = Vec::new();
-        for rna in rnas {}
+        for i in interval {
+            for rna in &rnas {
+                let p = rna.peptides(i)?;
+                for peptide in p {
+                    peptides.push(peptide);
+                }
+            }
+        }
         Ok(peptides)
     }
 
@@ -301,7 +310,6 @@ impl RnaPath {
     }
 
     pub(crate) fn peptides(&self, length: u32) -> Result<Vec<Peptide>> {
-        // TODO: Consider frameshift variants prior to interval for current peptide
         let mut peptides = Vec::new();
         for (i, p) in self
             .sequence
@@ -310,10 +318,13 @@ impl RnaPath {
             .enumerate()
         {
             let interval = (i * 3, i * 3 + length as usize * 3);
+            // We consider a variant to influence the peptide if it is in the interval or if it is before the interval and causes a frameshift not equal to 0
             let variants_in_interval = self
                 .variants
                 .iter()
-                .filter(|(pos, _)| *pos >= &interval.0 && *pos < &interval.1)
+                .filter(|(pos, (_, fs))| {
+                    (*pos >= &interval.0 && *pos < &interval.1) || (*pos < &interval.0 && fs != &0)
+                })
                 .map(|(_, (probs, _))| probs)
                 .collect_vec();
             let mut probs = HashMap::new();
