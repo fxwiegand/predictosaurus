@@ -360,6 +360,10 @@ impl RnaPath {
                 })
                 .map(|(_, (probs, _, af))| (probs, *af))
                 .collect_vec();
+            // We skip peptides that have no variants in the interval or a frameshift upstream as they are not of any interest
+            if probs_variants_in_interval.is_empty() {
+                continue;
+            }
             let mut probs = HashMap::new();
             for (variant, _) in &probs_variants_in_interval {
                 for (event, prob) in variant.0.iter() {
@@ -372,6 +376,7 @@ impl RnaPath {
                     }
                 }
             }
+            println!("{:?}", probs);
             let afs = probs_variants_in_interval
                 .iter()
                 .map(|(_, af)| *af)
@@ -437,8 +442,8 @@ mod tests {
         let alt_node_vaf_1 = HashMap::from([("s1".to_string(), 0.5)]);
         let alt_node_vaf_2 = HashMap::from([("s1".to_string(), 0.3)]);
         let event_probs = EventProbs(HashMap::from([
-            ("germline".to_string(), LogProb::from(Prob(0.3))),
-            ("somatic".to_string(), LogProb::from(Prob(0.8))),
+            ("PROB_GERMLINE".to_string(), LogProb::from(Prob(0.3))),
+            ("PROB_SOMATIC".to_string(), LogProb::from(Prob(0.8))),
         ]));
         let alt_node_1 = graph.add_node(Node {
             node_type: NodeType::Var("".to_string()),
@@ -538,8 +543,8 @@ mod tests {
             ],
         )]);
         let interval = Interval { start: 2, end: 2 };
-        let events = vec!["somatic".to_string()];
-        let background_events = vec!["germline".to_string()];
+        let events = vec!["SOMATIC".to_string()];
+        let background_events = vec!["GERMLINE".to_string()];
         let peptides = transcript
             .peptides(
                 &graph_path,

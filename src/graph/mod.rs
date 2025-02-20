@@ -386,7 +386,7 @@ impl EventProbs {
     pub(crate) fn prob(&self, event: &str) -> Result<LogProb> {
         Ok(*self
             .0
-            .get(event)
+            .get(format!("PROB_{}", event).as_str())
             .ok_or_else(|| anyhow::anyhow!("Event '{}' not found", event))?)
     }
 }

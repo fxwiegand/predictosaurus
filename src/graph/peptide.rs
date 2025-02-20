@@ -117,9 +117,9 @@ mod tests {
     #[test]
     fn test_peptide_prob() {
         let probs = HashMap::from([
-            ("A".to_string(), LogProb::from(Prob(0.1))),
-            ("B".to_string(), LogProb::from(Prob(0.2))),
-            ("C".to_string(), LogProb::from(Prob(0.3))),
+            ("PROB_A".to_string(), LogProb::from(Prob(0.1))),
+            ("PROB_B".to_string(), LogProb::from(Prob(0.2))),
+            ("PROB_C".to_string(), LogProb::from(Prob(0.3))),
         ]);
         let peptide = Peptide {
             sequence: vec![AminoAcid::Alanine, AminoAcid::Arginine],
