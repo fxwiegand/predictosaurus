@@ -29,7 +29,7 @@ pub(crate) enum Command {
 
         /// Minimum probability for a variant to be considered in the graph
         #[clap(short, long, default_value = "0.8")]
-        min_prob_present: f32,
+        min_prob_present: f64,
 
         /// Path to the output file containing the impact graph
         #[clap(long)]
@@ -76,13 +76,13 @@ pub(crate) enum Command {
         events: Vec<String>,
 
         #[clap(long)]
-        min_event_prob: f32,
+        min_event_prob: f64,
 
         #[clap(short, long)]
         background_events: Vec<String>,
 
         #[clap(long)]
-        min_background_event_prob: f32,
+        min_background_event_prob: f64,
 
         /// Path to the output directory for the fastq files
         #[clap(short, long)]

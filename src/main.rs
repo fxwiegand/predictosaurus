@@ -17,6 +17,7 @@ use itertools::Itertools;
 use log::{debug, info};
 use rayon::prelude::*;
 use std::collections::HashMap;
+use bio::stats::{LogProb, Prob};
 
 mod cli;
 mod graph;
@@ -47,7 +48,7 @@ impl Command {
                 for target in targets {
                     info!("Building graph for target {}", target);
                     let variant_graph =
-                        VariantGraph::build(calls, observations, &target, *min_prob_present)?;
+                        VariantGraph::build(calls, observations, &target, LogProb::from(Prob(*min_prob_present)))?;
                     info!(
                         "Finished building graph for target {} with {} nodes",
                         target,
@@ -100,9 +101,9 @@ impl Command {
                         &reference_genome,
                         interval.clone(),
                         events,
-                        *min_event_prob,
+                        LogProb::from(Prob(*min_event_prob)),
                         background_events,
-                        *min_background_event_prob,
+                        LogProb::from(Prob(*min_background_event_prob)),
                     )?;
                     peptides.extend(transcript_peptides);
                 }

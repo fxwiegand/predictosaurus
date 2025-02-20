@@ -5,6 +5,7 @@ use anyhow::Result;
 use itertools::Itertools;
 use std::fmt::Display;
 use std::path::PathBuf;
+use bio::stats::LogProb;
 
 #[derive(Clone, Debug)]
 pub(crate) struct Peptide {
@@ -31,12 +32,12 @@ impl Peptide {
         Ok(Peptide { sequence, prob })
     }
 
-    pub(crate) fn prob(&self, events: &Vec<String>) -> Result<f32> {
-        events
+    pub(crate) fn prob(&self, events: &Vec<String>) -> Result<LogProb> {
+        let log_probs = events
             .iter()
             .map(|e| self.prob.prob(&e))
-            .collect::<Result<Vec<f32>, _>>()
-            .map(|probs| probs.iter().sum())
+            .collect::<Result<Vec<LogProb>, _>>()?;
+        Ok(LogProb::ln_sum_exp(&log_probs))
     }
 }
 
@@ -62,29 +63,29 @@ mod tests {
     use super::*;
     use crate::graph::EventProbs;
     use std::collections::HashMap;
+    use bio::stats::Prob;
+    use bio::stats::LogProb;
 
     #[test]
     fn test_peptide_prob() {
         let probs = HashMap::from([
-            ("A".to_string(), 0.1),
-            ("B".to_string(), 0.2),
-            ("C".to_string(), 0.3),
+            ("A".to_string(), LogProb::from(Prob(0.1))),
+            ("B".to_string(), LogProb::from(Prob(0.2))),
+            ("C".to_string(), LogProb::from(Prob(0.3))),
         ]);
         let peptide = Peptide {
             sequence: vec![AminoAcid::Alanine, AminoAcid::Arginine],
             prob: EventProbs(probs),
         };
-        assert_eq!(
+        assert!(
             peptide
                 .prob(&vec!["A".to_string(), "B".to_string()])
-                .unwrap(),
-            0.3
+                .unwrap() < LogProb::from(Prob(0.31)) && peptide.prob(&vec!["A".to_string(), "B".to_string()]).unwrap() > LogProb::from(Prob(0.29)),
         );
-        assert_eq!(
+        assert!(
             peptide
                 .prob(&vec!["A".to_string(), "B".to_string(), "C".to_string()])
-                .unwrap(),
-            0.6
+                .unwrap() < LogProb::from(Prob(0.61)) && peptide.prob(&vec!["A".to_string(), "B".to_string(), "C".to_string()]).unwrap() > LogProb::from(Prob(0.59)),
         );
     }
 

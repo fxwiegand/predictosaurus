@@ -14,6 +14,7 @@ use rust_htslib::bgzf::CompressionLevel::Default;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use bio::stats::LogProb;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub(crate) struct Transcript {
@@ -177,9 +178,9 @@ impl Transcript {
         reference: &HashMap<String, Vec<u8>>,
         interval: Interval,
         events: &Vec<String>,
-        min_event_prob: f32,
+        min_event_prob: LogProb,
         background_events: &Vec<String>,
-        min_background_event_prob: f32,
+        min_background_event_prob: LogProb,
     ) -> Result<Vec<Peptide>> {
         let rnas = self.rna(graph, reference)?;
         let mut peptides = Vec::new();
@@ -342,9 +343,9 @@ impl RnaPath {
             let mut probs = HashMap::new();
             for variant in probs_variants_in_interval {
                 for (event, prob) in variant.0.iter() {
-                    // Add event or multiply probability if it already exists
+                    // Add event or multiply probability if it already exists. We are summing because we are in log space
                     match probs.get_mut(event) {
-                        Some(p) => *p *= prob,
+                        Some(p) => *p += *prob,
                         None => {
                             probs.insert(event.clone(), *prob);
                         }
@@ -387,6 +388,7 @@ pub(crate) fn transcripts(gff_file: &PathBuf) -> anyhow::Result<Vec<Transcript>>
 
 #[cfg(test)]
 mod tests {
+    use bio::stats::Prob;
     use super::*;
     use crate::graph::duck::write_graphs;
     use crate::graph::node::Node;
@@ -410,8 +412,8 @@ mod tests {
         let alt_node_vaf_1 = HashMap::from([("s1".to_string(), 0.5)]);
         let alt_node_vaf_2 = HashMap::from([("s1".to_string(), 0.3)]);
         let event_probs = EventProbs(HashMap::from([
-            ("germline".to_string(), 0.3),
-            ("somatic".to_string(), 0.8),
+            ("germline".to_string(), LogProb::from(Prob(0.3))),
+            ("somatic".to_string(), LogProb::from(Prob(0.8))),
         ]));
         let alt_node_1 = graph.add_node(Node {
             node_type: NodeType::Var("".to_string()),
@@ -519,9 +521,9 @@ mod tests {
                 &reference,
                 interval,
                 &events,
-                0.4,
+                LogProb::from(Prob(0.4)),
                 &background_events,
-                0.1,
+                LogProb::from(Prob(0.1)),
             )
             .unwrap();
         let peptide_sequences = peptides
