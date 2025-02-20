@@ -43,7 +43,7 @@ impl Transcript {
         format!("{}:{}", self.feature, self.target)
     }
 
-    pub(crate) fn start(&self) -> anyhow::Result<u64> {
+    pub(crate) fn start(&self) -> Result<u64> {
         self.coding_sequences
             .iter()
             .map(|cds| cds.start)
@@ -51,7 +51,7 @@ impl Transcript {
             .ok_or_else(|| anyhow::anyhow!("No CDS found for transcript {}", self.name()))
     }
 
-    pub(crate) fn end(&self) -> anyhow::Result<u64> {
+    pub(crate) fn end(&self) -> Result<u64> {
         self.coding_sequences
             .iter()
             .map(|cds| cds.end)
