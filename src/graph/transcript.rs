@@ -376,7 +376,6 @@ impl RnaPath {
                     }
                 }
             }
-            println!("{:?}", probs);
             let afs = probs_variants_in_interval
                 .iter()
                 .map(|(_, af)| *af)
