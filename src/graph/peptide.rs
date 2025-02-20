@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use crate::graph::transcript::Transcript;
 use crate::graph::EventProbs;
 use crate::translation::amino_acids::AminoAcid;
@@ -7,6 +8,7 @@ use bio::stats::LogProb;
 use itertools::Itertools;
 use std::fmt::Display;
 use std::path::PathBuf;
+use serde::Serialize;
 
 #[derive(Clone, Debug)]
 pub(crate) struct Peptide {
@@ -54,19 +56,32 @@ impl Peptide {
     }
 }
 
+#[derive(Clone, Debug, Serialize)]
+struct PeptideMetadata {
+    pub(crate) transcript: String,
+    pub(crate) vafs: Vec<f32>,
+}
+
+impl PeptideMetadata {
+    pub(crate) fn new(transcript: String, vafs: Vec<f32>) -> Self {
+        PeptideMetadata { transcript, vafs }
+    }
+}
+
 pub(crate) fn write_peptides(peptides: Vec<Peptide>, output: &PathBuf) -> Result<()> {
     let mut fastq_writer = bio::io::fastq::Writer::to_file(output)?;
-    let unique_peptides = peptides
-        .iter()
-        .map(|p| p.sequence.to_owned())
-        .unique()
-        .collect_vec();
-    for peptide in unique_peptides {
+    let mut unique_peptides = HashMap::new();
+    for peptide in peptides {
+        let entry = unique_peptides.entry(peptide.sequence.to_owned()).or_insert(Vec::new());
+        entry.push((peptide.transcript.feature, peptide.vafs));
+    }
+    for (peptide, meta) in unique_peptides {
         let record = peptide
             .iter()
             .map(|a| a.short_abbreviation())
             .collect::<String>();
-        fastq_writer.write("", None, record.as_bytes(), b"")?;
+        let description = meta.iter().map(|(f, v)| PeptideMetadata::new(f.to_string(), v.to_vec())).collect_vec();
+        fastq_writer.write("", Some(&serde_json::to_string(&description)?), record.as_bytes(), b"")?;
     }
     Ok(())
 }
