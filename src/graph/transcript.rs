@@ -177,12 +177,13 @@ impl Transcript {
         graph: &PathBuf,
         reference: &HashMap<String, Vec<u8>>,
         interval: Interval,
+        sample: &str,
         events: &Vec<String>,
         min_event_prob: LogProb,
         background_events: &Vec<String>,
         min_background_event_prob: LogProb,
     ) -> Result<Vec<Peptide>> {
-        let rnas = self.rna(graph, reference)?;
+        let rnas = self.rna(graph, reference, sample)?;
         let mut peptides = Vec::new();
         for i in interval {
             for rna in &rnas {
@@ -208,6 +209,7 @@ impl Transcript {
         &self,
         graph: &PathBuf,
         reference: &HashMap<String, Vec<u8>>,
+        sample: &str,
     ) -> Result<Vec<RnaPath>> {
         let reference = reference.get(&self.target).unwrap();
         let mut rna = Vec::new();
@@ -256,6 +258,7 @@ impl Transcript {
                                 (
                                     graph.graph.node_weight(*node_index).unwrap().probs.clone(),
                                     node.frameshift(),
+                                    *node.vaf.get(sample).unwrap(),
                                 ),
                             );
                             match self.strand {
@@ -279,7 +282,7 @@ impl Transcript {
                             frameshift += node.frameshift();
                         }
                     }
-                    let rna_path = RnaPath::new(path_sequence, variants);
+                    let rna_path = RnaPath::new(path_sequence, variants, self.clone());
                     cds_rna.push(rna_path);
                 }
             }
@@ -303,15 +306,28 @@ impl Transcript {
 #[derive(Clone, Debug)]
 pub(crate) struct RnaPath {
     pub(crate) sequence: Vec<u8>,
-    pub(crate) variants: HashMap<usize, (EventProbs, i64)>,
+    pub(crate) variants: HashMap<usize, (EventProbs, i64, f32)>,
+    pub(crate) transcript: Transcript,
 }
 
 impl RnaPath {
-    pub(crate) fn new(sequence: Vec<u8>, variants: HashMap<usize, (EventProbs, i64)>) -> RnaPath {
-        RnaPath { sequence, variants }
+    pub(crate) fn new(
+        sequence: Vec<u8>,
+        variants: HashMap<usize, (EventProbs, i64, f32)>,
+        transcript: Transcript,
+    ) -> RnaPath {
+        RnaPath {
+            sequence,
+            variants,
+            transcript,
+        }
     }
 
     pub(crate) fn merge(&self, other: RnaPath) -> Result<RnaPath> {
+        assert_eq!(
+            self.transcript, other.transcript,
+            "Transcripts must be the same to merge both paths"
+        );
         let mut sequence = self.sequence.clone();
         let mut variants = self.variants.clone();
         let offset = self.sequence.len();
@@ -319,7 +335,11 @@ impl RnaPath {
         for (position, probs) in other.variants {
             variants.insert(position + offset, probs);
         }
-        Ok(RnaPath { sequence, variants })
+        Ok(RnaPath {
+            sequence,
+            variants,
+            transcript: self.transcript.clone(),
+        })
     }
 
     pub(crate) fn peptides(&self, length: u32) -> Result<Vec<Peptide>> {
@@ -335,13 +355,13 @@ impl RnaPath {
             let probs_variants_in_interval = self
                 .variants
                 .iter()
-                .filter(|(pos, (_, fs))| {
+                .filter(|(pos, (_, fs, _))| {
                     (*pos >= &interval.0 && *pos < &interval.1) || (*pos < &interval.0 && fs != &0)
                 })
-                .map(|(_, (probs, _))| probs)
+                .map(|(_, (probs, _, af))| (probs, *af))
                 .collect_vec();
             let mut probs = HashMap::new();
-            for variant in probs_variants_in_interval {
+            for (variant, _) in &probs_variants_in_interval {
                 for (event, prob) in variant.0.iter() {
                     // Add event or multiply probability if it already exists. We are summing because we are in log space
                     match probs.get_mut(event) {
@@ -352,19 +372,24 @@ impl RnaPath {
                     }
                 }
             }
-            let peptide = Peptide::from_rna(p.to_vec(), EventProbs(probs))?;
+            let afs = probs_variants_in_interval
+                .iter()
+                .map(|(_, af)| *af)
+                .collect();
+            let peptide =
+                Peptide::from_rna(p.to_vec(), EventProbs(probs), afs, self.transcript.clone())?;
             peptides.push(peptide);
         }
         Ok(peptides)
     }
 }
 
-pub(crate) fn transcripts(gff_file: &PathBuf) -> anyhow::Result<Vec<Transcript>> {
+pub(crate) fn transcripts(gff_file: &PathBuf) -> Result<Vec<Transcript>> {
     let mut feature_reader = gff::Reader::from_file(gff_file, gff::GffType::GFF3)?;
     let mut transcripts = HashMap::new();
     for record in feature_reader
         .records()
-        .filter_map(anyhow::Result::ok)
+        .filter_map(Result::ok)
         .filter(|record| record.feature_type() == "CDS")
     {
         let ensp = record.attributes().get("ID").ok_or_else(|| {
@@ -484,7 +509,7 @@ mod tests {
                 b'T', b'T', b'T', b'T',
             ],
         )]);
-        let rna_paths = transcript.rna(&graph_path, &reference).unwrap();
+        let rna_paths = transcript.rna(&graph_path, &reference, "s1").unwrap();
         assert_eq!(rna_paths.len(), 1);
         assert_eq!(
             rna_paths[0].sequence,
@@ -520,6 +545,7 @@ mod tests {
                 &graph_path,
                 &reference,
                 interval,
+                "s1",
                 &events,
                 LogProb::from(Prob(0.4)),
                 &background_events,

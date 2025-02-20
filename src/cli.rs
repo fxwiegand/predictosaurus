@@ -72,6 +72,10 @@ pub(crate) enum Command {
         #[clap(short, long, default_value_t = Interval::default())]
         interval: Interval,
 
+        /// Sample name used to retrieve allele frequencies from the graph
+        #[clap(short, long)]
+        sample: String,
+
         #[clap(short, long)]
         events: Vec<String>,
 

@@ -1,3 +1,4 @@
+use crate::graph::transcript::Transcript;
 use crate::graph::EventProbs;
 use crate::translation::amino_acids::AminoAcid;
 use crate::translation::dna_to_amino_acids;
@@ -11,6 +12,8 @@ use std::path::PathBuf;
 pub(crate) struct Peptide {
     pub(crate) sequence: Vec<AminoAcid>,
     pub(crate) prob: EventProbs,
+    pub(crate) vafs: Vec<f32>,
+    pub(crate) transcript: Transcript,
 }
 
 impl Display for Peptide {
@@ -27,9 +30,19 @@ impl Display for Peptide {
 }
 
 impl Peptide {
-    pub(crate) fn from_rna(rna: Vec<u8>, prob: EventProbs) -> Result<Self> {
+    pub(crate) fn from_rna(
+        rna: Vec<u8>,
+        prob: EventProbs,
+        vafs: Vec<f32>,
+        transcript: Transcript,
+    ) -> Result<Self> {
         let sequence = dna_to_amino_acids(&rna)?;
-        Ok(Peptide { sequence, prob })
+        Ok(Peptide {
+            sequence,
+            prob,
+            vafs,
+            transcript,
+        })
     }
 
     pub(crate) fn prob(&self, events: &Vec<String>) -> Result<LogProb> {
@@ -62,9 +75,19 @@ pub(crate) fn write_peptides(peptides: Vec<Peptide>, output: &PathBuf) -> Result
 mod tests {
     use super::*;
     use crate::graph::EventProbs;
+    use bio::bio_types::strand::Strand;
     use bio::stats::LogProb;
     use bio::stats::Prob;
     use std::collections::HashMap;
+
+    fn test_transcript() -> Transcript {
+        Transcript::new(
+            "ENSP007".to_string(),
+            "chr1".to_string(),
+            Strand::Forward,
+            vec![],
+        )
+    }
 
     #[test]
     fn test_peptide_prob() {
@@ -76,6 +99,8 @@ mod tests {
         let peptide = Peptide {
             sequence: vec![AminoAcid::Alanine, AminoAcid::Arginine],
             prob: EventProbs(probs),
+            vafs: vec![],
+            transcript: test_transcript(),
         };
         assert!(
             peptide
@@ -105,14 +130,20 @@ mod tests {
             Peptide {
                 sequence: vec![AminoAcid::Alanine, AminoAcid::Arginine],
                 prob: EventProbs(HashMap::new()),
+                vafs: vec![],
+                transcript: test_transcript(),
             },
             Peptide {
                 sequence: vec![AminoAcid::Alanine, AminoAcid::Arginine],
                 prob: EventProbs(HashMap::new()),
+                vafs: vec![],
+                transcript: test_transcript(),
             },
             Peptide {
                 sequence: vec![AminoAcid::Cysteine],
                 prob: EventProbs(HashMap::new()),
+                vafs: vec![],
+                transcript: test_transcript(),
             },
         ];
         let tmp = tempfile::tempdir().unwrap();
