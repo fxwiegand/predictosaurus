@@ -375,7 +375,12 @@ impl EventProbs {
 
     /// Returns the probability of the variant being present by calculating 1 - (PROB_ABSENT + PROB_ARTIFACT)
     pub(crate) fn prob_present(&self) -> Result<LogProb> {
-        Ok(self.0.get("PROB_ABSENT").unwrap().ln_add_exp(*self.0.get("PROB_ARTIFACT").unwrap()).ln_one_minus_exp())
+        Ok(self
+            .0
+            .get("PROB_ABSENT")
+            .unwrap()
+            .ln_add_exp(*self.0.get("PROB_ARTIFACT").unwrap())
+            .ln_one_minus_exp())
     }
 
     pub(crate) fn prob(&self, event: &str) -> Result<LogProb> {
@@ -465,7 +470,10 @@ mod tests {
             ("PROB_ABSENT".to_string(), LogProb::from(Prob(0.1))),
             ("PROB_ARTIFACT".to_string(), LogProb::from(Prob(0.2))),
         ]));
-        assert!(event_probs.prob_present().unwrap() < LogProb::from(Prob(0.71)) && event_probs.prob_present().unwrap() > LogProb::from(Prob(0.69)));
+        assert!(
+            event_probs.prob_present().unwrap() < LogProb::from(Prob(0.71))
+                && event_probs.prob_present().unwrap() > LogProb::from(Prob(0.69))
+        );
     }
 
     #[test]
@@ -476,7 +484,12 @@ mod tests {
             path: observations_file,
             sample: "sample".to_string(),
         }];
-        let variant_graph = VariantGraph::build(&calls_file, &observations, "OX512233.1", LogProb::from(Prob(0.0)));
+        let variant_graph = VariantGraph::build(
+            &calls_file,
+            &observations,
+            "OX512233.1",
+            LogProb::from(Prob(0.0)),
+        );
         assert!(variant_graph.is_ok());
     }
 
@@ -488,8 +501,12 @@ mod tests {
             path: observations_file,
             sample: "sample".to_string(),
         }];
-        let variant_graph =
-            VariantGraph::build(&calls_file, &observations, "not actually in file", LogProb::from(Prob(0.0)));
+        let variant_graph = VariantGraph::build(
+            &calls_file,
+            &observations,
+            "not actually in file",
+            LogProb::from(Prob(0.0)),
+        );
         assert!(variant_graph.unwrap().is_empty());
     }
 
@@ -512,9 +529,13 @@ mod tests {
             path: observations_file,
             sample: "sample".to_string(),
         }];
-        let mut variant_graph =
-            VariantGraph::build(&calls_file, &observations, "OX512233.1", LogProb::from(Prob(0.0)))
-                .unwrap();
+        let mut variant_graph = VariantGraph::build(
+            &calls_file,
+            &observations,
+            "OX512233.1",
+            LogProb::from(Prob(0.0)),
+        )
+        .unwrap();
         variant_graph.graph.add_edge(
             NodeIndex::new(0),
             NodeIndex::new(2),

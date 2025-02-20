@@ -11,13 +11,13 @@ use anyhow::{Context, Result};
 use bio::bio_types::strand::Strand;
 use bio::io::gff;
 use bio::io::gff::GffType;
+use bio::stats::{LogProb, Prob};
 use clap::Parser;
 use env_logger::Env;
 use itertools::Itertools;
 use log::{debug, info};
 use rayon::prelude::*;
 use std::collections::HashMap;
-use bio::stats::{LogProb, Prob};
 
 mod cli;
 mod graph;
@@ -47,8 +47,12 @@ impl Command {
                 let mut graphs = HashMap::new();
                 for target in targets {
                     info!("Building graph for target {}", target);
-                    let variant_graph =
-                        VariantGraph::build(calls, observations, &target, LogProb::from(Prob(*min_prob_present)))?;
+                    let variant_graph = VariantGraph::build(
+                        calls,
+                        observations,
+                        &target,
+                        LogProb::from(Prob(*min_prob_present)),
+                    )?;
                     info!(
                         "Finished building graph for target {} with {} nodes",
                         target,

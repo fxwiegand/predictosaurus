@@ -2,10 +2,10 @@ use crate::graph::EventProbs;
 use crate::translation::amino_acids::AminoAcid;
 use crate::translation::dna_to_amino_acids;
 use anyhow::Result;
+use bio::stats::LogProb;
 use itertools::Itertools;
 use std::fmt::Display;
 use std::path::PathBuf;
-use bio::stats::LogProb;
 
 #[derive(Clone, Debug)]
 pub(crate) struct Peptide {
@@ -62,9 +62,9 @@ pub(crate) fn write_peptides(peptides: Vec<Peptide>, output: &PathBuf) -> Result
 mod tests {
     use super::*;
     use crate::graph::EventProbs;
-    use std::collections::HashMap;
-    use bio::stats::Prob;
     use bio::stats::LogProb;
+    use bio::stats::Prob;
+    use std::collections::HashMap;
 
     #[test]
     fn test_peptide_prob() {
@@ -80,12 +80,22 @@ mod tests {
         assert!(
             peptide
                 .prob(&vec!["A".to_string(), "B".to_string()])
-                .unwrap() < LogProb::from(Prob(0.31)) && peptide.prob(&vec!["A".to_string(), "B".to_string()]).unwrap() > LogProb::from(Prob(0.29)),
+                .unwrap()
+                < LogProb::from(Prob(0.31))
+                && peptide
+                    .prob(&vec!["A".to_string(), "B".to_string()])
+                    .unwrap()
+                    > LogProb::from(Prob(0.29)),
         );
         assert!(
             peptide
                 .prob(&vec!["A".to_string(), "B".to_string(), "C".to_string()])
-                .unwrap() < LogProb::from(Prob(0.61)) && peptide.prob(&vec!["A".to_string(), "B".to_string(), "C".to_string()]).unwrap() > LogProb::from(Prob(0.59)),
+                .unwrap()
+                < LogProb::from(Prob(0.61))
+                && peptide
+                    .prob(&vec!["A".to_string(), "B".to_string(), "C".to_string()])
+                    .unwrap()
+                    > LogProb::from(Prob(0.59)),
         );
     }
 

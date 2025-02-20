@@ -8,13 +8,13 @@ use crate::utils::fasta::reverse_complement;
 use anyhow::Result;
 use bio::bio_types::strand::Strand;
 use bio::io::gff;
+use bio::stats::LogProb;
 use itertools::Itertools;
 use log::info;
 use rust_htslib::bgzf::CompressionLevel::Default;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use bio::stats::LogProb;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub(crate) struct Transcript {
@@ -388,12 +388,12 @@ pub(crate) fn transcripts(gff_file: &PathBuf) -> anyhow::Result<Vec<Transcript>>
 
 #[cfg(test)]
 mod tests {
-    use bio::stats::Prob;
     use super::*;
     use crate::graph::duck::write_graphs;
     use crate::graph::node::Node;
     use crate::graph::Edge;
     use crate::translation::amino_acids::AminoAcid;
+    use bio::stats::Prob;
     use petgraph::{Directed, Graph};
 
     #[test]
