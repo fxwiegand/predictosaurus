@@ -626,4 +626,109 @@ mod tests {
         let result = transcript.reference(&reference).unwrap();
         assert_eq!(result, vec![b'G', b'C', b'A', b'T']);
     }
+
+    #[test]
+    fn start_returns_min_cds_start() {
+        let transcript = Transcript::new(
+            "ENSP00000493376".to_string(),
+            "test".to_string(),
+            Strand::Forward,
+            vec![Cds::new(10, 20, 0), Cds::new(5, 15, 0)],
+        );
+        assert_eq!(transcript.start().unwrap(), 5);
+    }
+
+    #[test]
+    fn end_returns_max_cds_end() {
+        let transcript = Transcript::new(
+            "ENSP00000493376".to_string(),
+            "test".to_string(),
+            Strand::Forward,
+            vec![Cds::new(10, 20, 0), Cds::new(5, 25, 0)],
+        );
+        assert_eq!(transcript.end().unwrap(), 25);
+    }
+
+    #[test]
+    fn cds_returns_sorted_cds_for_forward_strand() {
+        let transcript = Transcript::new(
+            "ENSP00000493376".to_string(),
+            "test".to_string(),
+            Strand::Forward,
+            vec![Cds::new(10, 20, 0), Cds::new(5, 15, 0)],
+        );
+        let cds: Vec<&Cds> = transcript.cds().collect();
+        assert_eq!(cds.len(), 2);
+        assert_eq!(cds[0].start, 5);
+        assert_eq!(cds[1].start, 10);
+    }
+
+    #[test]
+    fn cds_returns_sorted_cds_for_reverse_strand() {
+        let transcript = Transcript::new(
+            "ENSP00000493376".to_string(),
+            "test".to_string(),
+            Strand::Reverse,
+            vec![Cds::new(10, 20, 0), Cds::new(5, 15, 0)],
+        );
+        let cds: Vec<&Cds> = transcript.cds().collect();
+        assert_eq!(cds.len(), 2);
+        assert_eq!(cds[0].start, 10);
+        assert_eq!(cds[1].start, 5);
+    }
+
+    #[test]
+    fn cds_returns_empty_iterator_when_no_cds() {
+        let transcript = Transcript::new(
+            "ENSP00000493376".to_string(),
+            "test".to_string(),
+            Strand::Forward,
+            vec![],
+        );
+        let cds: Vec<&Cds> = transcript.cds().collect();
+        assert!(cds.is_empty());
+    }
+
+    #[test]
+    fn paths_returns_paths_for_forward_strand() {
+        let transcript = Transcript::new(
+            "ENSP00000493376".to_string(),
+            "test".to_string(),
+            Strand::Forward,
+            vec![Cds::new(1, 10, 0)],
+        );
+        let graph = setup_graph();
+        let paths = transcript.paths(&graph).unwrap();
+        assert_eq!(paths, graph.paths());
+    }
+
+    #[test]
+    fn paths_returns_reverse_paths_for_reverse_strand() {
+        let transcript = Transcript::new(
+            "ENSP00000493376".to_string(),
+            "test".to_string(),
+            Strand::Reverse,
+            vec![Cds::new(1, 10, 0)],
+        );
+        let graph = setup_graph();
+        let paths = transcript.paths(&graph).unwrap();
+        assert_eq!(paths, graph.reverse_paths());
+    }
+
+    #[test]
+    fn paths_returns_error_for_unknown_strand() {
+        let transcript = Transcript::new(
+            "ENSP00000493376".to_string(),
+            "test".to_string(),
+            Strand::Unknown,
+            vec![Cds::new(1, 10, 0)],
+        );
+        let graph = setup_graph();
+        let result = transcript.paths(&graph);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "Strand is unknown for transcript ENSP00000493376:test"
+        );
+    }
 }
