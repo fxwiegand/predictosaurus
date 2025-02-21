@@ -292,6 +292,31 @@ mod tests {
     }
 
     #[test]
+    fn test_short_abbreviations() {
+        assert_eq!(AminoAcid::Alanine.short_abbreviation(), 'A');
+        assert_eq!(AminoAcid::Arginine.short_abbreviation(), 'R');
+        assert_eq!(AminoAcid::Asparagine.short_abbreviation(), 'N');
+        assert_eq!(AminoAcid::AsparticAcid.short_abbreviation(), 'D');
+        assert_eq!(AminoAcid::Cysteine.short_abbreviation(), 'C');
+        assert_eq!(AminoAcid::GlutamicAcid.short_abbreviation(), 'E');
+        assert_eq!(AminoAcid::Glutamine.short_abbreviation(), 'Q');
+        assert_eq!(AminoAcid::Glycine.short_abbreviation(), 'G');
+        assert_eq!(AminoAcid::Histidine.short_abbreviation(), 'H');
+        assert_eq!(AminoAcid::Isoleucine.short_abbreviation(), 'I');
+        assert_eq!(AminoAcid::Leucine.short_abbreviation(), 'L');
+        assert_eq!(AminoAcid::Lysine.short_abbreviation(), 'K');
+        assert_eq!(AminoAcid::Methionine.short_abbreviation(), 'M');
+        assert_eq!(AminoAcid::Phenylalanine.short_abbreviation(), 'F');
+        assert_eq!(AminoAcid::Proline.short_abbreviation(), 'P');
+        assert_eq!(AminoAcid::Serine.short_abbreviation(), 'S');
+        assert_eq!(AminoAcid::Threonine.short_abbreviation(), 'T');
+        assert_eq!(AminoAcid::Tryptophan.short_abbreviation(), 'W');
+        assert_eq!(AminoAcid::Tyrosine.short_abbreviation(), 'Y');
+        assert_eq!(AminoAcid::Valine.short_abbreviation(), 'V');
+        assert_eq!(AminoAcid::Stop.short_abbreviation(), 'X');
+    }
+
+    #[test]
     fn test_protein_to_string() {
         let protein = Protein::new(vec![
             AminoAcid::Alanine,
