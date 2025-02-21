@@ -567,4 +567,34 @@ mod tests {
         ];
         assert_eq!(peptide_sequences, expected);
     }
+
+    #[test]
+    fn transcripts_parses_gff_file_correctly() {
+        let gff_content = "\
+            ##gff-version 3
+            chr1\tsource\tCDS\t1\t100\t.\t+\t0\tID=ENSP00000493376
+            chr1\tsource\tCDS\t200\t300\t.\t+\t0\tID=ENSP00000493376
+            chr1\tsource\tCDS\t400\t500\t.\t-\t0\tID=ENSP00000493377
+        ";
+        let tmp = tempfile::tempdir().unwrap();
+        let gff_path = tmp.path().join("test.gff");
+        std::fs::write(&gff_path, gff_content).unwrap();
+
+        let transcripts = transcripts(&gff_path).unwrap();
+        assert_eq!(transcripts.len(), 2);
+
+        let transcript1 = transcripts
+            .iter()
+            .find(|t| t.feature == "ENSP00000493376")
+            .unwrap();
+        assert_eq!(transcript1.coding_sequences.len(), 2);
+        assert_eq!(transcript1.strand, Strand::Forward);
+
+        let transcript2 = transcripts
+            .iter()
+            .find(|t| t.feature == "ENSP00000493377")
+            .unwrap();
+        assert_eq!(transcript2.coding_sequences.len(), 1);
+        assert_eq!(transcript2.strand, Strand::Reverse);
+    }
 }
