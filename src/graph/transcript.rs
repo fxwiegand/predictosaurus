@@ -86,9 +86,12 @@ impl Transcript {
     }
 
     fn reference(&self, reference: &HashMap<String, Vec<u8>>) -> Result<Vec<u8>> {
+        let sequence = reference.get(&self.target).ok_or_else(|| {
+            anyhow::anyhow!("Reference sequence not found for target {}", self.target)
+        })?;
         match self.strand {
-            Strand::Forward => Ok(reference.get(&self.target).unwrap().to_vec()),
-            Strand::Reverse => Ok(reverse_complement(reference.get(&self.target).unwrap())),
+            Strand::Forward => Ok(sequence.to_vec()),
+            Strand::Reverse => Ok(reverse_complement(sequence)),
             Strand::Unknown => Err(anyhow::anyhow!(
                 "Strand is unknown for transcript {}",
                 self.name()
@@ -596,5 +599,31 @@ mod tests {
             .unwrap();
         assert_eq!(transcript2.coding_sequences.len(), 1);
         assert_eq!(transcript2.strand, Strand::Reverse);
+    }
+
+    #[test]
+    fn reference_returns_correct_sequence_for_forward_strand() {
+        let transcript = Transcript::new(
+            "ENSP00000493376".to_string(),
+            "test".to_string(),
+            Strand::Forward,
+            vec![Cds::new(1, 10, 0)],
+        );
+        let reference = HashMap::from([("test".to_string(), vec![b'A', b'T', b'G', b'C'])]);
+        let result = transcript.reference(&reference).unwrap();
+        assert_eq!(result, vec![b'A', b'T', b'G', b'C']);
+    }
+
+    #[test]
+    fn reference_returns_reverse_complement_for_reverse_strand() {
+        let transcript = Transcript::new(
+            "ENSP00000493376".to_string(),
+            "test".to_string(),
+            Strand::Reverse,
+            vec![Cds::new(1, 10, 0)],
+        );
+        let reference = HashMap::from([("test".to_string(), vec![b'A', b'T', b'G', b'C'])]);
+        let result = transcript.reference(&reference).unwrap();
+        assert_eq!(result, vec![b'G', b'C', b'A', b'T']);
     }
 }
