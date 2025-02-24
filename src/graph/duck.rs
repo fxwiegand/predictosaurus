@@ -7,7 +7,7 @@ use anyhow::Result;
 use duckdb::{params, Connection};
 use petgraph::matrix_graph::NodeIndex;
 use petgraph::Graph;
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
@@ -145,6 +145,22 @@ pub(crate) fn feature_graph(
         end: end as i64,
         target: target.clone(),
     })
+}
+
+/// Retrieves all variants from a given serialised graph file. Returns a HashMap of targets and all positions of variants in the graph.
+pub(crate) fn variants_on_graph(path: &PathBuf) -> Result<HashMap<String, BTreeSet<i64>>> {
+    let db = Connection::open(path)?;
+    let mut stmt = db.prepare("SELECT target, pos FROM nodes")?;
+    let variants: Vec<(String, i64)> = stmt
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .map(Result::unwrap)
+        .collect();
+    let mut variant_map = HashMap::new();
+    for (target, pos) in variants {
+        let target_variants = variant_map.entry(target).or_insert(BTreeSet::new());
+        target_variants.insert(pos);
+    }
+    Ok(variant_map)
 }
 
 pub(crate) fn create_paths(output_path: &Path) -> Result<()> {
@@ -479,5 +495,17 @@ mod tests {
         assert!(result.contains_key("some feature"));
         let feature_paths = result.get("some feature").unwrap();
         assert_eq!(feature_paths.len(), 2);
+    }
+
+    #[test]
+    fn test_variants_on_graph() {
+        let mut graphs = HashMap::new();
+        graphs.insert("chr1".to_string(), setup_graph());
+        let temp_dir = tempfile::tempdir().unwrap();
+        let output_path = temp_dir.path().join("graphs.duckdb");
+        write_graphs(graphs, output_path.as_path()).unwrap();
+        let result = variants_on_graph(&output_path).unwrap();
+        let chr1_variants = result.get("chr1").unwrap();
+        assert_eq!(chr1_variants, &vec![1, 2, 3, 4, 8, 9].into_iter().collect());
     }
 }

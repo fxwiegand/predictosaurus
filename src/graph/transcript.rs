@@ -1,5 +1,5 @@
 use crate::cli::Interval;
-use crate::graph::duck::feature_graph;
+use crate::graph::duck::{feature_graph, variants_on_graph};
 use crate::graph::node::NodeType;
 use crate::graph::paths::{Cds, HaplotypePath, Weight};
 use crate::graph::peptide::Peptide;
@@ -391,9 +391,11 @@ impl RnaPath {
     }
 }
 
-pub(crate) fn transcripts(gff_file: &PathBuf) -> Result<Vec<Transcript>> {
+pub(crate) fn transcripts(gff_file: &PathBuf, graph: &PathBuf) -> Result<Vec<Transcript>> {
+    let variants = variants_on_graph(graph)?;
     let mut feature_reader = gff::Reader::from_file(gff_file, gff::GffType::GFF3)?;
     let mut transcripts = HashMap::new();
+    let mut covered = HashMap::new();
     for record in feature_reader
         .records()
         .filter_map(Result::ok)
@@ -410,12 +412,21 @@ pub(crate) fn transcripts(gff_file: &PathBuf) -> Result<Vec<Transcript>> {
             anyhow::anyhow!("No strand found for CDS in sequence {}", record.seqname())
         })?;
         let cds = Cds::new(start, end, phase);
+        if !covered.get(ensp).copied().unwrap_or(false) {
+            let has_variant = cds.contains_variant(&variants);
+            if has_variant {
+                covered.insert(ensp.to_string(), true);
+            }
+        }
         let transcript = transcripts.entry(ensp.to_string()).or_insert_with(|| {
             Transcript::new(ensp.to_string(), target.clone(), strand, Vec::new())
         });
         transcript.coding_sequences.push(cds);
     }
-    Ok(transcripts.into_values().collect())
+    Ok(transcripts
+        .into_values()
+        .filter(|t| matches!(covered.get(&t.feature), Some(true)))
+        .collect())
 }
 
 #[cfg(test)]
@@ -432,11 +443,11 @@ mod tests {
     fn name_formats_transcript_correctly() {
         let transcript = Transcript::new(
             "ENSP00000493376".to_string(),
-            "test".to_string(),
+            "chr1".to_string(),
             Strand::Forward,
             vec![Cds::new(1, 10, 0)],
         );
-        assert_eq!(transcript.name(), "ENSP00000493376:test");
+        assert_eq!(transcript.name(), "ENSP00000493376:chr1");
     }
 
     fn setup_graph() -> VariantGraph {
@@ -493,7 +504,7 @@ mod tests {
             graph,
             start: 0,
             end: 15,
-            target: "test".to_string(),
+            target: "chr1".to_string(),
         }
     }
 
@@ -582,9 +593,15 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let gff_path = tmp.path().join("test.gff");
         std::fs::write(&gff_path, gff_content).unwrap();
+        let graph_path = tmp.path().join("graph.duckdb");
+        write_graphs(
+            HashMap::from([("chr1".to_string(), setup_graph())]),
+            &graph_path,
+        )
+        .unwrap();
 
-        let transcripts = transcripts(&gff_path).unwrap();
-        assert_eq!(transcripts.len(), 2);
+        let transcripts = transcripts(&gff_path, &graph_path).unwrap();
+        assert_eq!(transcripts.len(), 1);
 
         let transcript1 = transcripts
             .iter()
@@ -592,13 +609,6 @@ mod tests {
             .unwrap();
         assert_eq!(transcript1.coding_sequences.len(), 2);
         assert_eq!(transcript1.strand, Strand::Forward);
-
-        let transcript2 = transcripts
-            .iter()
-            .find(|t| t.feature == "ENSP00000493377")
-            .unwrap();
-        assert_eq!(transcript2.coding_sequences.len(), 1);
-        assert_eq!(transcript2.strand, Strand::Reverse);
     }
 
     #[test]
