@@ -762,7 +762,13 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let graph_path = tmp.path().join("graph.duckdb");
         write_graphs(HashMap::from([("test".to_string(), graph)]), &graph_path).unwrap();
-        let reference = HashMap::from([("test".to_string(), vec![b'A', b'T', b'G', b'C', b'A', b'T', b'G', b'C', b'A', b'T', b'G', b'C', b'A', b'T', b'G', b'C'])]);
+        let reference = HashMap::from([(
+            "test".to_string(),
+            vec![
+                b'A', b'T', b'G', b'C', b'A', b'T', b'G', b'C', b'A', b'T', b'G', b'C', b'A', b'T',
+                b'G', b'C',
+            ],
+        )]);
         let weights = transcript.weights(&graph_path, &reference).unwrap();
         assert_eq!(weights.len(), 1);
         assert_eq!(weights[0].len(), 4);
