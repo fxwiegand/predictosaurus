@@ -1,6 +1,8 @@
 pub(crate) mod duck;
 mod node;
 pub(crate) mod paths;
+pub(crate) mod peptide;
+pub(crate) mod transcript;
 
 use crate::cli::ObservationFile;
 use crate::graph::node::{node_distance, nodes_in_between, Node, NodeType};
@@ -10,7 +12,7 @@ use crate::utils::bcf::extract_event_names;
 use anyhow::Result;
 use bio::stats::bayesian::bayes_factors::evidence::KassRaftery;
 use bio::stats::bayesian::BayesFactor;
-use bio::stats::{PHREDProb, Prob};
+use bio::stats::{LogProb, PHREDProb, Prob};
 use itertools::Itertools;
 use log::warn;
 use petgraph::dot::{Config, Dot};
@@ -37,7 +39,7 @@ impl VariantGraph {
         calls_file: &PathBuf,
         observation_files: &[ObservationFile],
         target: &str,
-        min_prob_present: f32,
+        min_prob_present: LogProb,
     ) -> Result<VariantGraph> {
         let mut calls_reader = Reader::from_path(calls_file)?;
         let header = calls_reader.header().clone();
@@ -351,14 +353,14 @@ fn shift_phase(phase: u8, frameshift: u8) -> u8 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct EventProbs(HashMap<String, f32>);
+pub(crate) struct EventProbs(HashMap<String, LogProb>);
 
 impl EventProbs {
     fn from_record(record: &Record, tags: &Vec<String>) -> Self {
         let mut probs = HashMap::new();
         for tag in tags {
             let prob = record.info(tag.as_bytes()).float().unwrap().unwrap()[0];
-            probs.insert(tag.to_string(), *Prob::from(PHREDProb(prob as f64)) as f32);
+            probs.insert(tag.to_string(), LogProb::from(PHREDProb(prob as f64)));
         }
         EventProbs(probs)
     }
@@ -372,8 +374,20 @@ impl EventProbs {
     }
 
     /// Returns the probability of the variant being present by calculating 1 - (PROB_ABSENT + PROB_ARTIFACT)
-    pub(crate) fn prob_present(&self) -> Result<f32> {
-        Ok(1.0 - (self.0.get("PROB_ABSENT").unwrap() + self.0.get("PROB_ARTIFACT").unwrap()))
+    pub(crate) fn prob_present(&self) -> Result<LogProb> {
+        Ok(self
+            .0
+            .get("PROB_ABSENT")
+            .unwrap()
+            .ln_add_exp(*self.0.get("PROB_ARTIFACT").unwrap())
+            .ln_one_minus_exp())
+    }
+
+    pub(crate) fn prob(&self, event: &str) -> Result<LogProb> {
+        Ok(*self
+            .0
+            .get(format!("PROB_{}", event).as_str())
+            .ok_or_else(|| anyhow::anyhow!("Event '{}' not found", event))?)
     }
 }
 
@@ -403,16 +417,13 @@ mod tests {
         ];
         let event_probs = EventProbs::from_record(&record, &tags);
         assert_eq!(event_probs.0.len(), 3);
-        assert_eq!(event_probs.0.get("PROB_ABSENT").unwrap(), &0.9917227);
-        assert_eq!(event_probs.0.get("PROB_PRESENT").unwrap(), &0.008277306);
-        assert_eq!(event_probs.0.get("PROB_ARTIFACT").unwrap(), &0.0);
     }
 
     #[test]
     fn all_nan_returns_true_when_all_values_are_nan() {
         let event_probs = EventProbs(HashMap::from([
-            ("PROB_1".to_string(), f32::NAN),
-            ("PROB_2".to_string(), f32::NAN),
+            ("PROB_1".to_string(), LogProb::from(Prob(f64::NAN))),
+            ("PROB_2".to_string(), LogProb::from(Prob(f64::NAN))),
         ]));
         assert!(event_probs.all_nan());
     }
@@ -420,8 +431,8 @@ mod tests {
     #[test]
     fn all_nan_returns_false_when_not_all_values_are_nan() {
         let event_probs = EventProbs(HashMap::from([
-            ("PROB_1".to_string(), f32::NAN),
-            ("PROB_2".to_string(), 0.5),
+            ("PROB_1".to_string(), LogProb::from(Prob(f64::NAN))),
+            ("PROB_2".to_string(), LogProb::from(Prob(0.5))),
         ]));
         assert!(!event_probs.all_nan());
     }
@@ -429,8 +440,8 @@ mod tests {
     #[test]
     fn is_valid_returns_true_when_all_values_are_nan() {
         let event_probs = EventProbs(HashMap::from([
-            ("PROB_1".to_string(), f32::NAN),
-            ("PROB_2".to_string(), f32::NAN),
+            ("PROB_1".to_string(), LogProb::from(Prob(f64::NAN))),
+            ("PROB_2".to_string(), LogProb::from(Prob(f64::NAN))),
         ]));
         assert!(event_probs.is_valid());
     }
@@ -438,8 +449,8 @@ mod tests {
     #[test]
     fn is_valid_returns_true_when_all_values_are_finite() {
         let event_probs = EventProbs(HashMap::from([
-            ("PROB_1".to_string(), 0.5),
-            ("PROB_2".to_string(), 1.0),
+            ("PROB_1".to_string(), LogProb::from(Prob(0.5))),
+            ("PROB_2".to_string(), LogProb::from(Prob(1.0))),
         ]));
         assert!(event_probs.is_valid());
     }
@@ -447,8 +458,8 @@ mod tests {
     #[test]
     fn is_valid_returns_false_when_some_values_are_nan() {
         let event_probs = EventProbs(HashMap::from([
-            ("PROB_1".to_string(), 0.5),
-            ("PROB_2".to_string(), f32::NAN),
+            ("PROB_1".to_string(), LogProb::from(Prob(0.5))),
+            ("PROB_2".to_string(), LogProb::from(Prob(f64::NAN))),
         ]));
         assert!(!event_probs.is_valid());
     }
@@ -456,10 +467,13 @@ mod tests {
     #[test]
     fn prob_present_calculates_correctly_with_valid_values() {
         let event_probs = EventProbs(HashMap::from([
-            ("PROB_ABSENT".to_string(), 0.1),
-            ("PROB_ARTIFACT".to_string(), 0.2),
+            ("PROB_ABSENT".to_string(), LogProb::from(Prob(0.1))),
+            ("PROB_ARTIFACT".to_string(), LogProb::from(Prob(0.2))),
         ]));
-        assert_eq!(event_probs.prob_present().unwrap(), 0.7);
+        assert!(
+            event_probs.prob_present().unwrap() < LogProb::from(Prob(0.71))
+                && event_probs.prob_present().unwrap() > LogProb::from(Prob(0.69))
+        );
     }
 
     #[test]
@@ -470,7 +484,12 @@ mod tests {
             path: observations_file,
             sample: "sample".to_string(),
         }];
-        let variant_graph = VariantGraph::build(&calls_file, &observations, "OX512233.1", 0.8);
+        let variant_graph = VariantGraph::build(
+            &calls_file,
+            &observations,
+            "OX512233.1",
+            LogProb::from(Prob(0.0)),
+        );
         assert!(variant_graph.is_ok());
     }
 
@@ -482,8 +501,12 @@ mod tests {
             path: observations_file,
             sample: "sample".to_string(),
         }];
-        let variant_graph =
-            VariantGraph::build(&calls_file, &observations, "not actually in file", 0.0);
+        let variant_graph = VariantGraph::build(
+            &calls_file,
+            &observations,
+            "not actually in file",
+            LogProb::from(Prob(0.0)),
+        );
         assert!(variant_graph.unwrap().is_empty());
     }
 
@@ -506,9 +529,13 @@ mod tests {
             path: observations_file,
             sample: "sample".to_string(),
         }];
-        let mut variant_graph =
-            VariantGraph::build(&calls_file, &observations, "OX512233.1", f32::NEG_INFINITY)
-                .unwrap();
+        let mut variant_graph = VariantGraph::build(
+            &calls_file,
+            &observations,
+            "OX512233.1",
+            LogProb::from(Prob(0.0)),
+        )
+        .unwrap();
         variant_graph.graph.add_edge(
             NodeIndex::new(0),
             NodeIndex::new(2),

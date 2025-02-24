@@ -1,6 +1,8 @@
 use crate::cli::{Command, Format, Predictosaurus};
 use crate::graph::duck::{create_paths, feature_graph, read_paths, write_graphs, write_paths};
-use crate::graph::paths::{transcripts, Cds};
+use crate::graph::paths::Cds;
+use crate::graph::peptide::write_peptides;
+use crate::graph::transcript::transcripts;
 use crate::graph::VariantGraph;
 use crate::show::{render_html_paths, render_tsv_paths, render_vl_paths};
 use crate::utils::bcf::get_targets;
@@ -9,6 +11,7 @@ use anyhow::{Context, Result};
 use bio::bio_types::strand::Strand;
 use bio::io::gff;
 use bio::io::gff::GffType;
+use bio::stats::{LogProb, Prob};
 use clap::Parser;
 use env_logger::Env;
 use itertools::Itertools;
@@ -44,8 +47,12 @@ impl Command {
                 let mut graphs = HashMap::new();
                 for target in targets {
                     info!("Building graph for target {}", target);
-                    let variant_graph =
-                        VariantGraph::build(calls, observations, &target, *min_prob_present)?;
+                    let variant_graph = VariantGraph::build(
+                        calls,
+                        observations,
+                        &target,
+                        LogProb::from(Prob(*min_prob_present)),
+                    )?;
                     info!(
                         "Finished building graph for target {} with {} nodes",
                         target,
@@ -76,6 +83,38 @@ impl Command {
                     );
                     write_paths(output, weights, transcript)?;
                 }
+            }
+            Command::Peptides {
+                features,
+                reference,
+                graph,
+                interval,
+                sample,
+                output,
+                events,
+                min_event_prob,
+                background_events,
+                max_background_event_prob,
+            } => {
+                info!("Reading reference genome from {:?}", reference);
+                let reference_genome = utils::fasta::read_reference(reference);
+                let mut peptides = Vec::new();
+                for transcript in transcripts(features)? {
+                    info!("Processing transcript {}", transcript.name());
+                    let transcript_peptides = transcript.peptides(
+                        graph,
+                        &reference_genome,
+                        interval.clone(),
+                        &sample,
+                        events,
+                        LogProb::from(Prob(*min_event_prob)),
+                        background_events,
+                        LogProb::from(Prob(*max_background_event_prob)),
+                    )?;
+                    peptides.extend(transcript_peptides);
+                }
+                info!("Writing peptides to {:?}", output);
+                write_peptides(peptides, output)?;
             }
             Command::Plot {
                 input,

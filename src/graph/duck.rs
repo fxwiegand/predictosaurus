@@ -1,5 +1,6 @@
 use crate::graph::node::{Node, NodeType};
-use crate::graph::paths::{Cds, Transcript, Weight};
+use crate::graph::paths::{Cds, Weight};
+use crate::graph::transcript::Transcript;
 use crate::graph::{Edge, VariantGraph};
 use crate::impact::Impact;
 use anyhow::Result;

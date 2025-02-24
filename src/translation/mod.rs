@@ -1,23 +1,20 @@
 use crate::transcription;
-use amino_acids::Protein;
+use crate::translation::amino_acids::AminoAcid;
 use anyhow::Result;
 use itertools::Itertools;
 
 pub(crate) mod amino_acids;
 
 /// Translates a DNA sequence to a protein sequence
-pub(crate) fn dna_to_protein(dna: &[u8]) -> Result<Protein> {
+pub(crate) fn dna_to_amino_acids(dna: &[u8]) -> Result<Vec<AminoAcid>> {
     let rna = transcription::transcribe_dna_to_rna(dna)?;
-    let protein = rna
+    let amino_acids = rna
         .iter()
         .tuples::<(_, _, _)>()
-        .map(|codon| amino_acids::AminoAcid::from_codon(&[*codon.0, *codon.1, *codon.2]))
-        .take_while(|result| match result {
-            Ok(amino_acid) => *amino_acid != amino_acids::AminoAcid::Stop,
-            Err(_) => unreachable!("Invalid codon"),
-        })
-        .collect::<Result<Vec<amino_acids::AminoAcid>>>()?;
-    Ok(Protein::new(protein))
+        .map(|codon| AminoAcid::from_codon(&[*codon.0, *codon.1, *codon.2]))
+        .take_while(|result| result.is_ok())
+        .collect::<Result<Vec<AminoAcid>>>()?;
+    Ok(amino_acids)
 }
 
 #[cfg(test)]
@@ -26,30 +23,23 @@ mod tests {
     #[test]
     fn test_dna_to_protein() -> Result<()> {
         assert_eq!(
-            dna_to_protein(b"ATGCGCGTA")?.to_string(),
-            "MetArgVal".to_string()
+            dna_to_amino_acids(b"ATGCGCGTA")?,
+            vec![
+                AminoAcid::Methionine,
+                AminoAcid::Arginine,
+                AminoAcid::Valine,
+            ]
         );
         assert_eq!(
-            dna_to_protein(b"ATGCGCGTAAATGCGCGT")?.to_string(),
-            "MetArgValAsnAlaArg".to_string()
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn test_dna_to_protein_with_incomplete_codon() -> Result<()> {
-        assert_eq!(
-            dna_to_protein(b"ATGCGCGT")?.to_string(),
-            "MetArg".to_string()
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn test_dna_to_protein_with_stop_codon() -> Result<()> {
-        assert_eq!(
-            dna_to_protein(b"GCATAATATATG")?.to_string(),
-            "Ala".to_string()
+            dna_to_amino_acids(b"ATGCGCGTAAATGCGCGT")?,
+            vec![
+                AminoAcid::Methionine,
+                AminoAcid::Arginine,
+                AminoAcid::Valine,
+                AminoAcid::Asparagine,
+                AminoAcid::Alanine,
+                AminoAcid::Arginine,
+            ]
         );
         Ok(())
     }

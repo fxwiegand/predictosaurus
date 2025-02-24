@@ -1,4 +1,6 @@
+use crate::cli::Interval;
 use anyhow::Result;
+use itertools::Itertools;
 use std::fmt::Display;
 
 /// A protein consisting of a sequence of amino acids
@@ -11,6 +13,23 @@ impl Protein {
     /// Creates a new protein from a sequence of amino acids
     pub(crate) fn new(sequence: Vec<AminoAcid>) -> Protein {
         Protein { sequence }
+    }
+
+    /// Creates all peptides of length k from the protein
+    pub(crate) fn k_peptides(&self, k: u32) -> Vec<Vec<AminoAcid>> {
+        self.sequence
+            .windows(k as usize)
+            .map(|window| window.to_vec())
+            .unique()
+            .collect()
+    }
+
+    pub(crate) fn peptides(&self, interval: Interval) -> Vec<Vec<AminoAcid>> {
+        interval
+            .into_iter()
+            .map(|i| self.k_peptides(i))
+            .flatten()
+            .collect()
     }
 }
 
@@ -29,7 +48,7 @@ impl Display for Protein {
 }
 
 /// Amino acids and stop
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum AminoAcid {
     Alanine,
     Arginine,
@@ -107,6 +126,32 @@ impl AminoAcid {
             AminoAcid::Tyrosine => "Tyr",
             AminoAcid::Valine => "Val",
             AminoAcid::Stop => "Stop",
+        }
+    }
+
+    pub(crate) fn short_abbreviation(&self) -> char {
+        match self {
+            AminoAcid::Alanine => 'A',
+            AminoAcid::Arginine => 'R',
+            AminoAcid::Asparagine => 'N',
+            AminoAcid::AsparticAcid => 'D',
+            AminoAcid::Cysteine => 'C',
+            AminoAcid::GlutamicAcid => 'E',
+            AminoAcid::Glutamine => 'Q',
+            AminoAcid::Glycine => 'G',
+            AminoAcid::Histidine => 'H',
+            AminoAcid::Isoleucine => 'I',
+            AminoAcid::Leucine => 'L',
+            AminoAcid::Lysine => 'K',
+            AminoAcid::Methionine => 'M',
+            AminoAcid::Phenylalanine => 'F',
+            AminoAcid::Proline => 'P',
+            AminoAcid::Serine => 'S',
+            AminoAcid::Threonine => 'T',
+            AminoAcid::Tryptophan => 'W',
+            AminoAcid::Tyrosine => 'Y',
+            AminoAcid::Valine => 'V',
+            AminoAcid::Stop => 'X',
         }
     }
 
@@ -247,6 +292,31 @@ mod tests {
     }
 
     #[test]
+    fn test_short_abbreviations() {
+        assert_eq!(AminoAcid::Alanine.short_abbreviation(), 'A');
+        assert_eq!(AminoAcid::Arginine.short_abbreviation(), 'R');
+        assert_eq!(AminoAcid::Asparagine.short_abbreviation(), 'N');
+        assert_eq!(AminoAcid::AsparticAcid.short_abbreviation(), 'D');
+        assert_eq!(AminoAcid::Cysteine.short_abbreviation(), 'C');
+        assert_eq!(AminoAcid::GlutamicAcid.short_abbreviation(), 'E');
+        assert_eq!(AminoAcid::Glutamine.short_abbreviation(), 'Q');
+        assert_eq!(AminoAcid::Glycine.short_abbreviation(), 'G');
+        assert_eq!(AminoAcid::Histidine.short_abbreviation(), 'H');
+        assert_eq!(AminoAcid::Isoleucine.short_abbreviation(), 'I');
+        assert_eq!(AminoAcid::Leucine.short_abbreviation(), 'L');
+        assert_eq!(AminoAcid::Lysine.short_abbreviation(), 'K');
+        assert_eq!(AminoAcid::Methionine.short_abbreviation(), 'M');
+        assert_eq!(AminoAcid::Phenylalanine.short_abbreviation(), 'F');
+        assert_eq!(AminoAcid::Proline.short_abbreviation(), 'P');
+        assert_eq!(AminoAcid::Serine.short_abbreviation(), 'S');
+        assert_eq!(AminoAcid::Threonine.short_abbreviation(), 'T');
+        assert_eq!(AminoAcid::Tryptophan.short_abbreviation(), 'W');
+        assert_eq!(AminoAcid::Tyrosine.short_abbreviation(), 'Y');
+        assert_eq!(AminoAcid::Valine.short_abbreviation(), 'V');
+        assert_eq!(AminoAcid::Stop.short_abbreviation(), 'X');
+    }
+
+    #[test]
     fn test_protein_to_string() {
         let protein = Protein::new(vec![
             AminoAcid::Alanine,
@@ -259,5 +329,98 @@ mod tests {
             AminoAcid::Stop,
         ]);
         assert_eq!(protein.to_string(), "AlaArgAsnAspCysGluGlnStop");
+    }
+
+    #[test]
+    fn k_peptides_returns_correct_peptides_of_length_3() {
+        let protein = Protein::new(vec![
+            AminoAcid::Alanine,
+            AminoAcid::Arginine,
+            AminoAcid::Asparagine,
+            AminoAcid::AsparticAcid,
+            AminoAcid::Cysteine,
+        ]);
+        let peptides = protein.k_peptides(3);
+        assert_eq!(
+            peptides,
+            vec![
+                vec![
+                    AminoAcid::Alanine,
+                    AminoAcid::Arginine,
+                    AminoAcid::Asparagine
+                ],
+                vec![
+                    AminoAcid::Arginine,
+                    AminoAcid::Asparagine,
+                    AminoAcid::AsparticAcid
+                ],
+                vec![
+                    AminoAcid::Asparagine,
+                    AminoAcid::AsparticAcid,
+                    AminoAcid::Cysteine
+                ],
+            ]
+        );
+    }
+
+    #[test]
+    fn k_peptides_returns_empty_when_length_is_greater_than_sequence() {
+        let protein = Protein::new(vec![AminoAcid::Alanine, AminoAcid::Arginine]);
+        let peptides = protein.k_peptides(3);
+        assert!(peptides.is_empty());
+    }
+
+    #[test]
+    fn k_peptides_handles_single_amino_acid_sequence() {
+        let protein = Protein::new(vec![AminoAcid::Alanine]);
+        let peptides = protein.k_peptides(1);
+        assert_eq!(peptides, vec![vec![AminoAcid::Alanine]]);
+    }
+
+    #[test]
+    fn k_peptides_return_no_duplicates() {
+        let protein = Protein::new(vec![
+            AminoAcid::Alanine,
+            AminoAcid::Alanine,
+            AminoAcid::Alanine,
+        ]);
+        let peptides = protein.k_peptides(2);
+        assert_eq!(peptides, vec![vec![AminoAcid::Alanine, AminoAcid::Alanine]]);
+    }
+
+    #[test]
+    fn peptides_returns_correct_peptides_for_interval() {
+        let protein = Protein::new(vec![
+            AminoAcid::Alanine,
+            AminoAcid::Arginine,
+            AminoAcid::Asparagine,
+            AminoAcid::AsparticAcid,
+            AminoAcid::Cysteine,
+        ]);
+        let peptides = protein.peptides(Interval { start: 2, end: 3 });
+        assert_eq!(
+            peptides,
+            vec![
+                vec![AminoAcid::Alanine, AminoAcid::Arginine],
+                vec![AminoAcid::Arginine, AminoAcid::Asparagine],
+                vec![AminoAcid::Asparagine, AminoAcid::AsparticAcid],
+                vec![AminoAcid::AsparticAcid, AminoAcid::Cysteine],
+                vec![
+                    AminoAcid::Alanine,
+                    AminoAcid::Arginine,
+                    AminoAcid::Asparagine
+                ],
+                vec![
+                    AminoAcid::Arginine,
+                    AminoAcid::Asparagine,
+                    AminoAcid::AsparticAcid
+                ],
+                vec![
+                    AminoAcid::Asparagine,
+                    AminoAcid::AsparticAcid,
+                    AminoAcid::Cysteine
+                ],
+            ]
+        );
     }
 }
