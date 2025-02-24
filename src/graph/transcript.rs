@@ -731,4 +731,40 @@ mod tests {
             "Strand is unknown for transcript ENSP00000493376:test"
         );
     }
+
+    #[test]
+    fn weights_returns_correct_weights_for_forward_strand() {
+        let transcript = Transcript::new(
+            "ENSP00000493376".to_string(),
+            "test".to_string(),
+            Strand::Forward,
+            vec![Cds::new(1, 10, 0)],
+        );
+        let graph = setup_graph();
+        let tmp = tempfile::tempdir().unwrap();
+        let graph_path = tmp.path().join("graph.duckdb");
+        write_graphs(HashMap::from([("test".to_string(), graph)]), &graph_path).unwrap();
+        let reference = HashMap::from([("test".to_string(), vec![b'A', b'T', b'G', b'C'])]);
+        let weights = transcript.weights(&graph_path, &reference).unwrap();
+        assert_eq!(weights.len(), 1);
+        assert_eq!(weights[0].len(), 2);
+    }
+
+    #[test]
+    fn weights_returns_correct_weights_for_reverse_strand() {
+        let transcript = Transcript::new(
+            "ENSP00000493376".to_string(),
+            "test".to_string(),
+            Strand::Reverse,
+            vec![Cds::new(1, 10, 0)],
+        );
+        let graph = setup_graph();
+        let tmp = tempfile::tempdir().unwrap();
+        let graph_path = tmp.path().join("graph.duckdb");
+        write_graphs(HashMap::from([("test".to_string(), graph)]), &graph_path).unwrap();
+        let reference = HashMap::from([("test".to_string(), vec![b'A', b'T', b'G', b'C'])]);
+        let weights = transcript.weights(&graph_path, &reference).unwrap();
+        assert_eq!(weights.len(), 1);
+        assert_eq!(weights[0].len(), 2);
+    }
 }
