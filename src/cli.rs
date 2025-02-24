@@ -86,7 +86,7 @@ pub(crate) enum Command {
         background_events: Vec<String>,
 
         #[clap(long)]
-        min_background_event_prob: f64,
+        max_background_event_prob: f64,
 
         /// Path to the output directory for the fastq files
         #[clap(short, long)]

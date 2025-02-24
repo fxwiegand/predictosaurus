@@ -184,7 +184,7 @@ impl Transcript {
         events: &Vec<String>,
         min_event_prob: LogProb,
         background_events: &Vec<String>,
-        min_background_event_prob: LogProb,
+        max_background_event_prob: LogProb,
     ) -> Result<Vec<Peptide>> {
         let rnas = self.rna(graph, reference, sample)?;
         let mut peptides = Vec::new();
@@ -200,7 +200,7 @@ impl Transcript {
             .iter()
             .filter(|peptide| {
                 peptide.prob(events).unwrap() >= min_event_prob
-                    && peptide.prob(background_events).unwrap() <= min_background_event_prob
+                    && peptide.prob(background_events).unwrap() <= max_background_event_prob
             })
             .cloned()
             .collect_vec();

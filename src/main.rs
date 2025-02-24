@@ -94,7 +94,7 @@ impl Command {
                 events,
                 min_event_prob,
                 background_events,
-                min_background_event_prob,
+                max_background_event_prob,
             } => {
                 info!("Reading reference genome from {:?}", reference);
                 let reference_genome = utils::fasta::read_reference(reference);
@@ -109,7 +109,7 @@ impl Command {
                         events,
                         LogProb::from(Prob(*min_event_prob)),
                         background_events,
-                        LogProb::from(Prob(*min_background_event_prob)),
+                        LogProb::from(Prob(*max_background_event_prob)),
                     )?;
                     peptides.extend(transcript_peptides);
                 }
