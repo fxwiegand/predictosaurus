@@ -86,13 +86,11 @@ pub(crate) fn write_peptides(peptides: Vec<Peptide>, output: &PathBuf) -> Result
             .iter()
             .map(|(f, v)| PeptideMetadata::new(f.to_string(), v.to_vec()))
             .collect_vec();
-        fasta_writer.write_record(
-            &bio::io::fasta::Record::with_attrs(
-                "",
-                Some(&serde_json::to_string(&description)?),
-                record.as_bytes(),
-            )
-        )?;
+        fasta_writer.write_record(&bio::io::fasta::Record::with_attrs(
+            "",
+            Some(&serde_json::to_string(&description)?),
+            record.as_bytes(),
+        ))?;
     }
     Ok(())
 }
