@@ -45,7 +45,11 @@ impl Cds {
     /// Returns true if the CDS contains the variant
     pub(crate) fn contains_variant(&self, variants: &HashMap<String, BTreeSet<i64>>) -> bool {
         for variant in variants.values() {
-            if variant.range(self.start as i64..=self.end as i64).next().is_some() {
+            if variant
+                .range(self.start as i64..=self.end as i64)
+                .next()
+                .is_some()
+            {
                 return true;
             }
         }
@@ -192,13 +196,13 @@ impl HaplotypePath {
 
 mod tests {
     use crate::graph::node::{Node, NodeType};
+    use crate::graph::paths::Cds;
     use crate::graph::{Edge, EventProbs, VariantGraph};
     use crate::impact::Impact;
     use crate::translation::dna_to_amino_acids;
     use bio::bio_types::strand::Strand;
     use petgraph::{Directed, Graph};
     use std::collections::{BTreeSet, HashMap};
-    use crate::graph::paths::Cds;
 
     fn setup_variant_graph() -> VariantGraph {
         let mut graph = Graph::<Node, Edge, Directed>::new();
