@@ -395,7 +395,7 @@ pub(crate) fn transcripts(gff_file: &PathBuf, graph: &PathBuf) -> Result<Vec<Tra
     let variants = variants_on_graph(graph)?;
     let mut feature_reader = gff::Reader::from_file(gff_file, gff::GffType::GFF3)?;
     let mut transcripts = HashMap::new();
-    let mut covered = HashMap::new();
+    let mut variant_coverage = HashMap::new();
     for record in feature_reader
         .records()
         .filter_map(Result::ok)
@@ -412,10 +412,10 @@ pub(crate) fn transcripts(gff_file: &PathBuf, graph: &PathBuf) -> Result<Vec<Tra
             anyhow::anyhow!("No strand found for CDS in sequence {}", record.seqname())
         })?;
         let cds = Cds::new(start, end, phase);
-        if !covered.get(ensp).copied().unwrap_or(false) {
+        if !variant_coverage.get(ensp).copied().unwrap_or(false) {
             let has_variant = cds.contains_variant(&variants);
             if has_variant {
-                covered.insert(ensp.to_string(), true);
+                variant_coverage.insert(ensp.to_string(), true);
             }
         }
         let transcript = transcripts.entry(ensp.to_string()).or_insert_with(|| {
@@ -425,7 +425,7 @@ pub(crate) fn transcripts(gff_file: &PathBuf, graph: &PathBuf) -> Result<Vec<Tra
     }
     Ok(transcripts
         .into_values()
-        .filter(|t| matches!(covered.get(&t.feature), Some(true)))
+        .filter(|t| matches!(variant_coverage.get(&t.feature), Some(true)))
         .collect())
 }
 
