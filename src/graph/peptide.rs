@@ -69,7 +69,7 @@ impl PeptideMetadata {
 }
 
 pub(crate) fn write_peptides(peptides: Vec<Peptide>, output: &PathBuf) -> Result<()> {
-    let mut fastq_writer = bio::io::fastq::Writer::to_file(output)?;
+    let mut fasta_writer = bio::io::fasta::Writer::to_file(output)?;
     let mut unique_peptides = HashMap::new();
     for peptide in peptides {
         let entry = unique_peptides
@@ -86,11 +86,12 @@ pub(crate) fn write_peptides(peptides: Vec<Peptide>, output: &PathBuf) -> Result
             .iter()
             .map(|(f, v)| PeptideMetadata::new(f.to_string(), v.to_vec()))
             .collect_vec();
-        fastq_writer.write(
-            "",
-            Some(&serde_json::to_string(&description)?),
-            record.as_bytes(),
-            b"",
+        fasta_writer.write_record(
+            &bio::io::fasta::Record::with_attrs(
+                "",
+                Some(&serde_json::to_string(&description)?),
+                record.as_bytes(),
+            )
         )?;
     }
     Ok(())
@@ -172,7 +173,7 @@ mod tests {
             },
         ];
         let tmp = tempfile::tempdir().unwrap();
-        let output_path = tmp.path().join("output.fastq");
+        let output_path = tmp.path().join("output.fasta");
         write_peptides(peptides, &output_path).unwrap();
         let contents = std::fs::read_to_string(output_path).unwrap();
         assert!(contents.contains("AR"));
