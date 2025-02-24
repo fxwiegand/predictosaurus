@@ -13,7 +13,7 @@ use log::info;
 use petgraph::graph::NodeIndex;
 use serde::{Deserialize, Serialize};
 use std::cmp::max;
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -40,6 +40,20 @@ pub(crate) struct Cds {
 impl Cds {
     pub(crate) fn new(start: u64, end: u64, phase: u8) -> Cds {
         Cds { start, end, phase }
+    }
+
+    /// Returns true if the CDS contains the variant
+    pub(crate) fn contains_variant(&self, variants: &HashMap<String, BTreeSet<i64>>) -> bool {
+        for variant in variants.values() {
+            if variant
+                .range(self.start as i64..=self.end as i64)
+                .next()
+                .is_some()
+            {
+                return true;
+            }
+        }
+        false
     }
 }
 
@@ -182,13 +196,13 @@ impl HaplotypePath {
 
 mod tests {
     use crate::graph::node::{Node, NodeType};
-    use crate::graph::transcript::Transcript;
+    use crate::graph::paths::Cds;
     use crate::graph::{Edge, EventProbs, VariantGraph};
     use crate::impact::Impact;
     use crate::translation::dna_to_amino_acids;
     use bio::bio_types::strand::Strand;
     use petgraph::{Directed, Graph};
-    use std::collections::HashMap;
+    use std::collections::{BTreeSet, HashMap};
 
     fn setup_variant_graph() -> VariantGraph {
         let mut graph = Graph::<Node, Edge, Directed>::new();
@@ -296,5 +310,44 @@ mod tests {
             .protein(&graph, 1, b"AAAAAAAAAAAAAAAAAAAAAT", Strand::Reverse, 3, 21)
             .unwrap();
         assert_eq!(protein, dna_to_amino_acids(b"TTTTTTTTTTTTTTTATT").unwrap());
+    }
+
+    #[test]
+    fn contains_variant_returns_true_when_variant_in_range() {
+        let cds = Cds::new(10, 20, 0);
+        let mut variants = HashMap::new();
+        variants.insert("variant1".to_string(), BTreeSet::from([15]));
+        assert!(cds.contains_variant(&variants));
+    }
+
+    #[test]
+    fn contains_variant_returns_false_when_variant_out_of_range() {
+        let cds = Cds::new(10, 20, 0);
+        let mut variants = HashMap::new();
+        variants.insert("variant1".to_string(), BTreeSet::from([25]));
+        assert!(!cds.contains_variant(&variants));
+    }
+
+    #[test]
+    fn contains_variant_returns_false_when_no_variants() {
+        let cds = Cds::new(10, 20, 0);
+        let variants: HashMap<String, BTreeSet<i64>> = HashMap::new();
+        assert!(!cds.contains_variant(&variants));
+    }
+
+    #[test]
+    fn contains_variant_returns_true_when_multiple_variants_in_range() {
+        let cds = Cds::new(10, 20, 0);
+        let mut variants = HashMap::new();
+        variants.insert("variant1".to_string(), BTreeSet::from([12, 18]));
+        assert!(cds.contains_variant(&variants));
+    }
+
+    #[test]
+    fn contains_variant_returns_true_when_variants_on_boundary() {
+        let cds = Cds::new(10, 20, 0);
+        let mut variants = HashMap::new();
+        variants.insert("variant1".to_string(), BTreeSet::from([10, 20]));
+        assert!(cds.contains_variant(&variants));
     }
 }

@@ -73,7 +73,7 @@ impl Command {
                 create_paths(output)?;
                 info!("Reading reference genome from {:?}", reference);
                 let reference_genome = utils::fasta::read_reference(reference);
-                for transcript in transcripts(features)? {
+                for transcript in transcripts(features, graph)? {
                     info!("Processing transcript {}", transcript.name());
                     let weights = transcript.weights(graph, &reference_genome)?;
                     info!(
@@ -99,7 +99,7 @@ impl Command {
                 info!("Reading reference genome from {:?}", reference);
                 let reference_genome = utils::fasta::read_reference(reference);
                 let mut peptides = Vec::new();
-                for transcript in transcripts(features)? {
+                for transcript in transcripts(features, graph)? {
                     info!("Processing transcript {}", transcript.name());
                     let transcript_peptides = transcript.peptides(
                         graph,
