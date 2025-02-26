@@ -381,8 +381,9 @@ impl EventProbs {
             .get("PROB_ABSENT")
             .unwrap()
             .ln_add_exp(*self.0.get("PROB_ARTIFACT").unwrap())
-            .cap_numerical_overshoot(NUMERICAL_EPSILON))
+            .cap_numerical_overshoot(NUMERICAL_EPSILON)
             .ln_one_minus_exp()
+        )
     }
 
     pub(crate) fn prob(&self, event: &str) -> Result<LogProb> {
