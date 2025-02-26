@@ -9,6 +9,7 @@ use crate::graph::node::{node_distance, nodes_in_between, Node, NodeType};
 use crate::graph::paths::HaplotypePath;
 use crate::impact::Impact;
 use crate::utils::bcf::extract_event_names;
+use crate::utils::NUMERICAL_EPSILON;
 use anyhow::Result;
 use bio::stats::bayesian::bayes_factors::evidence::KassRaftery;
 use bio::stats::bayesian::BayesFactor;
@@ -380,7 +381,8 @@ impl EventProbs {
             .get("PROB_ABSENT")
             .unwrap()
             .ln_add_exp(*self.0.get("PROB_ARTIFACT").unwrap())
-            .ln_one_minus_exp())
+            .ln_one_minus_exp()
+            .cap_numerical_overshoot(NUMERICAL_EPSILON))
     }
 
     pub(crate) fn prob(&self, event: &str) -> Result<LogProb> {

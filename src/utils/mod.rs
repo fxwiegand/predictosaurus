@@ -5,6 +5,8 @@ use std::path::Path;
 pub(crate) mod bcf;
 pub(crate) mod fasta;
 
+pub(crate) const NUMERICAL_EPSILON: f64 = 1e-3;
+
 pub(crate) fn create_output_dir(output_path: &Path) -> Result<()> {
     if !output_path.exists() {
         fs::create_dir_all(output_path)?;
