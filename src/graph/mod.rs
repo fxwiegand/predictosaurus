@@ -307,19 +307,22 @@ impl VariantGraph {
             let mut stack = vec![(start_node, vec![start_node])];
 
             while let Some((node, path)) = stack.pop() {
-                for neighbor in self.graph.neighbors(node) {
+                // Use the forward-only filter to only traverse neighbors with higher indices.
+                let mut found_forward = false;
+                for neighbor in self.graph.neighbors(node).filter(|n| n.index() > node.index()) {
+                    found_forward = true;
                     let mut new_path = path.clone();
                     new_path.push(neighbor);
-                    stack.push((neighbor, new_path.clone()));
-
-                    // Check if the neighbor is a leaf node (no outgoing edges)
-                    if self.graph.edges(neighbor).next().is_none() {
-                        all_paths.push(HaplotypePath(new_path));
-                    }
+                    stack.push((neighbor, new_path));
+                }
+                // If no valid forward neighbor is found, we've reached a "leaf" in terms of forward traversal.
+                if !found_forward {
+                    all_paths.push(HaplotypePath(path));
                 }
             }
         }
 
+        // Apply your additional filtering logic.
         all_paths.retain(|path| {
             let nodes = path
                 .0
@@ -331,6 +334,7 @@ impl VariantGraph {
 
         all_paths
     }
+
 
     pub(crate) fn reverse_paths(&self) -> Vec<HaplotypePath> {
         self.paths()
@@ -565,18 +569,12 @@ mod tests {
                 NodeIndex::new(0),
                 NodeIndex::new(2),
                 NodeIndex::new(5),
-                NodeIndex::new(6),
+                NodeIndex::new(7),
             ]),
             HaplotypePath(vec![
                 NodeIndex::new(0),
                 NodeIndex::new(2),
                 NodeIndex::new(5),
-                NodeIndex::new(7),
-            ]),
-            HaplotypePath(vec![
-                NodeIndex::new(1),
-                NodeIndex::new(3),
-                NodeIndex::new(5),
                 NodeIndex::new(6),
             ]),
             HaplotypePath(vec![
@@ -585,9 +583,58 @@ mod tests {
                 NodeIndex::new(5),
                 NodeIndex::new(7),
             ]),
+            HaplotypePath(vec![
+                NodeIndex::new(1),
+                NodeIndex::new(3),
+                NodeIndex::new(5),
+                NodeIndex::new(6),
+            ]),
         ];
 
         assert_eq!(paths, expected_paths);
+    }
+
+    #[test]
+    fn test_graph_paths_with_loop() {
+        let mut graph = Graph::<Node, Edge, Directed>::new();
+        let node0 = graph.add_node(Node::new(NodeType::Ref("A".to_string()), 1));
+        let node1 = graph.add_node(Node::new(NodeType::Var("A".to_string()), 1));
+        let node2 = graph.add_node(Node::new(NodeType::Var("T".to_string()), 3));
+        let node3 = graph.add_node(Node::new(NodeType::Var("G".to_string()), 7));
+        graph.add_edge(
+            node1,
+            node2,
+            Edge {
+                supporting_reads: HashMap::new(),
+            },
+        );
+        graph.add_edge(
+            node1,
+            node3,
+            Edge {
+                supporting_reads: HashMap::new(),
+            },
+        );
+        graph.add_edge(
+            node2,
+            node3,
+            Edge {
+                supporting_reads: HashMap::new(),
+            },
+        );
+
+        let variant_graph = VariantGraph {
+            graph,
+            start: 0,
+            end: 10,
+            target: "test".to_string(),
+        };
+
+        let paths = variant_graph.paths();
+        assert_eq!(paths.len(), 3);
+        assert_eq!(paths[0].0, vec![node0]);
+        assert_eq!(paths[1].0, vec![node1, node2, node3]);
+        assert_eq!(paths[2].0, vec![node1, node3]);
     }
 
     #[test]
@@ -635,9 +682,10 @@ mod tests {
         };
 
         let reversed_paths = variant_graph.reverse_paths();
-        assert_eq!(reversed_paths.len(), 2);
-        assert_eq!(reversed_paths[0].0, vec![node4, node2, node1]);
-        assert_eq!(reversed_paths[1].0, vec![node4, node3, node1]);
+        assert_eq!(reversed_paths.len(), 3);
+        assert_eq!(reversed_paths[1].0, vec![node4, node2, node1]);
+        assert_eq!(reversed_paths[2].0, vec![node4, node3, node1]);
+        assert_eq!(reversed_paths[0].0, vec![node0]);
     }
 
     #[test]
