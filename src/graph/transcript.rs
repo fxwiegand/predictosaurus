@@ -120,6 +120,17 @@ impl Transcript {
                     graph.graph.node_count()
                 );
                 let paths = self.paths(&graph)?;
+                info!(
+                    "Found {} paths for CDS ({}-{}) of transcript {}",
+                    paths.len(),
+                    cds.start,
+                    cds.end,
+                    self.name()
+                );
+                if paths.is_empty() {
+                    continue;
+                }
+                info!("Weights is currently {} long.", weights.len());
                 let reference_sequence = self.reference(reference)?;
                 if weights.is_empty() {
                     let cds_weights = paths
@@ -171,7 +182,8 @@ impl Transcript {
                 }
             }
         }
-        let weights = weights.iter().map(|(w, fs)| w.clone()).collect_vec();
+        let weights = weights.into_iter().map(|(w, _)| w).collect_vec();
+        info!("In the end weights is {} long.", weights.len());
         Ok(weights)
     }
 

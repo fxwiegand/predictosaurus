@@ -309,7 +309,11 @@ impl VariantGraph {
             while let Some((node, path)) = stack.pop() {
                 // Use the forward-only filter to only traverse neighbors with higher indices.
                 let mut found_forward = false;
-                for neighbor in self.graph.neighbors(node).filter(|n| n.index() > node.index()) {
+                for neighbor in self
+                    .graph
+                    .neighbors(node)
+                    .filter(|n| n.index() > node.index())
+                {
                     found_forward = true;
                     let mut new_path = path.clone();
                     new_path.push(neighbor);
@@ -334,7 +338,6 @@ impl VariantGraph {
 
         all_paths
     }
-
 
     pub(crate) fn reverse_paths(&self) -> Vec<HaplotypePath> {
         self.paths()
