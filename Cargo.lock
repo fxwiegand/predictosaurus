@@ -3800,9 +3800,9 @@ checksum = "f8c5f0a0af699448548ad1a2fbf920fb4bee257eae39953ba95cb84891a0446a"
 
 [[package]]
 name = "varlociraptor"
-version = "8.6.1"
+version = "8.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ac128a439e41432eee92daa57f84a30557228c2ae88097f9aba78fd3e94dffa"
+checksum = "32f9052194146be1746c675abfb415f72de33b7b1f4fdf69abc366d98ddc6d6f"
 dependencies = [
  "GSL",
  "anyhow",
