@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.3.0](https://github.com/fxwiegand/predictosaurus/compare/v0.2.10...v0.3.0) (2025-03-24)
+
+
+### Features
+
+* Add subcommand for neoantigen prediction via peptides ([#78](https://github.com/fxwiegand/predictosaurus/issues/78)) ([4523e4f](https://github.com/fxwiegand/predictosaurus/commit/4523e4f0026fb616f3ea51bd37bc311efc02818a))
+
+
+### Bug Fixes
+
+* Cap numerical overshoot when calculating prob_present() ([95180ec](https://github.com/fxwiegand/predictosaurus/commit/95180ecabe51fa4e935d09cb2fec1c92f8d796b7))
+* Cap numerical overshoot when calculating prob_present() ([43eefbe](https://github.com/fxwiegand/predictosaurus/commit/43eefbed4014892cad7e3bb69defde516499c815))
+* Cap numerical overshoot when calculating prob_present() ([7f2e73c](https://github.com/fxwiegand/predictosaurus/commit/7f2e73c85c8653af2f19a592fd1cf1dc839e8f2f))
+
+
+### Performance Improvements
+
+* Enhance transcript processing with variant detection ([#80](https://github.com/fxwiegand/predictosaurus/issues/80)) ([413db7f](https://github.com/fxwiegand/predictosaurus/commit/413db7f8697b161da019cdfdeae7f6b80525952f))
+
 ## [0.2.10](https://github.com/fxwiegand/predictosaurus/compare/v0.2.9...v0.2.10) (2025-02-14)
 
 
