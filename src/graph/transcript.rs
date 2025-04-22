@@ -130,7 +130,6 @@ impl Transcript {
                 if paths.is_empty() {
                     continue;
                 }
-                info!("Weights is currently {} long.", weights.len());
                 let reference_sequence = self.reference(reference)?;
                 if weights.is_empty() {
                     let cds_weights = paths
@@ -183,7 +182,6 @@ impl Transcript {
             }
         }
         let weights = weights.into_iter().map(|(w, _)| w).collect_vec();
-        info!("In the end weights is {} long.", weights.len());
         Ok(weights)
     }
 
