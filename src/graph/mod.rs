@@ -326,7 +326,6 @@ impl VariantGraph {
             }
         }
 
-        // Apply your additional filtering logic.
         all_paths.retain(|path| {
             let nodes = path
                 .0
