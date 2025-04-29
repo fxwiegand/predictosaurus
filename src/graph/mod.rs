@@ -215,14 +215,6 @@ impl VariantGraph {
                     &weights.node_weight(*v[0]).unwrap().index,
                     &weights.node_weight(*v[1]).unwrap().index,
                 ) == 1
-                    || nodes_in_between(
-                        &weights.node_weight(*v[0]).unwrap().index,
-                        &weights.node_weight(*v[1]).unwrap().index,
-                        nodes
-                            .iter()
-                            .map(|n| &weights.node_weight(*n).unwrap().index)
-                            .collect_vec(),
-                    ) == 0
             }) {
                 let edge = self.graph.find_edge(*node_tuple[0], *node_tuple[1]);
                 if let Some(edge) = edge {
