@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/fxwiegand/predictosaurus/compare/v0.3.1...v0.3.2) (2025-04-29)
+
+
+### Bug Fixes
+
+* Remove nodes_in_between check for creating edges ([f1535ad](https://github.com/fxwiegand/predictosaurus/commit/f1535ad857f65319d63a47ad975c5dad6095d580))
+
 ## [0.3.1](https://github.com/fxwiegand/predictosaurus/compare/v0.3.0...v0.3.1) (2025-04-29)
 
 
