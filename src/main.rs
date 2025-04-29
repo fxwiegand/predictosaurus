@@ -105,7 +105,7 @@ impl Command {
                         graph,
                         &reference_genome,
                         interval.clone(),
-                        &sample,
+                        sample,
                         events,
                         LogProb::from(Prob(*min_event_prob)),
                         background_events,

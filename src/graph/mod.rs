@@ -335,7 +335,7 @@ impl VariantGraph {
             nodes.iter().all(|n| n.pos != -1)
         });
 
-        all_paths
+        all_paths.into_iter().unique().collect_vec()
     }
 
     pub(crate) fn reverse_paths(&self) -> Vec<HaplotypePath> {

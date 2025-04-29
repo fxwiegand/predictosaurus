@@ -16,7 +16,7 @@ use std::cmp::max;
 use std::collections::{BTreeSet, HashMap};
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct HaplotypePath(pub(crate) Vec<NodeIndex>);
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]

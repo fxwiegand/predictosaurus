@@ -50,7 +50,7 @@ impl Peptide {
     pub(crate) fn prob(&self, events: &Vec<String>) -> Result<LogProb> {
         let log_probs = events
             .iter()
-            .map(|e| self.prob.prob(&e))
+            .map(|e| self.prob.prob(e))
             .collect::<Result<Vec<LogProb>, _>>()?;
         Ok(LogProb::ln_sum_exp(&log_probs))
     }

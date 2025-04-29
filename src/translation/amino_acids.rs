@@ -27,8 +27,7 @@ impl Protein {
     pub(crate) fn peptides(&self, interval: Interval) -> Vec<Vec<AminoAcid>> {
         interval
             .into_iter()
-            .map(|i| self.k_peptides(i))
-            .flatten()
+            .flat_map(|i| self.k_peptides(i))
             .collect()
     }
 }
