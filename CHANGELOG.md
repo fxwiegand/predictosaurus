@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/fxwiegand/predictosaurus/compare/v0.3.0...v0.3.1) (2025-04-29)
+
+
+### Bug Fixes
+
+* Filter unique paths ([6106aba](https://github.com/fxwiegand/predictosaurus/commit/6106abaf93b85f60d05af801e868573f28f5af5b))
+
 ## [0.3.0](https://github.com/fxwiegand/predictosaurus/compare/v0.2.10...v0.3.0) (2025-04-23)
 
 
