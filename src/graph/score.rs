@@ -10,7 +10,7 @@ pub struct EffectScore {
     pub num_snps: usize,
     /// Total fractional CDS length affected by frameshifts (0.0–1.0)
     pub fs_fraction: f64,
-    /// Sum of stop-gained penalties (each in 0.0–1.0)
+    /// Stop-gained penalty
     pub stop_fraction: f64,
 }
 
