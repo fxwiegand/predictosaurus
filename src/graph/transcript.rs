@@ -3,6 +3,7 @@ use crate::graph::duck::{feature_graph, variants_on_graph};
 use crate::graph::node::NodeType;
 use crate::graph::paths::{Cds, HaplotypePath, Weight};
 use crate::graph::peptide::Peptide;
+use crate::graph::score::EffectScore;
 use crate::graph::{shift_phase, EventProbs, VariantGraph};
 use crate::utils::fasta::reverse_complement;
 use anyhow::Result;
@@ -74,6 +75,11 @@ impl Transcript {
         }
     }
 
+    // Returns the total length of all CDS of the transcript
+    pub(crate) fn length(&self) -> usize {
+        self.cds().map(|c| c.length()).sum()
+    }
+
     fn paths(&self, graph: &VariantGraph) -> Result<Vec<HaplotypePath>> {
         match self.strand {
             Strand::Forward => Ok(graph.paths()),
@@ -97,6 +103,14 @@ impl Transcript {
                 self.name()
             )),
         }
+    }
+
+    pub(crate) fn scores(
+        &self,
+        graph: &PathBuf,
+        reference: &HashMap<String, Vec<u8>>,
+    ) -> Result<Vec<EffectScore>> {
+        unimplemented!()
     }
 
     pub(crate) fn weights(

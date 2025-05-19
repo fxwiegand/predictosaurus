@@ -2,6 +2,7 @@ pub(crate) mod duck;
 mod node;
 pub(crate) mod paths;
 pub(crate) mod peptide;
+pub(crate) mod score;
 pub(crate) mod transcript;
 
 use crate::cli::ObservationFile;
