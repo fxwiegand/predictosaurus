@@ -37,3 +37,31 @@ impl EffectScore {
         r / (1.0 + r)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_raw_score() {
+        let score = EffectScore {
+            num_snps: 3,
+            fs_fraction: 0.4,
+            stop_fraction: 0.2,
+        };
+        let expected = FS_WEIGHT * 0.4 + SNP_WEIGHT * 3.0 + STOP_WEIGHT * 0.2;
+        assert!((score.raw() - expected).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_normalized_score() {
+        let score = EffectScore {
+            num_snps: 2,
+            fs_fraction: 0.1,
+            stop_fraction: 0.3,
+        };
+        let raw = score.raw();
+        let expected = raw / (1.0 + raw);
+        assert!((score.normalized() - expected).abs() < 1e-6);
+    }
+}

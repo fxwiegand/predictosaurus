@@ -724,6 +724,17 @@ mod tests {
     }
 
     #[test]
+    fn test_transcript_length() {
+        let transcript = Transcript::new(
+            "ENSP00000493376".to_string(),
+            "test".to_string(),
+            Strand::Forward,
+            vec![Cds::new(10, 20, 0), Cds::new(30, 40, 0)],
+        );
+        assert_eq!(transcript.length(), 22)
+    }
+
+    #[test]
     fn paths_returns_paths_for_forward_strand() {
         let transcript = Transcript::new(
             "ENSP00000493376".to_string(),
