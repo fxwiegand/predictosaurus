@@ -1,21 +1,25 @@
 use crate::cli::Interval;
 use crate::graph::duck::{feature_graph, variants_on_graph};
-use crate::graph::node::NodeType;
+use crate::graph::node::{Node, NodeType};
 use crate::graph::paths::{Cds, HaplotypePath, Weight};
 use crate::graph::peptide::Peptide;
 use crate::graph::score::EffectScore;
 use crate::graph::{shift_phase, EventProbs, VariantGraph};
+use crate::translation::amino_acids::AminoAcid;
 use crate::utils::fasta::reverse_complement;
 use anyhow::Result;
 use bio::bio_types::strand::Strand;
-use bio::io::gff;
+use bio::io::gff::{self, Phase};
 use bio::stats::LogProb;
 use itertools::Itertools;
 use log::info;
+use petgraph::adj::NodeIndex;
 use rust_htslib::bgzf::CompressionLevel::Default;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
+
+use super::node;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub(crate) struct Transcript {
@@ -105,12 +109,86 @@ impl Transcript {
         }
     }
 
+    fn haplotypes(&self, graph: &PathBuf) -> Result<Vec<Vec<Node>>> {
+        let mut haplotypes = Vec::new();
+        for cds in self.cds() {
+            if let Ok(graph) = feature_graph(
+                graph.to_owned(),
+                self.target.to_string(),
+                cds.start,
+                cds.end,
+            ) {
+                let paths = self
+                    .paths(&graph)?
+                    .iter()
+                    .map(|p| {
+                        p.0.iter()
+                            .map(|v| graph.graph.node_weight(*v).unwrap().to_owned())
+                            .collect_vec()
+                    })
+                    .collect_vec();
+                if haplotypes.is_empty() {
+                    haplotypes = paths;
+                } else {
+                    let mut extended = Vec::new();
+
+                    for (existing_path, new_path) in
+                        haplotypes.iter().cartesian_product(paths.iter())
+                    {
+                        let mut combined = existing_path.clone();
+                        combined.extend(new_path.iter().cloned());
+                        extended.push(combined);
+                    }
+                    haplotypes = extended;
+                }
+            }
+        }
+        Ok(haplotypes)
+    }
+
     pub(crate) fn scores(
         &self,
         graph: &PathBuf,
         reference: &HashMap<String, Vec<u8>>,
     ) -> Result<Vec<EffectScore>> {
-        unimplemented!()
+        let haplotypes = self.haplotypes(graph)?;
+        let mut scores = Vec::with_capacity(haplotypes.len());
+        for haplotype in haplotypes {
+            let mut num_snps = 0;
+            let mut stop_penalty = None;
+            for node in haplotype.iter().filter(|n| n.node_type.is_variant()) {
+                if node.is_snp() {
+                    num_snps += 1;
+                } else if node.frameshift() != 0 {
+                    // TODO: Save FS and position as tuple?
+                }
+
+                let phase = 0; // TODO: Calculate phase in haplotype
+
+                if stop_penalty.is_none()
+                    && node
+                        .variant_amino_acids(
+                            phase,
+                            reference.get(&self.target).unwrap(),
+                            self.strand,
+                        )
+                        .unwrap()
+                        .contains(&AminoAcid::Methionine)
+                {
+                    // TODO: Calculate stop penalty based on position in Transcript. The earlier in the transcript, the higher the penalty
+                    stop_penalty = Some(0.0)
+                }
+            }
+            if stop_penalty.is_none() {
+                stop_penalty = Some(0.0)
+            }
+            scores.push(EffectScore {
+                num_snps,
+                fs_fraction: 0.0,
+                stop_fraction: stop_penalty.unwrap(),
+            });
+        }
+        Ok(scores)
     }
 
     pub(crate) fn weights(
