@@ -222,13 +222,10 @@ impl Transcript {
 
                 phase = shift_phase(phase, ((node.frameshift() + 3) % 3) as u8);
             }
-            if stop_penalty.is_none() {
-                stop_penalty = Some(0.0)
-            }
             scores.push(EffectScore {
                 num_snps,
                 fs_fraction: 0.0,
-                stop_fraction: stop_penalty.unwrap(),
+                stop_fraction: stop_penalty,
             });
         }
         Ok(scores)

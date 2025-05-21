@@ -11,7 +11,7 @@ pub struct EffectScore {
     /// Total fractional CDS length affected by frameshifts (0.0–1.0)
     pub fs_fraction: f64,
     /// Stop-gained penalty
-    pub stop_fraction: f64,
+    pub stop_fraction: Option<f64>,
 }
 
 impl EffectScore {
@@ -20,7 +20,7 @@ impl EffectScore {
         EffectScore {
             num_snps: 0,
             fs_fraction: 0.0,
-            stop_fraction: 0.0,
+            stop_fraction: None,
         }
     }
 
@@ -28,7 +28,7 @@ impl EffectScore {
     pub fn raw(&self) -> f64 {
         FS_WEIGHT * self.fs_fraction
             + SNP_WEIGHT * (self.num_snps as f64)
-            + STOP_WEIGHT * self.stop_fraction
+            + STOP_WEIGHT * self.stop_fraction.unwrap_or(0.0)
     }
 
     /// Compute the normalized score in (0,1): raw/(1+raw)
@@ -47,7 +47,7 @@ mod tests {
         let score = EffectScore {
             num_snps: 3,
             fs_fraction: 0.4,
-            stop_fraction: 0.2,
+            stop_fraction: Some(0.2),
         };
         let expected = FS_WEIGHT * 0.4 + SNP_WEIGHT * 3.0 + STOP_WEIGHT * 0.2;
         assert!((score.raw() - expected).abs() < 1e-6);
@@ -58,7 +58,7 @@ mod tests {
         let score = EffectScore {
             num_snps: 2,
             fs_fraction: 0.1,
-            stop_fraction: 0.3,
+            stop_fraction: Some(0.3),
         };
         let raw = score.raw();
         let expected = raw / (1.0 + raw);
