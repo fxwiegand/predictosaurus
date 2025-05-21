@@ -7,7 +7,7 @@ use crate::graph::score::EffectScore;
 use crate::graph::{shift_phase, EventProbs, VariantGraph};
 use crate::translation::amino_acids::AminoAcid;
 use crate::utils::fasta::reverse_complement;
-use anyhow::Result;
+use anyhow::{bail, Result};
 use bio::bio_types::strand::Strand;
 use bio::io::gff::{self, Phase};
 use bio::stats::LogProb;
@@ -82,6 +82,22 @@ impl Transcript {
     // Returns the total length of all CDS of the transcript
     pub(crate) fn length(&self) -> usize {
         self.cds().map(|c| c.length()).sum()
+    }
+
+    // Returns the position of the variant in relation to the overall length of transcript
+    pub(crate) fn position_in_transcript(&self, pos: usize) -> Result<usize> {
+        let mut offset = 0;
+        for cds in self.cds() {
+            if ((cds.start as usize)..=(cds.end as usize)).contains(&pos) {
+                return Ok(offset + (pos - cds.start as usize));
+            }
+            offset += (cds.end - cds.start + 1) as usize;
+        }
+        bail!(
+            "Position {} not found in CDS of transcript {}",
+            pos,
+            self.name()
+        );
     }
 
     fn paths(&self, graph: &VariantGraph) -> Result<Vec<HaplotypePath>> {
@@ -175,8 +191,16 @@ impl Transcript {
                         .unwrap()
                         .contains(&AminoAcid::Methionine)
                 {
-                    // TODO: Calculate stop penalty based on position in Transcript. The earlier in the transcript, the higher the penalty
-                    stop_penalty = Some(0.0)
+                    // Calculate stop penalty based on position in Transcript. The earlier in the transcript, the higher the penalty
+                    let relative_position_fraction =
+                        self.position_in_transcript(node.pos as usize)? as f64
+                            / self.length() as f64;
+
+                    stop_penalty = Some(if self.strand == Strand::Forward {
+                        1.0 - relative_position_fraction
+                    } else {
+                        relative_position_fraction
+                    });
                 }
             }
             if stop_penalty.is_none() {
@@ -895,5 +919,32 @@ mod tests {
         let weights = transcript.weights(&graph_path, &reference).unwrap();
         assert_eq!(weights.len(), 4);
         assert_eq!(weights[0].len(), 3);
+    }
+
+    #[test]
+    fn test_position_in_transcript() {
+        let transcript = Transcript {
+            feature: "Test".to_string(),
+            target: "chr1".to_string(),
+            strand: Strand::Forward,
+            coding_sequences: vec![
+                Cds {
+                    start: 100,
+                    end: 104,
+                    phase: 0,
+                },
+                Cds {
+                    start: 200,
+                    end: 202,
+                    phase: 0,
+                },
+            ],
+        };
+
+        assert_eq!(transcript.position_in_transcript(100).unwrap(), 0);
+        assert_eq!(transcript.position_in_transcript(104).unwrap(), 4);
+        assert_eq!(transcript.position_in_transcript(200).unwrap(), 5);
+        assert_eq!(transcript.position_in_transcript(202).unwrap(), 7);
+        assert!(transcript.position_in_transcript(150).is_err());
     }
 }
