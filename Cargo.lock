@@ -478,9 +478,9 @@ dependencies = [
 
 [[package]]
 name = "bio"
-version = "2.2.0"
+version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0875bce309de30d684a736aaf628bf9edbd3bdad896eb11b72a182155a5fb97f"
+checksum = "add46f280e82963d4abb6f2c78f491a1f45be23ba27516856a1efbf194107bb7"
 dependencies = [
  "anyhow",
  "approx",
@@ -502,8 +502,7 @@ dependencies = [
  "num-integer",
  "num-traits",
  "ordered-float 5.0.0",
- "petgraph 0.6.5",
- "rand 0.8.5",
+ "petgraph 0.8.1",
  "regex",
  "serde",
  "serde_derive",
@@ -3838,9 +3837,9 @@ checksum = "f8c5f0a0af699448548ad1a2fbf920fb4bee257eae39953ba95cb84891a0446a"
 
 [[package]]
 name = "varlociraptor"
-version = "8.7.1"
+version = "8.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32f9052194146be1746c675abfb415f72de33b7b1f4fdf69abc366d98ddc6d6f"
+checksum = "0cdffcd83e0e25d58bf1a1fc24030fce2504f3352c27d75e52acd1bd4f195f14"
 dependencies = [
  "GSL",
  "anyhow",
