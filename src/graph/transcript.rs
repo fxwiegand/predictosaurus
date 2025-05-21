@@ -91,7 +91,7 @@ impl Transcript {
             if ((cds.start as usize)..=(cds.end as usize)).contains(&pos) {
                 return Ok(offset + (pos - cds.start as usize));
             }
-            offset += (cds.end - cds.start + 1) as usize;
+            offset += cds.length();
         }
         bail!(
             "Position {} not found in CDS of transcript {}",
