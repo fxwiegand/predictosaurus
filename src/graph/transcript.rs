@@ -100,6 +100,12 @@ impl Transcript {
         );
     }
 
+    /// Returns the CDS containing the given genomic position, or None if not found.
+    pub(crate) fn cds_for_position(&self, pos: i64) -> Option<&Cds> {
+        self.cds()
+            .find(|cds| (cds.start as i64..=cds.end as i64).contains(&pos))
+    }
+
     fn paths(&self, graph: &VariantGraph) -> Result<Vec<HaplotypePath>> {
         match self.strand {
             Strand::Forward => Ok(graph.paths()),
@@ -172,6 +178,8 @@ impl Transcript {
         for haplotype in haplotypes {
             let mut num_snps = 0;
             let mut stop_penalty = None;
+            let mut phase = 0;
+            let mut cds = None;
             for node in haplotype.iter().filter(|n| n.node_type.is_variant()) {
                 if node.is_snp() {
                     num_snps += 1;
@@ -179,7 +187,16 @@ impl Transcript {
                     // TODO: Save FS and position as tuple?
                 }
 
-                let phase = 0; // TODO: Calculate phase in haplotype
+                let node_cds = self
+                    .cds_for_position(node.pos)
+                    .expect("Found node located outside of CDS");
+                if cds.as_ref() != Some(node_cds) {
+                    cds = Some(node_cds.to_owned());
+                    phase = node_cds.phase;
+                }
+
+                // Update phase based on frameshift of the current node
+                phase = shift_phase(phase, ((node.frameshift() + 3) % 3) as u8);
 
                 if stop_penalty.is_none()
                     && node
@@ -202,6 +219,8 @@ impl Transcript {
                         relative_position_fraction
                     });
                 }
+
+                phase = shift_phase(phase, ((node.frameshift() + 3) % 3) as u8);
             }
             if stop_penalty.is_none() {
                 stop_penalty = Some(0.0)
@@ -946,5 +965,40 @@ mod tests {
         assert_eq!(transcript.position_in_transcript(200).unwrap(), 5);
         assert_eq!(transcript.position_in_transcript(202).unwrap(), 7);
         assert!(transcript.position_in_transcript(150).is_err());
+    }
+
+    #[test]
+    fn test_cds_for_position_option() {
+        let transcript = Transcript {
+            feature: "Test".to_string(),
+            target: "chr1".to_string(),
+            strand: Strand::Forward,
+            coding_sequences: vec![
+                Cds {
+                    start: 100,
+                    end: 199,
+                    phase: 0,
+                },
+                Cds {
+                    start: 300,
+                    end: 399,
+                    phase: 0,
+                },
+            ],
+        };
+
+        assert_eq!(
+            transcript
+                .cds_for_position(150)
+                .map(|cds| (cds.start, cds.end)),
+            Some((100, 199))
+        );
+        assert_eq!(
+            transcript
+                .cds_for_position(350)
+                .map(|cds| (cds.start, cds.end)),
+            Some((300, 399))
+        );
+        assert_eq!(transcript.cds_for_position(250), None);
     }
 }
