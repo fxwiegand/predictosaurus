@@ -95,8 +95,8 @@ impl Node {
         }
     }
 
-    // Returns whether the node is a SNP
-    pub(crate) fn is_snp(&self) -> bool {
+    // Returns whether the node is a SNV
+    pub(crate) fn is_snv(&self) -> bool {
         match &self.node_type {
             NodeType::Var(alt_allele) => alt_allele.len() == 1,
             NodeType::Ref(_) => false,

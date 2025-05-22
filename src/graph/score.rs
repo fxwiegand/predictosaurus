@@ -7,15 +7,15 @@ use bio::bio_types::strand::Strand;
 use std::collections::HashMap;
 
 /// Tuning constants for the score components
-const SNP_WEIGHT: f64 = 0.1; // Weight per SNP
+const SNV_WEIGHT: f64 = 0.1; // Weight per SNV
 const FS_WEIGHT: f64 = 1.0; // Weight for frameshift fraction
 const STOP_WEIGHT: f64 = 1.0; // Weight for stop-gained fraction
 
 /// Breakdown of effects for one haplotype path
 #[derive(Debug, Clone)]
 pub struct EffectScore {
-    /// Number of coding SNPs on this haplotype
-    pub num_snps: usize,
+    /// Number of coding SNVs on this haplotype
+    pub num_snvs: usize,
     /// Total fractional CDS length affected by frameshifts (0.0–1.0)
     pub fs_fraction: f64,
     /// Stop-gained penalty
@@ -26,7 +26,7 @@ impl EffectScore {
     /// Create a new empty score
     pub fn new() -> Self {
         EffectScore {
-            num_snps: 0,
+            num_snvs: 0,
             fs_fraction: 0.0,
             stop_fraction: None,
         }
@@ -37,14 +37,14 @@ impl EffectScore {
         transcript: &Transcript,
         haplotype: Vec<Node>,
     ) -> Result<Self> {
-        let mut num_snps = 0;
+        let mut num_snvs = 0;
         let mut stop_penalty = None;
         let mut phase = 0;
         let mut cds = None;
         let mut frameshift_positions = Vec::new();
         for node in haplotype.iter().filter(|n| n.node_type.is_variant()) {
-            if node.is_snp() {
-                num_snps += 1;
+            if node.is_snv() {
+                num_snvs += 1;
             } else if node.frameshift() != 0 {
                 let pos = transcript.position_in_transcript(node.pos as usize)?;
                 frameshift_positions.push((pos, node.frameshift()));
@@ -114,7 +114,7 @@ impl EffectScore {
         };
 
         Ok(EffectScore {
-            num_snps,
+            num_snvs,
             fs_fraction,
             stop_fraction: stop_penalty,
         })
@@ -123,7 +123,7 @@ impl EffectScore {
     /// Compute the raw combined score using tuning constants
     pub fn raw(&self) -> f64 {
         FS_WEIGHT * self.fs_fraction
-            + SNP_WEIGHT * (self.num_snps as f64)
+            + SNV_WEIGHT * (self.num_snvs as f64)
             + STOP_WEIGHT * self.stop_fraction.unwrap_or(0.0)
     }
 
@@ -143,18 +143,18 @@ mod tests {
     #[test]
     fn test_raw_score() {
         let score = EffectScore {
-            num_snps: 3,
+            num_snvs: 3,
             fs_fraction: 0.4,
             stop_fraction: Some(0.2),
         };
-        let expected = FS_WEIGHT * 0.4 + SNP_WEIGHT * 3.0 + STOP_WEIGHT * 0.2;
+        let expected = FS_WEIGHT * 0.4 + SNV_WEIGHT * 3.0 + STOP_WEIGHT * 0.2;
         assert!((score.raw() - expected).abs() < 1e-6);
     }
 
     #[test]
     fn test_normalized_score() {
         let score = EffectScore {
-            num_snps: 2,
+            num_snvs: 2,
             fs_fraction: 0.1,
             stop_fraction: Some(0.3),
         };
@@ -196,7 +196,7 @@ mod tests {
 
         let result = EffectScore::from_haplotype(&reference, &transcript, haplotype).unwrap();
 
-        assert_eq!(result.num_snps, 2);
+        assert_eq!(result.num_snvs, 2);
         assert!((result.fs_fraction - 0.75).abs() < 1e-6);
         assert!(result.stop_fraction.is_none());
     }
