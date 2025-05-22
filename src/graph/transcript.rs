@@ -176,57 +176,7 @@ impl Transcript {
         let haplotypes = self.haplotypes(graph)?;
         let mut scores = Vec::with_capacity(haplotypes.len());
         for haplotype in haplotypes {
-            let mut num_snps = 0;
-            let mut stop_penalty = None;
-            let mut phase = 0;
-            let mut cds = None;
-            for node in haplotype.iter().filter(|n| n.node_type.is_variant()) {
-                if node.is_snp() {
-                    num_snps += 1;
-                } else if node.frameshift() != 0 {
-                    // TODO: Save FS and position as tuple?
-                }
-
-                let node_cds = self
-                    .cds_for_position(node.pos)
-                    .expect("Found node located outside of CDS");
-                if cds.as_ref() != Some(node_cds) {
-                    cds = Some(node_cds.to_owned());
-                    phase = node_cds.phase;
-                }
-
-                // Update phase based on frameshift of the current node
-                phase = shift_phase(phase, ((node.frameshift() + 3) % 3) as u8);
-
-                if stop_penalty.is_none()
-                    && node
-                        .variant_amino_acids(
-                            phase,
-                            reference.get(&self.target).unwrap(),
-                            self.strand,
-                        )
-                        .unwrap()
-                        .contains(&AminoAcid::Methionine)
-                {
-                    // Calculate stop penalty based on position in Transcript. The earlier in the transcript, the higher the penalty
-                    let relative_position_fraction =
-                        self.position_in_transcript(node.pos as usize)? as f64
-                            / self.length() as f64;
-
-                    stop_penalty = Some(if self.strand == Strand::Forward {
-                        1.0 - relative_position_fraction
-                    } else {
-                        relative_position_fraction
-                    });
-                }
-
-                phase = shift_phase(phase, ((node.frameshift() + 3) % 3) as u8);
-            }
-            scores.push(EffectScore {
-                num_snps,
-                fs_fraction: 0.0,
-                stop_fraction: stop_penalty,
-            });
+            scores.push(EffectScore::from_haplotype(reference, self, haplotype)?);
         }
         Ok(scores)
     }
