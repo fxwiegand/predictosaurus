@@ -4,8 +4,9 @@ pub mod miyata;
 pub mod sneath;
 use crate::translation::amino_acids::AminoAcid;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default, Debug)]
 pub enum DistanceMetric {
+    #[default]
     Grantham,
     Sneath,
     Epstein,
