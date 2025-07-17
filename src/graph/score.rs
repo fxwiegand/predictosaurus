@@ -16,7 +16,7 @@ const STOP_WEIGHT: f64 = 1.0; // Weight for stop-gained fraction
 #[derive(Debug, Clone)]
 pub struct EffectScore {
     /// SNVs on this haplotype
-    pub snvs: Vec<(Option<AminoAcid>, Vec<AminoAcid>)>,
+    pub snvs: Vec<AminoAcidChange>,
     /// Total fractional CDS length affected by frameshifts (0.0–1.0)
     pub fs_fraction: f64,
     /// Stop-gained penalty
@@ -48,10 +48,12 @@ impl EffectScore {
         let mut frameshift_positions = Vec::new();
         for node in haplotype.iter().filter(|n| n.node_type.is_variant()) {
             if node.is_snv() {
-                snvs.push((
-                    node.reference_amino_acid(phase, target_ref, transcript.strand)?,
-                    node.variant_amino_acids(phase, target_ref, transcript.strand)?,
-                ));
+                snvs.push(AminoAcidChange::from_node(
+                    node,
+                    phase,
+                    target_ref,
+                    transcript.strand,
+                )?);
             } else if node.frameshift() != 0 {
                 let pos = transcript.position_in_transcript(node.pos as usize)?;
                 frameshift_positions.push((pos, node.frameshift()));
@@ -125,13 +127,7 @@ impl EffectScore {
     }
 
     fn snv_score(&self) -> f64 {
-        self.snvs
-            .iter()
-            .map(|(rf, var)| match (rf, var, var.len()) {
-                (Some(r), v, 1) => self.distance_metric.compute(r, v.first().unwrap()),
-                _ => 1.0,
-            })
-            .sum()
+        self.snvs.iter().map(|change| change.distance(&self.distance_metric)).sum()
     }
 
     /// Compute the raw combined score using tuning constants
@@ -148,6 +144,33 @@ impl EffectScore {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AminoAcidChange {
+    pub reference: Option<AminoAcid>,
+    pub variants: Vec<AminoAcid>,
+}
+
+impl AminoAcidChange {
+    pub fn distance(&self, metric: &DistanceMetric) -> f64 {
+        match (&self.reference, self.variants.first()) {
+            (Some(r), Some(v)) if self.variants.len() == 1 => metric.compute(r, v),
+            _ => 1.0, // default penalty for complex changes
+        }
+    }
+
+    pub fn from_node(
+        node: &Node,
+        phase: u8,
+        reference: &[u8],
+        strand: Strand,
+    ) -> anyhow::Result<Self> {
+        Ok(AminoAcidChange {
+            reference: node.reference_amino_acid(phase, reference, strand)?,
+            variants: node.variant_amino_acids(phase, reference, strand)?,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -157,8 +180,12 @@ mod tests {
 
     #[test]
     fn test_raw_score() {
+        let aa_exchange = AminoAcidChange {
+            reference: Some(AminoAcid::Isoleucine),
+            variants: vec![AminoAcid::AsparticAcid],
+        };
         let score = EffectScore {
-            snvs: vec![(Some(AminoAcid::Isoleucine), vec![AminoAcid::AsparticAcid])], // 168/215 -> 0.78139534883
+            snvs: vec![aa_exchange], // 168/215 -> 0.78139534883
             fs_fraction: 0.4,
             stop_fraction: Some(0.2),
             distance_metric: DistanceMetric::Grantham,
@@ -213,12 +240,20 @@ mod tests {
         ];
 
         let result = EffectScore::from_haplotype(&reference, &transcript, haplotype).unwrap();
+        let aa_exchange = AminoAcidChange {
+            reference: Some(AminoAcid::Methionine),
+            variants: vec![AminoAcid::Isoleucine],
+        };
+        let aa_exchange_2 = AminoAcidChange {
+            reference: Some(AminoAcid::Threonine),
+            variants: vec![AminoAcid::Threonine],
+        };
 
         assert_eq!(
             result.snvs,
             vec![
-                (Some(AminoAcid::Methionine), vec![AminoAcid::Isoleucine]),
-                (Some(AminoAcid::Threonine), vec![AminoAcid::Threonine])
+                aa_exchange,
+                aa_exchange_2,
             ]
         );
         assert!((result.fs_fraction - 0.75).abs() < 1e-6);
