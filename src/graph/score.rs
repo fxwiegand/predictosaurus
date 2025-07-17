@@ -127,7 +127,10 @@ impl EffectScore {
     }
 
     fn snv_score(&self) -> f64 {
-        self.snvs.iter().map(|change| change.distance(&self.distance_metric)).sum()
+        self.snvs
+            .iter()
+            .map(|change| change.distance(&self.distance_metric))
+            .sum()
     }
 
     /// Compute the raw combined score using tuning constants
@@ -249,13 +252,7 @@ mod tests {
             variants: vec![AminoAcid::Threonine],
         };
 
-        assert_eq!(
-            result.snvs,
-            vec![
-                aa_exchange,
-                aa_exchange_2,
-            ]
-        );
+        assert_eq!(result.snvs, vec![aa_exchange, aa_exchange_2,]);
         assert!((result.fs_fraction - 0.75).abs() < 1e-6);
         assert!(result.stop_fraction.is_none());
     }
