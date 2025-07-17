@@ -108,7 +108,7 @@ pub static GRAN_MATRIX: LazyLock<[[u16; 20]; 20]> = LazyLock::new(|| {
 pub fn compute(a: &AminoAcid, b: &AminoAcid) -> f64 {
     match (GRAN_INDEX.get(a), GRAN_INDEX.get(b)) {
         (Some(&i), Some(&j)) => GRAN_MATRIX[i][j] as f64 / 215.0,
-        _ => 1.0,
+        _ => unreachable!(),
     }
 }
 
