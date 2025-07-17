@@ -1,4 +1,5 @@
 use crate::cli::Interval;
+use crate::translation::distance::DistanceMetric;
 use anyhow::Result;
 use itertools::Itertools;
 use std::fmt::Display;
@@ -47,7 +48,7 @@ impl Display for Protein {
 }
 
 /// Amino acids and stop
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum AminoAcid {
     Alanine,
     Arginine,
@@ -157,6 +158,11 @@ impl AminoAcid {
     /// Returns true if the amino acid is a stop codon
     pub(crate) fn is_stop(&self) -> bool {
         matches!(self, AminoAcid::Stop)
+    }
+
+    /// Returns the distance between two amino acids using the specified metric
+    pub(crate) fn distance(&self, other: &AminoAcid, metric: DistanceMetric) -> f64 {
+        metric.compute(self, other)
     }
 }
 

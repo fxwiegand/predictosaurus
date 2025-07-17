@@ -79,7 +79,7 @@ mod tests {
     #[test]
     fn render_vl_paths_creates_file_with_correct_content() {
         let temp_dir = tempfile::tempdir().unwrap();
-        let output_path = temp_dir.into_path();
+        let output_path = temp_dir.keep();
         let paths = vec![Weight {
             index: 1,
             path: Some(1),
@@ -100,7 +100,7 @@ mod tests {
     #[test]
     fn render_tsv_paths_creates_file_with_correct_content() {
         let temp_dir = tempfile::tempdir().unwrap();
-        let output_path = temp_dir.into_path();
+        let output_path = temp_dir.keep();
         let paths = vec![Weight {
             index: 1,
             path: Some(1),
@@ -122,7 +122,7 @@ mod tests {
     #[test]
     fn render_html_paths_creates_file_with_correct_content() {
         let temp_dir = tempfile::tempdir().unwrap();
-        let output_path = temp_dir.into_path();
+        let output_path = temp_dir.keep();
         let paths = vec![Weight {
             index: 1,
             path: Some(1),

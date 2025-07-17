@@ -4,6 +4,7 @@ use anyhow::Result;
 use itertools::Itertools;
 
 pub(crate) mod amino_acids;
+pub(crate) mod distance;
 
 /// Translates a DNA sequence to a protein sequence
 pub(crate) fn dna_to_amino_acids(dna: &[u8]) -> Result<Vec<AminoAcid>> {
