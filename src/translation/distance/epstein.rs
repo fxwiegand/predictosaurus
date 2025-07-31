@@ -119,7 +119,7 @@ pub static EPSTEIN_MATRIX: LazyLock<[[f64; 20]; 20]> = LazyLock::new(|| {
     ]
 });
 
-/// Normalized Grantham distance in [0.0, 1.0]
+/// Normalized Epstein distance in [0.0, 1.0]
 pub fn compute(a: &AminoAcid, b: &AminoAcid) -> f64 {
     match (EPSTEIN_INDEX.get(a), EPSTEIN_INDEX.get(b)) {
         (Some(&i), Some(&j)) => EPSTEIN_MATRIX[i][j],
