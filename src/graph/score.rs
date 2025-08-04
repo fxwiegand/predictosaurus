@@ -182,6 +182,17 @@ mod tests {
     use crate::Cds;
 
     #[test]
+    fn test_from_node() {
+        let node = Node::new(NodeType::Var("A".to_string()), 2);
+        let reference = b"ATGCGCGTA";
+        let phase = 0;
+        let strand = Strand::Forward;
+        let change = AminoAcidChange::from_node(&node, phase, reference, strand).unwrap();
+        assert_eq!(change.reference, Some(AminoAcid::Methionine));
+        assert_eq!(change.variants, vec![AminoAcid::Isoleucine]);
+    }
+
+    #[test]
     fn test_raw_score() {
         let aa_exchange = AminoAcidChange {
             reference: Some(AminoAcid::Isoleucine),
