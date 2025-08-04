@@ -71,7 +71,7 @@ impl EffectScore {
                 && node
                     .variant_amino_acids(phase, target_ref, transcript.strand)
                     .unwrap()
-                    .contains(&AminoAcid::Methionine)
+                    .contains(&AminoAcid::Stop)
             {
                 // Calculate stop penalty based on position in Transcript. The earlier in the transcript, the higher the penalty
                 let relative_position_fraction =
