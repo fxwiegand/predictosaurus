@@ -193,6 +193,37 @@ mod tests {
     }
 
     #[test]
+    fn test_amino_acid_change_distance() {
+        use crate::translation::distance::DistanceMetric;
+
+        let change = AminoAcidChange {
+            reference: Some(AminoAcid::Isoleucine),
+            variants: vec![AminoAcid::AsparticAcid],
+        };
+        let metric = DistanceMetric::Grantham;
+        let expected = metric.compute(&AminoAcid::Isoleucine, &AminoAcid::AsparticAcid);
+        assert!((change.distance(&metric) - expected).abs() < 1e-6);
+
+        let change = AminoAcidChange {
+            reference: None,
+            variants: vec![AminoAcid::AsparticAcid],
+        };
+        assert!((change.distance(&metric) - 1.0).abs() < 1e-6);
+
+        let change = AminoAcidChange {
+            reference: Some(AminoAcid::Isoleucine),
+            variants: vec![AminoAcid::AsparticAcid, AminoAcid::Threonine],
+        };
+        assert!((change.distance(&metric) - 1.0).abs() < 1e-6);
+
+        let change = AminoAcidChange {
+            reference: Some(AminoAcid::Isoleucine),
+            variants: vec![],
+        };
+        assert!((change.distance(&metric) - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
     fn test_raw_score() {
         let aa_exchange = AminoAcidChange {
             reference: Some(AminoAcid::Isoleucine),
