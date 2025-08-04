@@ -22,7 +22,7 @@ pub(crate) fn render_vl_paths(
     let mut context = tera::Context::new();
     context.insert("paths", paths);
     std::fs::write(
-        Path::new(output_path).join(format!("{}.json", transcript)),
+        Path::new(output_path).join(format!("{transcript}.json")),
         Tera::one_off(template, &context, false)?,
     )?;
     Ok(())
@@ -40,7 +40,7 @@ pub(crate) fn render_tsv_paths(
     paths: &[Weight],
     transcript: String,
 ) -> Result<()> {
-    let mut wtr = Writer::from_path(Path::new(output_path).join(format!("{}.tsv", transcript)))?;
+    let mut wtr = Writer::from_path(Path::new(output_path).join(format!("{transcript}.tsv")))?;
     for path in paths {
         wtr.serialize(path)?;
     }
@@ -64,7 +64,7 @@ pub(crate) fn render_html_paths(
     let mut context = tera::Context::new();
     context.insert("paths", paths);
     std::fs::write(
-        Path::new(output_path).join(format!("{}.html", transcript)),
+        Path::new(output_path).join(format!("{transcript}.html")),
         Tera::one_off(template, &context, false)?,
     )?;
     Ok(())

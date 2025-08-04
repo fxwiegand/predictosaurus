@@ -46,7 +46,7 @@ impl Command {
                 let targets = get_targets(calls)?;
                 let mut graphs = HashMap::new();
                 for target in targets {
-                    info!("Building graph for target {}", target);
+                    info!("Building graph for target {target}");
                     let variant_graph = VariantGraph::build(
                         calls,
                         observations,
@@ -71,7 +71,7 @@ impl Command {
                 output,
             } => {
                 create_paths(output)?;
-                info!("Reading reference genome from {:?}", reference);
+                info!("Reading reference genome from {reference:?}");
                 let reference_genome = utils::fasta::read_reference(reference);
                 for transcript in transcripts(features, graph)? {
                     info!("Processing transcript {}", transcript.name());
@@ -96,7 +96,7 @@ impl Command {
                 background_events,
                 max_background_event_prob,
             } => {
-                info!("Reading reference genome from {:?}", reference);
+                info!("Reading reference genome from {reference:?}");
                 let reference_genome = utils::fasta::read_reference(reference);
                 let mut peptides = Vec::new();
                 for transcript in transcripts(features, graph)? {
@@ -113,7 +113,7 @@ impl Command {
                     )?;
                     peptides.extend(transcript_peptides);
                 }
-                info!("Writing peptides to {:?}", output);
+                info!("Writing peptides to {output:?}");
                 write_peptides(peptides, output)?;
             }
             Command::Plot {

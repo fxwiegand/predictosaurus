@@ -22,7 +22,7 @@ pub(crate) enum NodeType {
 impl Display for NodeType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            NodeType::Var(alt) => write!(f, "Var({})", alt),
+            NodeType::Var(alt) => write!(f, "Var({alt})"),
             NodeType::Ref(_) => write!(f, "Ref"),
         }
     }
@@ -200,7 +200,7 @@ impl Node {
             .variant_amino_acids(phase, reference, strand)?
             .iter()
             .join(", ");
-        Ok(Some(format!("{} -> {}", ref_amino_acid, alt_amino_acids)))
+        Ok(Some(format!("{ref_amino_acid} -> {alt_amino_acids}")))
     }
 
     pub(crate) fn impact(

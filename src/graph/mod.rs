@@ -69,8 +69,7 @@ impl VariantGraph {
         for sample in &observation_samples {
             if !samples.contains(sample) {
                 warn!(
-                    "Sample {} in observations file is not present in calls file",
-                    sample
+                    "Sample {sample} in observations file is not present in calls file"
                 );
                 samples.retain(|s| s != sample);
             }
@@ -100,8 +99,7 @@ impl VariantGraph {
                         .next()
                         .unwrap_or_else(|| {
                             panic!(
-                                "Missing observation record for calls record at position {}",
-                                position
+                                "Missing observation record for calls record at position {position}"
                             )
                         })
                         .unwrap();
@@ -387,7 +385,7 @@ impl EventProbs {
     pub(crate) fn prob(&self, event: &str) -> Result<LogProb> {
         Ok(*self
             .0
-            .get(format!("PROB_{}", event).as_str())
+            .get(format!("PROB_{event}").as_str())
             .ok_or_else(|| anyhow::anyhow!("Event '{}' not found", event))?)
     }
 }
