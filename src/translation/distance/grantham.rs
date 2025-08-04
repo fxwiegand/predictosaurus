@@ -106,6 +106,9 @@ pub static GRAN_MATRIX: LazyLock<[[u16; 20]; 20]> = LazyLock::new(|| {
 
 /// Normalized Grantham distance in [0.0, 1.0]
 pub fn compute(a: &AminoAcid, b: &AminoAcid) -> f64 {
+    if a.is_stop() || b.is_stop() {
+        return if a == b { 0.0 } else { 1.0 };
+    }
     match (GRAN_INDEX.get(a), GRAN_INDEX.get(b)) {
         (Some(&i), Some(&j)) => GRAN_MATRIX[i][j] as f64 / 215.0,
         _ => unreachable!(),
@@ -116,6 +119,13 @@ pub fn compute(a: &AminoAcid, b: &AminoAcid) -> f64 {
 mod tests {
     use super::*;
     use crate::translation::{amino_acids::AminoAcid::*, distance::DistanceMetric};
+
+    #[test]
+    fn test_stop() {
+        assert_eq!(compute(&Stop, &Stop), 0.0);
+        assert_eq!(compute(&Stop, &Arginine), 1.0);
+        assert_eq!(compute(&Arginine, &Stop), 1.0);
+    }
 
     #[test]
     fn symmetry() {
