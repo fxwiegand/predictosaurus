@@ -68,9 +68,7 @@ impl VariantGraph {
 
         for sample in &observation_samples {
             if !samples.contains(sample) {
-                warn!(
-                    "Sample {sample} in observations file is not present in calls file"
-                );
+                warn!("Sample {sample} in observations file is not present in calls file");
                 samples.retain(|s| s != sample);
             }
         }
