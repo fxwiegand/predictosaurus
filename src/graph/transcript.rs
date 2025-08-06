@@ -45,7 +45,7 @@ impl Transcript {
     }
 
     pub(crate) fn name(&self) -> String {
-        format!("{}:{}", self.feature, self.target)
+        format!("{}:{}", self.target, self.feature)
     }
 
     pub(crate) fn start(&self) -> Result<u64> {
@@ -273,9 +273,9 @@ impl Transcript {
         reference: &HashMap<String, Vec<u8>>,
         interval: Interval,
         sample: &str,
-        events: &Vec<String>,
+        events: &[String],
         min_event_prob: LogProb,
-        background_events: &Vec<String>,
+        background_events: &[String],
         max_background_event_prob: LogProb,
     ) -> Result<Vec<Peptide>> {
         let rnas = self.rna(graph, reference, sample)?;
@@ -539,7 +539,7 @@ mod tests {
             Strand::Forward,
             vec![Cds::new(1, 10, 0)],
         );
-        assert_eq!(transcript.name(), "ENSP00000493376:chr1");
+        assert_eq!(transcript.name(), "chr1:ENSP00000493376");
     }
 
     fn setup_graph() -> VariantGraph {
@@ -832,7 +832,7 @@ mod tests {
     fn paths_returns_error_for_unknown_strand() {
         let transcript = Transcript::new(
             "ENSP00000493376".to_string(),
-            "test".to_string(),
+            "chr1".to_string(),
             Strand::Unknown,
             vec![Cds::new(1, 10, 0)],
         );
@@ -841,7 +841,7 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err().to_string(),
-            "Strand is unknown for transcript ENSP00000493376:test"
+            "Strand is unknown for transcript chr1:ENSP00000493376"
         );
     }
 

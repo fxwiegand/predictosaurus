@@ -98,10 +98,6 @@ pub(crate) enum Command {
         #[clap(short, long)]
         input: PathBuf,
 
-        /// Output format (html, tsv, vega)
-        #[clap(short, long)]
-        format: Format,
-
         /// Path to the output directory
         #[clap(short, long)]
         output: PathBuf,

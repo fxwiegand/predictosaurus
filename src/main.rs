@@ -1,10 +1,12 @@
 use crate::cli::{Command, Format, Predictosaurus};
-use crate::graph::duck::{create_paths, feature_graph, read_paths, write_graphs, write_paths};
+use crate::graph::duck::{
+    create_paths, create_scores, feature_graph, read_scores, write_graphs, write_scores,
+};
 use crate::graph::paths::Cds;
 use crate::graph::peptide::write_peptides;
 use crate::graph::transcript::transcripts;
 use crate::graph::VariantGraph;
-use crate::show::{render_html_paths, render_tsv_paths, render_vl_paths};
+use crate::show::{render_html_paths, render_scores, render_tsv_paths, render_vl_paths};
 use crate::utils::bcf::get_targets;
 use crate::utils::create_output_dir;
 use anyhow::{Context, Result};
@@ -18,6 +20,7 @@ use itertools::Itertools;
 use log::{debug, info};
 use rayon::prelude::*;
 use std::collections::HashMap;
+use std::ptr::write;
 
 mod cli;
 mod graph;
@@ -70,18 +73,18 @@ impl Command {
                 graph,
                 output,
             } => {
-                create_paths(output)?;
+                create_scores(output)?;
                 info!("Reading reference genome from {reference:?}");
                 let reference_genome = utils::fasta::read_reference(reference);
                 for transcript in transcripts(features, graph)? {
                     info!("Processing transcript {}", transcript.name());
-                    let weights = transcript.weights(graph, &reference_genome)?;
+                    let scores = transcript.scores(graph, &reference_genome)?;
                     info!(
-                        "Writing {} paths for Transcript {}",
-                        weights.len(),
+                        "Writing scores for {} different haplotypes for transcript {}",
+                        scores.len(),
                         transcript.name()
                     );
-                    write_paths(output, weights, transcript)?;
+                    write_scores(output, scores, transcript)?;
                 }
             }
             Command::Peptides {
@@ -116,25 +119,11 @@ impl Command {
                 info!("Writing peptides to {output:?}");
                 write_peptides(peptides, output)?;
             }
-            Command::Plot {
-                input,
-                format,
-                output,
-            } => {
+            Command::Plot { input, output } => {
                 create_output_dir(output)?;
-                let paths = read_paths(input)?;
-                for (transcript, paths) in paths {
-                    match format {
-                        Format::Html => {
-                            render_html_paths(output, &paths, transcript)?;
-                        }
-                        Format::Tsv => {
-                            render_tsv_paths(output, &paths, transcript)?;
-                        }
-                        Format::Vega => {
-                            render_vl_paths(output, &paths, transcript)?;
-                        }
-                    }
+                let scores = read_scores(input)?;
+                for (transcript, s) in scores {
+                    render_scores(output, &s, transcript)?;
                 }
             }
         }

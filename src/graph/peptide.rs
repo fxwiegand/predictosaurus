@@ -47,7 +47,7 @@ impl Peptide {
         })
     }
 
-    pub(crate) fn prob(&self, events: &Vec<String>) -> Result<LogProb> {
+    pub(crate) fn prob(&self, events: &[String]) -> Result<LogProb> {
         let log_probs = events
             .iter()
             .map(|e| self.prob.prob(e))

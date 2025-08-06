@@ -70,6 +70,19 @@ pub(crate) fn render_html_paths(
     Ok(())
 }
 
+pub(crate) fn render_scores(
+    output_path: &PathBuf,
+    scores: &[f64],
+    transcript: String,
+) -> Result<()> {
+    let mut wtr = Writer::from_path(Path::new(output_path).join(format!("{transcript}.tsv")))?;
+    for score in scores {
+        wtr.write_record(&[score.to_string()])?;
+    }
+    wtr.flush()?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,5 +1,6 @@
 use crate::graph::node::{Node, NodeType};
 use crate::graph::paths::{Cds, Weight};
+use crate::graph::score::EffectScore;
 use crate::graph::transcript::Transcript;
 use crate::graph::{Edge, VariantGraph};
 use crate::impact::Impact;
@@ -163,6 +164,43 @@ pub(crate) fn variants_on_graph(path: &PathBuf) -> Result<HashMap<String, BTreeS
     Ok(variant_map)
 }
 
+pub(crate) fn create_scores(output_path: &Path) -> Result<()> {
+    let db = Connection::open(output_path)?;
+    db.execute("CREATE TABLE scores (transcript String, score FLOAT)", [])?;
+    db.close().unwrap();
+    Ok(())
+}
+
+pub(crate) fn write_scores(
+    path: &Path,
+    scores: Vec<EffectScore>,
+    transcript: Transcript,
+) -> Result<()> {
+    let db = Connection::open(path)?;
+    for score in scores {
+        db.execute(
+            "INSERT INTO scores VALUES (?, ?)",
+            [transcript.name(), score.normalized().to_string()],
+        )?;
+    }
+    db.close().unwrap();
+    Ok(())
+}
+
+pub(crate) fn read_scores(path: &Path) -> Result<HashMap<String, Vec<f64>>> {
+    let db = Connection::open(path)?;
+    let mut scores = HashMap::new();
+    let mut stmt = db.prepare("SELECT transcript, score FROM scores")?;
+    let mut rows = stmt.query([])?;
+    while let Some(row) = rows.next()? {
+        let transcript = row.get(0)?;
+        let score = row.get(1)?;
+        scores.entry(transcript).or_insert(Vec::new()).push(score);
+    }
+    db.close().unwrap();
+    Ok(scores)
+}
+
 pub(crate) fn create_paths(output_path: &Path) -> Result<()> {
     let db = Connection::open(output_path)?;
     db.execute("CREATE TABLE path_nodes (path_index INTEGER, target String, feature STRING, node_index INTEGER, vaf FLOAT, impact STRING, reason STRING, consequence STRING, sample STRING)", [])?;
@@ -244,6 +282,7 @@ mod tests {
     use crate::graph::node::{Node, NodeType};
     use crate::graph::Edge;
     use crate::impact::Impact;
+    use crate::translation::distance::DistanceMetric;
     use bio::bio_types::strand::Strand;
     use itertools::Itertools;
     use petgraph::{Directed, Graph};
@@ -507,5 +546,30 @@ mod tests {
         let result = variants_on_graph(&output_path).unwrap();
         let chr1_variants = result.get("chr1").unwrap();
         assert_eq!(chr1_variants, &vec![1, 2, 3, 4, 8, 9].into_iter().collect());
+    }
+
+    #[test]
+    fn test_scores() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let output_path = temp_dir.path().join("scores.duckdb");
+        create_scores(output_path.as_path()).unwrap();
+        assert!(output_path.exists());
+        let transcript = Transcript::new(
+            "some feature".to_string(),
+            "chr1".to_string(),
+            Strand::Forward,
+            vec![Cds::new(0, 100, 0)],
+        );
+        let effect_score = EffectScore {
+            snvs: Vec::new(),
+            fs_fraction: 0.5,
+            stop_fraction: None,
+            distance_metric: DistanceMetric::default(),
+        };
+        let scores = vec![effect_score];
+        write_scores(output_path.as_path(), scores, transcript).unwrap();
+        let scores = read_scores(output_path.as_path()).unwrap();
+        assert_eq!(scores.len(), 1);
+        assert!((scores.get("chr1:some feature").unwrap()[0] - 0.3333333).abs() < 1e-6);
     }
 }
