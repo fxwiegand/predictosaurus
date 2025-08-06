@@ -6,7 +6,26 @@ use itertools::Itertools;
 pub(crate) mod amino_acids;
 pub(crate) mod distance;
 
-/// Translates a DNA sequence to a protein sequence
+/// Translates a DNA sequence into a vector of amino acids.
+///
+/// Converts the input DNA sequence into RNA, then translates each codon into its corresponding amino acid.
+/// Translation stops at the first invalid codon or error.
+///
+/// # Arguments
+///
+/// * `dna` - A byte slice representing the DNA sequence to translate.
+///
+/// # Returns
+///
+/// A `Result` containing a vector of `AminoAcid` if translation succeeds, or an error if transcription or codon translation fails.
+///
+/// # Examples
+///
+/// ```
+/// let dna = b"ATGGCCATTGTAATGGGCCGCTGAAAGGGTGCCCGATAG";
+/// let protein = dna_to_amino_acids(dna)?;
+/// assert_eq!(protein.len(), 14);
+/// ```
 pub(crate) fn dna_to_amino_acids(dna: &[u8]) -> Result<Vec<AminoAcid>> {
     let rna = transcription::transcribe_dna_to_rna(dna)?;
     let amino_acids = rna

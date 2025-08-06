@@ -30,6 +30,15 @@ pub(crate) struct Transcript {
 }
 
 impl Transcript {
+    /// Creates a new `Transcript` with the specified feature name, target sequence, strand orientation, and coding sequences.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let cds = vec![Cds::new(100, 200, 0)];
+    /// let transcript = Transcript::new("NM_001".to_string(), "chr1".to_string(), Strand::Forward, cds);
+    /// assert_eq!(transcript.feature, "NM_001");
+    /// ```
     pub(crate) fn new(
         feature: String,
         target: String,
@@ -44,10 +53,26 @@ impl Transcript {
         }
     }
 
+    /// Returns the transcript name in the format "target:feature".
+    ///
+    /// The target typically represents the reference sequence (e.g., chromosome),
+    /// and the feature is the transcript identifier.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let transcript = Transcript::new("ENST0001".to_string(), "chr1".to_string(), Strand::Forward, vec![]);
+    /// assert_eq!(transcript.name(), "chr1:ENST0001");
+    /// ```
     pub(crate) fn name(&self) -> String {
         format!("{}:{}", self.target, self.feature)
     }
 
+    /// Returns the minimum start position among all coding sequences (CDS) in the transcript.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transcript contains no CDS regions.
     pub(crate) fn start(&self) -> Result<u64> {
         self.coding_sequences
             .iter()
@@ -64,9 +89,18 @@ impl Transcript {
             .ok_or_else(|| anyhow::anyhow!("No CDS found for transcript {}", self.name()))
     }
 
-    /// Returns an iterator over the coding sequences of the transcript
-    /// The iterator is sorted by start position in ascending order
-    /// If the strand is reverse, the iterator is reversed
+    /// Returns an iterator over the transcript's coding sequences (CDS), ordered by genomic position.
+    ///
+    /// The CDS are sorted by start position in ascending order. If the transcript is on the reverse strand, the iterator yields CDS in descending order of start position.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let cds_iter = transcript.cds();
+    /// for cds in cds_iter {
+    ///     println!("CDS start: {}", cds.start);
+    /// }
+    /// ```
     pub(crate) fn cds(&self) -> Box<dyn Iterator<Item = &Cds> + '_> {
         match self.strand {
             Strand::Reverse => Box::new(
@@ -80,11 +114,28 @@ impl Transcript {
     }
 
     // Returns the total length of all CDS of the transcript
+    /// Returns the total length of all coding sequences (CDS) in the transcript.
+    ///
+    /// The length is calculated as the sum of the lengths of each CDS region.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let transcript = Transcript::new("tx1".to_string(), "chr1".to_string(), Strand::Forward, vec![
+    ///     Cds::new(100, 200, 0),
+    ///     Cds::new(300, 400, 0),
+    /// ]);
+    /// assert_eq!(transcript.length(), 202);
+    /// ```
     pub(crate) fn length(&self) -> usize {
         self.cds().map(|c| c.length()).sum()
     }
 
     // Returns the position of the variant in relation to the overall length of transcript
+    /// Returns the offset of a genomic position within the concatenated coding sequences (CDS) of the transcript.
+    ///
+    /// The offset is calculated as the number of bases from the start of the transcript's CDS regions to the specified genomic position.
+    /// Returns an error if the position does not fall within any CDS of the transcript.
     pub(crate) fn position_in_transcript(&self, pos: usize) -> Result<usize> {
         let mut offset = 0;
         for cds in self.cds() {
@@ -100,12 +151,24 @@ impl Transcript {
         );
     }
 
-    /// Returns the CDS containing the given genomic position, or None if not found.
+    /// Finds the coding sequence (CDS) that contains the specified genomic position.
+    ///
+    /// Returns `Some(&Cds)` if the position falls within any CDS region of the transcript, or `None` if not found.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let cds = transcript.cds_for_position(105);
+    /// assert!(cds.is_some());
+    /// ```
     pub(crate) fn cds_for_position(&self, pos: i64) -> Option<&Cds> {
         self.cds()
             .find(|cds| (cds.start as i64..=cds.end as i64).contains(&pos))
     }
 
+    /// Returns all haplotype paths for the transcript from the variant graph, using the appropriate strand orientation.
+    ///
+    /// If the transcript is on the forward strand, returns forward paths; if on the reverse strand, returns reverse paths. Returns an error if the strand is unknown.
     fn paths(&self, graph: &VariantGraph) -> Result<Vec<HaplotypePath>> {
         match self.strand {
             Strand::Forward => Ok(graph.paths()),
@@ -117,6 +180,9 @@ impl Transcript {
         }
     }
 
+    /// Retrieves the reference nucleotide sequence for the transcript's target region, oriented according to the transcript's strand.
+    ///
+    /// Returns the sequence as-is for the forward strand, or as the reverse complement for the reverse strand. Errors if the target is missing from the reference or if the strand is unknown.
     fn reference(&self, reference: &HashMap<String, Vec<u8>>) -> Result<Vec<u8>> {
         let sequence = reference.get(&self.target).ok_or_else(|| {
             anyhow::anyhow!("Reference sequence not found for target {}", self.target)
@@ -131,6 +197,22 @@ impl Transcript {
         }
     }
 
+    /// Constructs all possible transcript haplotypes by combining node paths across all coding sequences (CDS).
+    ///
+    /// For each CDS, loads its feature graph and collects all haplotype paths as sequences of nodes. Returns the Cartesian product of these paths across all CDS, representing all possible transcript haplotypes.
+    ///
+    /// # Returns
+    /// A vector of node sequences, where each sequence represents a distinct haplotype spanning all CDS regions.
+    ///
+    /// # Errors
+    /// Returns an error if path extraction fails for any CDS.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let haplotypes = transcript.haplotypes(&graph_path)?;
+    /// assert!(!haplotypes.is_empty());
+    /// ```
     fn haplotypes(&self, graph: &PathBuf) -> Result<Vec<Vec<Node>>> {
         let mut haplotypes = Vec::new();
         for cds in self.cds() {
@@ -168,6 +250,17 @@ impl Transcript {
         Ok(haplotypes)
     }
 
+    /// Computes effect scores for all possible haplotypes of the transcript.
+    ///
+    /// For each haplotype path derived from the transcript and the variant graph, calculates an `EffectScore` using the provided reference sequences.
+    ///
+    /// # Returns
+    ///
+    /// A vector of `EffectScore` objects, one for each haplotype path.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if haplotype extraction or effect score computation fails.
     pub(crate) fn scores(
         &self,
         graph: &PathBuf,
@@ -181,6 +274,15 @@ impl Transcript {
         Ok(scores)
     }
 
+    /// Computes all possible weight combinations for transcript haplotypes across coding sequences.
+    ///
+    /// For each CDS in the transcript, loads the corresponding feature graph and collects path weights and frameshift values. Combines weights across CDS regions, adjusting for frameshift phase shifts, to generate all possible haplotype weight combinations for the transcript.
+    ///
+    /// # Returns
+    /// A vector of weight combinations, where each inner vector represents the weights for a possible transcript haplotype.
+    ///
+    /// # Errors
+    /// Returns an error if path extraction or reference sequence retrieval fails.
     pub(crate) fn weights(
         &self,
         graph: &PathBuf,
@@ -267,6 +369,36 @@ impl Transcript {
         Ok(weights)
     }
 
+    /// Generates peptides for the transcript by translating RNA sequences over a specified interval and filtering by event probabilities.
+    ///
+    /// For each RNA path derived from the transcript, translates the sequence into peptides within the given interval. Peptides are retained if their event probability meets or exceeds `min_event_prob` and their background event probability does not exceed `max_background_event_prob`.
+    ///
+    /// # Parameters
+    /// - `interval`: The interval over which to generate peptides, typically representing peptide length or genomic range.
+    /// - `sample`: The sample identifier used for RNA path generation.
+    /// - `events`: List of event names to consider for peptide probability filtering.
+    /// - `min_event_prob`: Minimum log probability threshold for events of interest.
+    /// - `background_events`: List of background event names for filtering.
+    /// - `max_background_event_prob`: Maximum log probability threshold for background events.
+    ///
+    /// # Returns
+    /// A vector of peptides that satisfy the event and background probability criteria.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let peptides = transcript.peptides(
+    ///     &graph_path,
+    ///     &reference,
+    ///     9..12,
+    ///     "sample1",
+    ///     &["eventA".to_string()],
+    ///     -2.0,
+    ///     &["eventB".to_string()],
+    ///     -5.0,
+    /// )?;
+    /// assert!(!peptides.is_empty());
+    /// ```
     pub(crate) fn peptides(
         &self,
         graph: &PathBuf,
@@ -542,6 +674,18 @@ mod tests {
         assert_eq!(transcript.name(), "chr1:ENSP00000493376");
     }
 
+    /// Constructs a sample `VariantGraph` with predefined nodes and edges for testing purposes.
+    ///
+    /// The graph includes variant and reference nodes with associated variant allele frequencies and event probabilities, and connects them with edges.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let graph = setup_graph();
+    /// assert_eq!(graph.target, "chr1");
+    /// assert_eq!(graph.start, 0);
+    /// assert_eq!(graph.end, 15);
+    /// ```
     fn setup_graph() -> VariantGraph {
         let mut graph = Graph::<Node, Edge, Directed>::new();
         let alt_node_vaf_1 = HashMap::from([("s1".to_string(), 0.5)]);

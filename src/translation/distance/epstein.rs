@@ -119,7 +119,21 @@ pub static EPSTEIN_MATRIX: LazyLock<[[f64; 20]; 20]> = LazyLock::new(|| {
     ]
 });
 
-/// Normalized Epstein distance in [0.0, 1.0]
+/// Returns the normalized Epstein distance between two amino acids.
+///
+/// The distance is a value between 0.0 and 1.0, where 0.0 indicates identical amino acids or both are stop codons, and 1.0 indicates maximal distance or one is a stop codon and the other is not. For standard amino acids, the distance is determined by the Epstein metric.
+///
+/// # Examples
+///
+/// ```
+/// use crate::AminoAcid;
+/// use crate::epstein::compute;
+///
+/// let a = AminoAcid::A; // Alanine
+/// let b = AminoAcid::G; // Glycine
+/// let distance = compute(&a, &b);
+/// assert!(distance >= 0.0 && distance <= 1.0);
+/// ```
 pub fn compute(a: &AminoAcid, b: &AminoAcid) -> f64 {
     if a.is_stop() || b.is_stop() {
         return if a == b { 0.0 } else { 1.0 };

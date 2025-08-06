@@ -148,7 +148,20 @@ pub(crate) fn feature_graph(
     })
 }
 
-/// Retrieves all variants from a given serialised graph file. Returns a HashMap of targets and all positions of variants in the graph.
+/// Returns a map of targets to all variant positions present in the serialized graph database.
+///
+/// Queries the `nodes` table in the DuckDB database at the given path and aggregates all variant positions for each target.
+///
+/// # Returns
+///
+/// A `HashMap` where each key is a target identifier and each value is a `BTreeSet` of variant positions.
+///
+/// # Examples
+///
+/// ```
+/// let variants = variants_on_graph(&path)?;
+/// assert!(variants.contains_key("chr1"));
+/// ```
 pub(crate) fn variants_on_graph(path: &PathBuf) -> Result<HashMap<String, BTreeSet<i64>>> {
     let db = Connection::open(path)?;
     let mut stmt = db.prepare("SELECT target, pos FROM nodes")?;
@@ -164,6 +177,15 @@ pub(crate) fn variants_on_graph(path: &PathBuf) -> Result<HashMap<String, BTreeS
     Ok(variant_map)
 }
 
+/// Creates a `scores` table in the DuckDB database at the specified path.
+///
+/// The table will have columns for `transcript` (String) and `score` (FLOAT).
+///
+/// # Examples
+///
+/// ```
+/// create_scores(Path::new("scores.duckdb"))?;
+/// ```
 pub(crate) fn create_scores(output_path: &Path) -> Result<()> {
     let db = Connection::open(output_path)?;
     db.execute("CREATE TABLE scores (transcript String, score FLOAT)", [])?;
@@ -171,6 +193,17 @@ pub(crate) fn create_scores(output_path: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Inserts normalized effect scores for a given transcript into the `scores` table of a DuckDB database.
+///
+/// Each score in the provided vector is associated with the specified transcript and stored in the database at the given path.
+///
+/// # Examples
+///
+/// ```
+/// let transcript = Transcript::new("ENST00000367770");
+/// let scores = vec![EffectScore::from_raw(0.8, DistanceMetric::Euclidean)];
+/// write_scores(Path::new("scores.duckdb"), scores, transcript)?;
+/// ```
 pub(crate) fn write_scores(
     path: &Path,
     scores: Vec<EffectScore>,
@@ -187,6 +220,16 @@ pub(crate) fn write_scores(
     Ok(())
 }
 
+/// Reads all transcript scores from the database and groups them by transcript identifier.
+///
+/// Returns a map where each key is a transcript name and the value is a vector of associated scores.
+///
+/// # Examples
+///
+/// ```
+/// let scores = read_scores(Path::new("scores.duckdb"))?;
+/// assert!(scores.contains_key("ENST00000367770"));
+/// ```
 pub(crate) fn read_scores(path: &Path) -> Result<HashMap<String, Vec<f64>>> {
     let db = Connection::open(path)?;
     let mut scores = HashMap::new();
@@ -201,6 +244,16 @@ pub(crate) fn read_scores(path: &Path) -> Result<HashMap<String, Vec<f64>>> {
     Ok(scores)
 }
 
+/// Creates a `path_nodes` table in the specified DuckDB database for storing path metadata.
+///
+/// The table includes columns for path index, target, feature, node index, VAF, impact, reason, consequence, and sample.
+///
+/// # Examples
+///
+/// ```
+/// let path = std::path::Path::new("paths.duckdb");
+/// create_paths(path).unwrap();
+/// ```
 pub(crate) fn create_paths(output_path: &Path) -> Result<()> {
     let db = Connection::open(output_path)?;
     db.execute("CREATE TABLE path_nodes (path_index INTEGER, target String, feature STRING, node_index INTEGER, vaf FLOAT, impact STRING, reason STRING, consequence STRING, sample STRING)", [])?;

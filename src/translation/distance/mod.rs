@@ -14,6 +14,21 @@ pub enum DistanceMetric {
 }
 
 impl DistanceMetric {
+    /// Computes the distance between two amino acids using the selected metric.
+    ///
+    /// The distance metric is determined by the `DistanceMetric` variant. The result is a floating-point value representing the computed distance according to the chosen metric.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use translation::distance::{DistanceMetric, AminoAcid};
+    ///
+    /// let metric = DistanceMetric::Grantham;
+    /// let a = AminoAcid::Alanine;
+    /// let b = AminoAcid::Valine;
+    /// let distance = metric.compute(&a, &b);
+    /// assert!(distance >= 0.0);
+    /// ```
     pub fn compute(&self, a: &AminoAcid, b: &AminoAcid) -> f64 {
         match self {
             DistanceMetric::Grantham => grantham::compute(a, b),

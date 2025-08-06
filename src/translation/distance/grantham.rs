@@ -104,7 +104,29 @@ pub static GRAN_MATRIX: LazyLock<[[u16; 20]; 20]> = LazyLock::new(|| {
     ]
 });
 
-/// Normalized Grantham distance in [0.0, 1.0]
+/// Computes the normalized Grantham distance between two amino acids.
+///
+/// Returns a value in the range [0.0, 1.0], where 0.0 indicates identical amino acids or both are stop codons, and 1.0 indicates maximal difference or one is a stop codon and the other is not. For standard amino acids, the distance is normalized by the maximum possible Grantham distance (215).
+///
+/// # Examples
+///
+/// ```
+/// use crate::AminoAcid;
+/// use crate::compute;
+///
+/// let gly = AminoAcid::Gly;
+/// let ala = AminoAcid::Ala;
+/// let stop = AminoAcid::Stop;
+///
+/// let dist = compute(&gly, &ala);
+/// assert!(dist > 0.0 && dist < 1.0);
+///
+/// let stop_dist = compute(&stop, &stop);
+/// assert_eq!(stop_dist, 0.0);
+///
+/// let stop_vs_gly = compute(&stop, &gly);
+/// assert_eq!(stop_vs_gly, 1.0);
+/// ```
 pub fn compute(a: &AminoAcid, b: &AminoAcid) -> f64 {
     if a.is_stop() || b.is_stop() {
         return if a == b { 0.0 } else { 1.0 };

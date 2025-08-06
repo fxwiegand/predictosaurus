@@ -42,7 +42,9 @@ impl Cds {
         Cds { start, end, phase }
     }
 
-    /// Returns true if the CDS contains the variant
+    /// Checks if any variant position overlaps with the CDS segment.
+    ///
+    /// Returns `true` if at least one variant falls within the CDS range; otherwise, returns `false`.
     pub(crate) fn contains_variant(&self, variants: &HashMap<String, BTreeSet<i64>>) -> bool {
         for variant in variants.values() {
             if variant
@@ -56,7 +58,14 @@ impl Cds {
         false
     }
 
-    /// Length of CDS segment
+    /// Returns the length of the coding sequence (CDS) segment in bases.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let cds = Cds { start: 100, end: 200, phase: 0 };
+    /// assert_eq!(cds.length(), 101);
+    /// ```
     pub fn length(&self) -> usize {
         (self.end - self.start + 1) as usize
     }

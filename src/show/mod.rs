@@ -6,13 +6,17 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use tera::Tera;
 
-/// Renders a Vega-Lite JSON file visualizing the given paths and writes it to the specified output directory with the feature as the file name.
+/// Generates a Vega-Lite JSON visualization of genomic paths and writes it to the specified output directory using the transcript name as the filename.
 ///
-/// # Arguments
+/// The function loads a Vega-Lite template, injects the provided `Weight` data, renders the template, and saves the resulting JSON to `{transcript}.json` in the given directory.
 ///
-/// * `output_path` - A reference to a `PathBuf` that holds the path of the directory where the rendered JSON file will be saved.
-/// * `paths` - A slice of `Weight` structs that will be serialized and passed to the template.
-/// * `feature` - A string that represents the feature name, which will be used as the filename.
+/// # Examples
+///
+/// ```
+/// let output_dir = std::path::PathBuf::from("out");
+/// let paths = vec![Weight { /* fields */ }];
+/// render_vl_paths(&output_dir, &paths, "ENST00000367770".to_string()).unwrap();
+/// ```
 pub(crate) fn render_vl_paths(
     output_path: &PathBuf,
     paths: &[Weight],
@@ -28,13 +32,20 @@ pub(crate) fn render_vl_paths(
     Ok(())
 }
 
-/// Renders a TSV file from the given paths and writes it to the specified output directory with the feature as the file name.
+/// Writes a slice of `Weight` structs to a TSV file named after the transcript in the specified output directory.
 ///
-/// # Arguments
+/// Each `Weight` struct is serialized as a row in the TSV file. The file is saved as `{transcript}.tsv` in the given directory.
 ///
-/// * `output_path` - A reference to a `PathBuf` that holds the path of the directory where the rendered TSV file will be saved.
-/// * `paths` - A slice of `Weight` structs that will be serialized and written to the TSV file.
-/// * `feature` - A string that represents the feature name, which will be used as the filename.
+/// # Examples
+///
+/// ```
+/// # use your_crate::{render_tsv_paths, Weight};
+/// # use std::path::PathBuf;
+/// let output_dir = PathBuf::from("/tmp");
+/// let weights = vec![Weight { /* fields */ }];
+/// render_tsv_paths(&output_dir, &weights, "ENST00000367770".to_string()).unwrap();
+/// // This creates "/tmp/ENST00000367770.tsv"
+/// ```
 pub(crate) fn render_tsv_paths(
     output_path: &PathBuf,
     paths: &[Weight],
@@ -48,13 +59,17 @@ pub(crate) fn render_tsv_paths(
     Ok(())
 }
 
-/// Renders an HTML file from the given paths and writes it to the specified output directory with the feature as the file name.
+/// Renders an HTML file visualizing the provided genomic paths and writes it to the specified output directory using the transcript name as the filename.
 ///
-/// # Arguments
+/// The function loads an HTML template, injects the given `Weight` data, and saves the rendered HTML as `{transcript}.html` in the output directory.
 ///
-/// * `output_path` - A reference to a `PathBuf` that holds the path of the directory where the rendered HTML file will be saved.
-/// * `paths` - A slice of `Weight` structs that will be serialized and passed to the template.
-/// * `feature` - A string that represents the feature name, which will be used as the filename.
+/// # Examples
+///
+/// ```
+/// let output_dir = std::path::PathBuf::from("out");
+/// let paths = vec![Weight { /* fields */ }];
+/// render_html_paths(&output_dir, &paths, "ENST00000367770".to_string()).unwrap();
+/// ```
 pub(crate) fn render_html_paths(
     output_path: &PathBuf,
     paths: &[Weight],
@@ -70,6 +85,29 @@ pub(crate) fn render_html_paths(
     Ok(())
 }
 
+/// Writes a list of floating-point scores to a TSV file named after the transcript in the specified output directory.
+///
+/// Each score is written as a single-field record in the output file `{transcript}.tsv`.
+///
+/// # Arguments
+///
+/// * `output_path` - The directory where the TSV file will be created.
+/// * `scores` - Slice of floating-point scores to write.
+/// * `transcript` - The base name for the output TSV file.
+///
+/// # Errors
+///
+/// Returns an error if the file cannot be created, written to, or flushed.
+///
+/// # Examples
+///
+/// ```
+/// let output_dir = std::env::temp_dir();
+/// let scores = vec![0.95, 0.87, 0.76];
+/// render_scores(&output_dir, &scores, "sample_transcript".to_string()).unwrap();
+/// let tsv_path = output_dir.join("sample_transcript.tsv");
+/// assert!(tsv_path.exists());
+/// ```
 pub(crate) fn render_scores(
     output_path: &PathBuf,
     scores: &[f64],

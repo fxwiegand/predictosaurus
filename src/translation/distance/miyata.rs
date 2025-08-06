@@ -117,7 +117,29 @@ const MIYATA_MATRIX: [[f64; 20]; 20] = [
     ],
 ];
 
-/// Normalized Miyata distance in [0.0, 1.0]
+/// Computes the normalized Miyata distance between two amino acids.
+///
+/// Returns a value in the range [0.0, 1.0], where 0.0 indicates identical amino acids or both are stop codons, and 1.0 indicates maximal distance or one is a stop codon and the other is not. For standard amino acids, the distance is based on the Miyata matrix and normalized by the maximum possible value.
+///
+/// # Examples
+///
+/// ```
+/// use crate::AminoAcid;
+/// use crate::compute;
+///
+/// let ala = AminoAcid::Ala;
+/// let gly = AminoAcid::Gly;
+/// let stop = AminoAcid::Stop;
+///
+/// let d1 = compute(&ala, &gly);
+/// assert!(d1 >= 0.0 && d1 <= 1.0);
+///
+/// let d2 = compute(&stop, &stop);
+/// assert_eq!(d2, 0.0);
+///
+/// let d3 = compute(&ala, &stop);
+/// assert_eq!(d3, 1.0);
+/// ```
 pub fn compute(a: &AminoAcid, b: &AminoAcid) -> f64 {
     if a.is_stop() || b.is_stop() {
         return if a == b { 0.0 } else { 1.0 };

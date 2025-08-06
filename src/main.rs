@@ -37,6 +37,12 @@ fn main() -> Result<()> {
 }
 
 impl Command {
+    /// Executes the selected subcommand for genomic variant graph analysis.
+    ///
+    /// Depending on the command variant, this method builds variant graphs, processes transcript scores, generates peptides, or plots score visualizations. It handles input/output operations, reference genome loading, and orchestrates the workflow for each subcommand. Errors encountered during execution are propagated to the caller.
+    ///
+    /// # Returns
+    /// Returns `Ok(())` if the command completes successfully, or an error if any step fails.
     fn run(&self) -> Result<()> {
         match self {
             Command::Build {

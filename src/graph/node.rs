@@ -20,6 +20,9 @@ pub(crate) enum NodeType {
 }
 
 impl Display for NodeType {
+    /// Formats the `NodeType` as a string for display purposes.
+    ///
+    /// Variant nodes are formatted as `Var(alt)` where `alt` is the alternate allele string; reference nodes are formatted as `Ref`.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             NodeType::Var(alt) => write!(f, "Var({alt})"),
@@ -85,6 +88,17 @@ impl Node {
         }
     }
 
+    /// Creates a new `Node` with the specified type and genomic position.
+    ///
+    /// The node is initialized with empty variant allele frequencies, default event probabilities, and an index of zero.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let node = Node::new(NodeType::Ref("A".to_string()), 12345);
+    /// assert_eq!(node.pos, 12345);
+    /// assert_eq!(node.index, 0);
+    /// ```
     pub(crate) fn new(node_type: NodeType, pos: i64) -> Self {
         Node {
             node_type,
@@ -96,6 +110,22 @@ impl Node {
     }
 
     // Returns whether the node is a SNV
+    /// Returns `true` if the node represents a single nucleotide variant (SNV).
+    ///
+    /// An SNV is defined as a variant node with an alternate allele of length one.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let node = Node { node_type: NodeType::Var("A".to_string()), ..Default::default() };
+    /// assert!(node.is_snv());
+    ///
+    /// let node = Node { node_type: NodeType::Var("AT".to_string()), ..Default::default() };
+    /// assert!(!node.is_snv());
+    ///
+    /// let node = Node { node_type: NodeType::Ref("A".to_string()), ..Default::default() };
+    /// assert!(!node.is_snv());
+    /// ```
     pub(crate) fn is_snv(&self) -> bool {
         match &self.node_type {
             NodeType::Var(alt_allele) => alt_allele.len() == 1,
@@ -103,7 +133,27 @@ impl Node {
         }
     }
 
-    /// Returns the frameshift caused by the variant at this node.
+    /// Calculates the frameshift introduced by the variant at this node.
+    ///
+    /// Returns the difference in length between the alternate allele and the reference (assumed length 1).
+    /// For reference nodes, returns 0.
+    ///
+    /// # Returns
+    ///
+    /// The frameshift as an `i64`: positive for insertions, negative for deletions, and zero for substitutions or reference nodes.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let node = Node { node_type: NodeType::Var("AT".to_string()), /* other fields */ ..Default::default() };
+    /// assert_eq!(node.frameshift(), 1); // Insertion of one base
+    ///
+    /// let node = Node { node_type: NodeType::Var("".to_string()), /* other fields */ ..Default::default() };
+    /// assert_eq!(node.frameshift(), -1); // Deletion of one base
+    ///
+    /// let node = Node { node_type: NodeType::Ref("A".to_string()), /* other fields */ ..Default::default() };
+    /// assert_eq!(node.frameshift(), 0); // Reference node
+    /// ```
     pub(crate) fn frameshift(&self) -> i64 {
         match &self.node_type {
             NodeType::Var(alt_allele) => alt_allele.len() as i64 - 1,
@@ -183,6 +233,24 @@ impl Node {
         }
     }
 
+    /// Returns a description of the amino acid change caused by the variant at this node.
+    ///
+    /// The description is formatted as `"RefAA -> AltAA"`, where `RefAA` is the reference amino acid at the node position and `AltAA` is a comma-separated list of amino acids encoded by the variant. Returns `None` for reference nodes.
+    ///
+    /// # Arguments
+    ///
+    /// - `ref_phase`: The reading frame phase for the reference sequence.
+    /// - `phase`: The reading frame phase for the variant sequence.
+    /// - `reference`: The reference nucleotide sequence.
+    /// - `strand`: The DNA strand orientation.
+    ///
+    /// # Returns
+    ///
+    /// An `Option<String>` describing the amino acid change, or `None` if the node is a reference node.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if amino acid translation fails.
     pub(crate) fn reason(
         &self,
         ref_phase: u8,
@@ -203,6 +271,28 @@ impl Node {
         Ok(Some(format!("{ref_amino_acid} -> {alt_amino_acids}")))
     }
 
+    /// Determines the predicted impact of a variant node on the encoded amino acid sequence.
+    ///
+    /// Assesses the effect of the variant at this node by comparing the reference and variant amino acids at the given phase and strand. Returns `Impact::None` for reference nodes or if the reference amino acid cannot be determined. Returns `Impact::Low` for synonymous changes, `Impact::High` for changes introducing or removing stop codons or affecting methionine, and `Impact::Moderate` for other nonsynonymous changes or ambiguous cases.
+    ///
+    /// # Parameters
+    /// - `ref_phase`: The reading frame phase for the reference sequence.
+    /// - `phase`: The reading frame phase for the variant sequence.
+    /// - `reference`: The reference nucleotide sequence.
+    /// - `strand`: The DNA strand orientation.
+    ///
+    /// # Returns
+    /// An `Impact` value indicating the predicted effect of the variant on the protein sequence.
+    ///
+    /// # Errors
+    /// Returns an error if amino acid translation fails due to invalid input or incomplete codons.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let impact = node.impact(0, 0, b"ATGGCC", Strand::Forward)?;
+    /// assert!(matches!(impact, Impact::Low | Impact::Moderate | Impact::High | Impact::None));
+    /// ```
     pub(crate) fn impact(
         &self,
         ref_phase: u8,

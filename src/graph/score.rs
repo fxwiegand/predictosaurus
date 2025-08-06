@@ -25,7 +25,16 @@ pub struct EffectScore {
 }
 
 impl EffectScore {
-    /// Create a new empty score
+    /// Constructs a new `EffectScore` with no SNVs, zero frameshift and stop-gained fractions, and the default distance metric.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let score = EffectScore::new();
+    /// assert_eq!(score.snvs.len(), 0);
+    /// assert_eq!(score.fs_fraction, 0.0);
+    /// assert!(score.stop_fraction.is_none());
+    /// ```
     pub fn new() -> Self {
         EffectScore {
             snvs: Vec::new(),
@@ -35,6 +44,27 @@ impl EffectScore {
         }
     }
 
+    /// Computes the cumulative effect score of a haplotype path on a transcript.
+    ///
+    /// Iterates over variant nodes in the haplotype to extract amino acid changes, frameshift events, and stop-gained variants. Calculates the fraction of the coding sequence affected by frameshifts and assigns a penalty for premature stop codons based on their position within the transcript. Returns an `EffectScore` summarizing these effects.
+    ///
+    /// # Parameters
+    /// - `reference`: Reference genome sequences keyed by target name.
+    /// - `transcript`: The transcript annotation to score against.
+    /// - `haplotype`: Sequence of variant nodes representing the haplotype path.
+    ///
+    /// # Returns
+    /// An `EffectScore` containing SNV amino acid changes, frameshift fraction, stop-gained penalty, and a default distance metric.
+    ///
+    /// # Errors
+    /// Returns an error if amino acid extraction or transcript position calculations fail.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let effect_score = EffectScore::from_haplotype(&reference, &transcript, haplotype)?;
+    /// assert!(effect_score.fs_fraction >= 0.0 && effect_score.fs_fraction <= 1.0);
+    /// ```
     pub(crate) fn from_haplotype(
         reference: &HashMap<String, Vec<u8>>,
         transcript: &Transcript,
@@ -126,6 +156,19 @@ impl EffectScore {
         })
     }
 
+    /// Calculates the total score for all single nucleotide variant (SNV) amino acid changes in the haplotype.
+    ///
+    /// Sums the distance metric values for each amino acid change recorded in the `snvs` field.
+    ///
+    /// # Returns
+    /// The cumulative SNV score as a floating-point value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let score = effect_score.snv_score();
+    /// assert!(score >= 0.0);
+    /// ```
     fn snv_score(&self) -> f64 {
         self.snvs
             .iter()
@@ -133,14 +176,28 @@ impl EffectScore {
             .sum()
     }
 
-    /// Compute the raw combined score using tuning constants
+    /// Calculates the unnormalized combined effect score for a haplotype path.
+    ///
+    /// The score is computed as a weighted sum of the frameshift fraction, the total SNV (amino acid change) score, and the stop-gained penalty fraction, using predefined tuning constants.
+    ///
+    /// # Returns
+    /// The raw (unnormalized) effect score as a floating-point value.
     pub fn raw(&self) -> f64 {
         FS_WEIGHT * self.fs_fraction
             + SNV_WEIGHT * self.snv_score()
             + STOP_WEIGHT * self.stop_fraction.unwrap_or(0.0)
     }
 
-    /// Compute the normalized score in (0,1): raw/(1+raw)
+    /// Returns the normalized effect score as a value between 0 and 1.
+    ///
+    /// The normalized score is computed as `raw / (1 + raw)`, where `raw` is the unbounded effect score combining SNV, frameshift, and stop-gained penalties.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let score = effect_score.normalized();
+    /// assert!(score >= 0.0 && score < 1.0);
+    /// ```
     pub fn normalized(&self) -> f64 {
         let r = self.raw();
         r / (1.0 + r)
@@ -154,6 +211,21 @@ pub struct AminoAcidChange {
 }
 
 impl AminoAcidChange {
+    /// Calculates the distance between the reference and variant amino acid using the provided metric.
+    ///
+    /// Returns the computed distance if there is exactly one variant and a reference amino acid; otherwise, returns a default penalty of 1.0.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let change = AminoAcidChange {
+    ///     reference: Some(AminoAcid::A),
+    ///     variants: vec![AminoAcid::G],
+    /// };
+    /// let metric = DistanceMetric::default();
+    /// let dist = change.distance(&metric);
+    /// assert!(dist >= 0.0);
+    /// ```
     pub fn distance(&self, metric: &DistanceMetric) -> f64 {
         match (&self.reference, self.variants.first()) {
             (Some(r), Some(v)) if self.variants.len() == 1 => metric.compute(r, v),
@@ -161,6 +233,20 @@ impl AminoAcidChange {
         }
     }
 
+    /// Constructs an `AminoAcidChange` from a variant node, extracting the reference and variant amino acids based on the reading frame phase and strand orientation.
+    ///
+    /// Returns an error if amino acid extraction fails.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use crate::{AminoAcidChange, Node, Strand};
+    /// let node = /* obtain a Node representing a variant */;
+    /// let reference = b"ATGGCC..."; // CDS reference sequence
+    /// let phase = 0;
+    /// let strand = Strand::Plus;
+    /// let aa_change = AminoAcidChange::from_node(&node, phase, reference, strand).unwrap();
+    /// ```
     pub fn from_node(
         node: &Node,
         phase: u8,

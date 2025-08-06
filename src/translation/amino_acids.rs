@@ -155,12 +155,37 @@ impl AminoAcid {
         }
     }
 
-    /// Returns true if the amino acid is a stop codon
+    /// Determines whether the amino acid is a stop codon.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the amino acid represents a stop codon; otherwise, `false`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let stop = AminoAcid::Stop;
+    /// let alanine = AminoAcid::Ala;
+    /// assert!(stop.is_stop());
+    /// assert!(!alanine.is_stop());
+    /// ```
     pub(crate) fn is_stop(&self) -> bool {
         matches!(self, AminoAcid::Stop)
     }
 
-    /// Returns the distance between two amino acids using the specified metric
+    /// Calculates the distance between this amino acid and another using the given distance metric.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use crate::translation::amino_acids::{AminoAcid, DistanceMetric};
+    ///
+    /// let a = AminoAcid::Alanine;
+    /// let b = AminoAcid::Glycine;
+    /// let metric = DistanceMetric::default();
+    /// let dist = a.distance(&b, metric);
+    /// assert!(dist >= 0.0);
+    /// ```
     pub(crate) fn distance(&self, other: &AminoAcid, metric: DistanceMetric) -> f64 {
         metric.compute(self, other)
     }

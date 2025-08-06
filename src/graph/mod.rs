@@ -37,6 +37,22 @@ pub(crate) struct VariantGraph {
 }
 
 impl VariantGraph {
+    /// Builds a `VariantGraph` from a variant calls file and associated observation files for a specified target contig.
+    ///
+    /// This function parses variant calls and read observations, filters variants by minimum presence probability,
+    /// constructs nodes for reference and alternate alleles, and links nodes with edges supported by sequencing reads.
+    /// Only variants on the specified target contig are included. Returns an error if event probabilities are invalid.
+    ///
+    /// # Arguments
+    ///
+    /// - `calls_file`: Path to the variant calls file (BCF format).
+    /// - `observation_files`: List of observation files, each associated with a sample.
+    /// - `target`: Name of the target contig or chromosome to restrict the graph.
+    /// - `min_prob_present`: Minimum probability threshold for a variant to be included.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `VariantGraph` containing nodes and edges representing variants and their supporting evidence, or an error if construction fails.
     pub(crate) fn build(
         calls_file: &PathBuf,
         observation_files: &[ObservationFile],
@@ -380,6 +396,15 @@ impl EventProbs {
             .ln_one_minus_exp())
     }
 
+    /// Returns the probability associated with a specific event.
+    ///
+    /// # Arguments
+    ///
+    /// * `event` - The name of the event whose probability is requested.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the probability for the specified event is not found.
     pub(crate) fn prob(&self, event: &str) -> Result<LogProb> {
         Ok(*self
             .0

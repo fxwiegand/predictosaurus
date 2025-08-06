@@ -32,6 +32,23 @@ impl Display for Peptide {
 }
 
 impl Peptide {
+    /// Constructs a `Peptide` from an RNA sequence, event probabilities, VAFs, and a transcript.
+    ///
+    /// Converts the provided RNA sequence into a vector of amino acids. Returns an error if the conversion fails.
+    ///
+    /// # Returns
+    ///
+    /// A `Peptide` instance containing the translated amino acid sequence, event probabilities, VAFs, and transcript.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let rna = vec![b'A', b'U', b'G'];
+    /// let prob = EventProbs::default();
+    /// let vafs = vec![0.5];
+    /// let transcript = Transcript::default();
+    /// let peptide = Peptide::from_rna(rna, prob, vafs, transcript).unwrap();
+    /// ```
     pub(crate) fn from_rna(
         rna: Vec<u8>,
         prob: EventProbs,
@@ -47,6 +64,18 @@ impl Peptide {
         })
     }
 
+    /// Calculates the combined log probability of the peptide for a set of event names.
+    ///
+    /// Aggregates the log probabilities of the specified events using log-sum-exp. Returns an error if any event probability cannot be retrieved.
+    ///
+    /// # Parameters
+    /// - `events`: Slice of event names whose probabilities should be combined.
+    ///
+    /// # Returns
+    /// The combined log probability for the given events.
+    ///
+    /// # Errors
+    /// Returns an error if any event name does not have an associated probability.
     pub(crate) fn prob(&self, events: &[String]) -> Result<LogProb> {
         let log_probs = events
             .iter()

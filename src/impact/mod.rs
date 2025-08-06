@@ -29,6 +29,23 @@ impl FromStr for Impact {
 }
 
 impl fmt::Display for Impact {
+    /// Formats the `Impact` variant as a colored string for display purposes.
+    ///
+    /// The color corresponds to the severity of the impact:
+    /// - `None` and `Modifier`: green
+    /// - `Low`: yellow
+    /// - `Moderate`: red
+    /// - `High`: purple
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::fmt::Write;
+    /// let mut s = String::new();
+    /// let impact = Impact::Low;
+    /// write!(&mut s, "{impact}").unwrap();
+    /// assert!(s.contains("Low"));
+    /// ```
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let colored_str = match *self {
             Impact::None => "None".green(),
