@@ -55,6 +55,11 @@ impl Cds {
         }
         false
     }
+
+    /// Length of CDS segment
+    pub fn length(&self) -> usize {
+        (self.end - self.start + 1) as usize
+    }
 }
 
 impl HaplotypePath {

@@ -22,7 +22,7 @@ pub(crate) fn render_vl_paths(
     let mut context = tera::Context::new();
     context.insert("paths", paths);
     std::fs::write(
-        Path::new(output_path).join(format!("{}.json", transcript)),
+        Path::new(output_path).join(format!("{transcript}.json")),
         Tera::one_off(template, &context, false)?,
     )?;
     Ok(())
@@ -40,7 +40,7 @@ pub(crate) fn render_tsv_paths(
     paths: &[Weight],
     transcript: String,
 ) -> Result<()> {
-    let mut wtr = Writer::from_path(Path::new(output_path).join(format!("{}.tsv", transcript)))?;
+    let mut wtr = Writer::from_path(Path::new(output_path).join(format!("{transcript}.tsv")))?;
     for path in paths {
         wtr.serialize(path)?;
     }
@@ -64,9 +64,22 @@ pub(crate) fn render_html_paths(
     let mut context = tera::Context::new();
     context.insert("paths", paths);
     std::fs::write(
-        Path::new(output_path).join(format!("{}.html", transcript)),
+        Path::new(output_path).join(format!("{transcript}.html")),
         Tera::one_off(template, &context, false)?,
     )?;
+    Ok(())
+}
+
+pub(crate) fn render_scores(
+    output_path: &PathBuf,
+    scores: &[f64],
+    transcript: String,
+) -> Result<()> {
+    let mut wtr = Writer::from_path(Path::new(output_path).join(format!("{transcript}.tsv")))?;
+    for score in scores {
+        wtr.write_record(&[score.to_string()])?;
+    }
+    wtr.flush()?;
     Ok(())
 }
 
@@ -79,7 +92,7 @@ mod tests {
     #[test]
     fn render_vl_paths_creates_file_with_correct_content() {
         let temp_dir = tempfile::tempdir().unwrap();
-        let output_path = temp_dir.into_path();
+        let output_path = temp_dir.keep();
         let paths = vec![Weight {
             index: 1,
             path: Some(1),
@@ -100,7 +113,7 @@ mod tests {
     #[test]
     fn render_tsv_paths_creates_file_with_correct_content() {
         let temp_dir = tempfile::tempdir().unwrap();
-        let output_path = temp_dir.into_path();
+        let output_path = temp_dir.keep();
         let paths = vec![Weight {
             index: 1,
             path: Some(1),
@@ -122,7 +135,7 @@ mod tests {
     #[test]
     fn render_html_paths_creates_file_with_correct_content() {
         let temp_dir = tempfile::tempdir().unwrap();
-        let output_path = temp_dir.into_path();
+        let output_path = temp_dir.keep();
         let paths = vec![Weight {
             index: 1,
             path: Some(1),

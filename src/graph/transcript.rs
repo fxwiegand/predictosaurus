@@ -1,20 +1,25 @@
 use crate::cli::Interval;
 use crate::graph::duck::{feature_graph, variants_on_graph};
-use crate::graph::node::NodeType;
+use crate::graph::node::{Node, NodeType};
 use crate::graph::paths::{Cds, HaplotypePath, Weight};
 use crate::graph::peptide::Peptide;
+use crate::graph::score::EffectScore;
 use crate::graph::{shift_phase, EventProbs, VariantGraph};
+use crate::translation::amino_acids::AminoAcid;
 use crate::utils::fasta::reverse_complement;
-use anyhow::Result;
+use anyhow::{bail, Result};
 use bio::bio_types::strand::Strand;
-use bio::io::gff;
+use bio::io::gff::{self, Phase};
 use bio::stats::LogProb;
 use itertools::Itertools;
 use log::info;
+use petgraph::adj::NodeIndex;
 use rust_htslib::bgzf::CompressionLevel::Default;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
+
+use super::node;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub(crate) struct Transcript {
@@ -40,7 +45,7 @@ impl Transcript {
     }
 
     pub(crate) fn name(&self) -> String {
-        format!("{}:{}", self.feature, self.target)
+        format!("{}:{}", self.target, self.feature)
     }
 
     pub(crate) fn start(&self) -> Result<u64> {
@@ -74,6 +79,33 @@ impl Transcript {
         }
     }
 
+    // Returns the total length of all CDS of the transcript
+    pub(crate) fn length(&self) -> usize {
+        self.cds().map(|c| c.length()).sum()
+    }
+
+    // Returns the position of the variant in relation to the overall length of transcript
+    pub(crate) fn position_in_transcript(&self, pos: usize) -> Result<usize> {
+        let mut offset = 0;
+        for cds in self.cds() {
+            if ((cds.start as usize)..=(cds.end as usize)).contains(&pos) {
+                return Ok(offset + (pos - cds.start as usize));
+            }
+            offset += cds.length();
+        }
+        bail!(
+            "Position {} not found in CDS of transcript {}",
+            pos,
+            self.name()
+        );
+    }
+
+    /// Returns the CDS containing the given genomic position, or None if not found.
+    pub(crate) fn cds_for_position(&self, pos: i64) -> Option<&Cds> {
+        self.cds()
+            .find(|cds| (cds.start as i64..=cds.end as i64).contains(&pos))
+    }
+
     fn paths(&self, graph: &VariantGraph) -> Result<Vec<HaplotypePath>> {
         match self.strand {
             Strand::Forward => Ok(graph.paths()),
@@ -97,6 +129,56 @@ impl Transcript {
                 self.name()
             )),
         }
+    }
+
+    fn haplotypes(&self, graph: &PathBuf) -> Result<Vec<Vec<Node>>> {
+        let mut haplotypes = Vec::new();
+        for cds in self.cds() {
+            if let Ok(graph) = feature_graph(
+                graph.to_owned(),
+                self.target.to_string(),
+                cds.start,
+                cds.end,
+            ) {
+                let paths = self
+                    .paths(&graph)?
+                    .iter()
+                    .map(|p| {
+                        p.0.iter()
+                            .map(|v| graph.graph.node_weight(*v).unwrap().to_owned())
+                            .collect_vec()
+                    })
+                    .collect_vec();
+                if haplotypes.is_empty() {
+                    haplotypes = paths;
+                } else {
+                    let mut extended = Vec::new();
+
+                    for (existing_path, new_path) in
+                        haplotypes.iter().cartesian_product(paths.iter())
+                    {
+                        let mut combined = existing_path.clone();
+                        combined.extend(new_path.iter().cloned());
+                        extended.push(combined);
+                    }
+                    haplotypes = extended;
+                }
+            }
+        }
+        Ok(haplotypes)
+    }
+
+    pub(crate) fn scores(
+        &self,
+        graph: &PathBuf,
+        reference: &HashMap<String, Vec<u8>>,
+    ) -> Result<Vec<EffectScore>> {
+        let haplotypes = self.haplotypes(graph)?;
+        let mut scores = Vec::with_capacity(haplotypes.len());
+        for haplotype in haplotypes {
+            scores.push(EffectScore::from_haplotype(reference, self, haplotype)?);
+        }
+        Ok(scores)
     }
 
     pub(crate) fn weights(
@@ -191,9 +273,9 @@ impl Transcript {
         reference: &HashMap<String, Vec<u8>>,
         interval: Interval,
         sample: &str,
-        events: &Vec<String>,
+        events: &[String],
         min_event_prob: LogProb,
-        background_events: &Vec<String>,
+        background_events: &[String],
         max_background_event_prob: LogProb,
     ) -> Result<Vec<Peptide>> {
         let rnas = self.rna(graph, reference, sample)?;
@@ -457,7 +539,7 @@ mod tests {
             Strand::Forward,
             vec![Cds::new(1, 10, 0)],
         );
-        assert_eq!(transcript.name(), "ENSP00000493376:chr1");
+        assert_eq!(transcript.name(), "chr1:ENSP00000493376");
     }
 
     fn setup_graph() -> VariantGraph {
@@ -710,6 +792,17 @@ mod tests {
     }
 
     #[test]
+    fn test_transcript_length() {
+        let transcript = Transcript::new(
+            "ENSP00000493376".to_string(),
+            "test".to_string(),
+            Strand::Forward,
+            vec![Cds::new(10, 20, 0), Cds::new(30, 40, 0)],
+        );
+        assert_eq!(transcript.length(), 22)
+    }
+
+    #[test]
     fn paths_returns_paths_for_forward_strand() {
         let transcript = Transcript::new(
             "ENSP00000493376".to_string(),
@@ -739,7 +832,7 @@ mod tests {
     fn paths_returns_error_for_unknown_strand() {
         let transcript = Transcript::new(
             "ENSP00000493376".to_string(),
-            "test".to_string(),
+            "chr1".to_string(),
             Strand::Unknown,
             vec![Cds::new(1, 10, 0)],
         );
@@ -748,7 +841,7 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err().to_string(),
-            "Strand is unknown for transcript ENSP00000493376:test"
+            "Strand is unknown for transcript chr1:ENSP00000493376"
         );
     }
 
@@ -792,5 +885,67 @@ mod tests {
         let weights = transcript.weights(&graph_path, &reference).unwrap();
         assert_eq!(weights.len(), 4);
         assert_eq!(weights[0].len(), 3);
+    }
+
+    #[test]
+    fn test_position_in_transcript() {
+        let transcript = Transcript {
+            feature: "Test".to_string(),
+            target: "chr1".to_string(),
+            strand: Strand::Forward,
+            coding_sequences: vec![
+                Cds {
+                    start: 100,
+                    end: 104,
+                    phase: 0,
+                },
+                Cds {
+                    start: 200,
+                    end: 202,
+                    phase: 0,
+                },
+            ],
+        };
+
+        assert_eq!(transcript.position_in_transcript(100).unwrap(), 0);
+        assert_eq!(transcript.position_in_transcript(104).unwrap(), 4);
+        assert_eq!(transcript.position_in_transcript(200).unwrap(), 5);
+        assert_eq!(transcript.position_in_transcript(202).unwrap(), 7);
+        assert!(transcript.position_in_transcript(150).is_err());
+    }
+
+    #[test]
+    fn test_cds_for_position_option() {
+        let transcript = Transcript {
+            feature: "Test".to_string(),
+            target: "chr1".to_string(),
+            strand: Strand::Forward,
+            coding_sequences: vec![
+                Cds {
+                    start: 100,
+                    end: 199,
+                    phase: 0,
+                },
+                Cds {
+                    start: 300,
+                    end: 399,
+                    phase: 0,
+                },
+            ],
+        };
+
+        assert_eq!(
+            transcript
+                .cds_for_position(150)
+                .map(|cds| (cds.start, cds.end)),
+            Some((100, 199))
+        );
+        assert_eq!(
+            transcript
+                .cds_for_position(350)
+                .map(|cds| (cds.start, cds.end)),
+            Some((300, 399))
+        );
+        assert_eq!(transcript.cds_for_position(250), None);
     }
 }

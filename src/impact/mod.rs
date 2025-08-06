@@ -37,7 +37,7 @@ impl fmt::Display for Impact {
             Impact::Moderate => "Moderate".red(),
             Impact::High => "High".purple(),
         };
-        write!(f, "{}", colored_str)
+        write!(f, "{colored_str}")
     }
 }
 
