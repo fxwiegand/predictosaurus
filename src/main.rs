@@ -20,7 +20,6 @@ use itertools::Itertools;
 use log::{debug, info};
 use rayon::prelude::*;
 use std::collections::HashMap;
-use std::ptr::write;
 
 mod cli;
 mod graph;
