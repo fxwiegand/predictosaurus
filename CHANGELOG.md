@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.4.0](https://github.com/fxwiegand/predictosaurus/compare/v0.3.2...v0.4.0) (2025-08-06)
+
+
+### Features
+
+* Add amino acid distance metrics and Grantham matrix ([adfb9c1](https://github.com/fxwiegand/predictosaurus/commit/adfb9c11c3bc2dda45144c5673f51c3f09ca991c))
+* Add distance matrix and calculation for sneath ([b09058c](https://github.com/fxwiegand/predictosaurus/commit/b09058cb43febfa33a272e627de428bfd6de578b))
+* Add score storage and output for transcripts ([d0919f2](https://github.com/fxwiegand/predictosaurus/commit/d0919f2397564b90a66051154097957041157fc8))
+* Calculate scores for haplotypes ([38be031](https://github.com/fxwiegand/predictosaurus/commit/38be0312f987f5844f87ff925aa371dbfc5fcafb))
+* Calculate scores for haplotypes ([12518fa](https://github.com/fxwiegand/predictosaurus/commit/12518fa1bd7a35677436836a1219f47324caacba))
+* Calculate stop penalty ([0aa1914](https://github.com/fxwiegand/predictosaurus/commit/0aa19147fb9300892c7403493aed2afe965420c1))
+* Finish basic score implementation and restructure part of code ([2ba3d76](https://github.com/fxwiegand/predictosaurus/commit/2ba3d76259076d7428422e99a2924ce2f68f4636))
+* Implement Epstein distance matrix and lookup for amino acids ([513c0db](https://github.com/fxwiegand/predictosaurus/commit/513c0db004e143b9f9ecc7571dee1236b661c1ae))
+* Implement Miyata distance metric and add tests ([4002801](https://github.com/fxwiegand/predictosaurus/commit/40028018d6af78e02773ff5e8a12889b4d16c5cf))
+* Start working on actual score calculation (WIP) ([24a1262](https://github.com/fxwiegand/predictosaurus/commit/24a1262d419169e8fbe283abc62d7e22f3625c02))
+* Update phase according to haplotype properly considering coding ([3ae5746](https://github.com/fxwiegand/predictosaurus/commit/3ae5746e7d5a9e08748469c19bbdf3544a67237e))
+* Use amino acid distance in score calculation ([70edff7](https://github.com/fxwiegand/predictosaurus/commit/70edff790032fdb75d5652703a343914ecfd4d2f))
+
+
+### Bug Fixes
+
+* Fix comment name ([0ca41b4](https://github.com/fxwiegand/predictosaurus/commit/0ca41b4445feb599fc0e662242ffbc06af2f4b92))
+* Handle stop codons in amino acid distance metrics ([b0913bf](https://github.com/fxwiegand/predictosaurus/commit/b0913bf41dde2ac2c5983a91af7d18a46664e640))
+* Penalize stop codons instead of methionine in scoring ([3cf8c29](https://github.com/fxwiegand/predictosaurus/commit/3cf8c29d197b44908231e95dba5683937ed20bc2))
+* Remove unused import of std::ptr::write ([8307d35](https://github.com/fxwiegand/predictosaurus/commit/8307d35b227af363dbb030be44b440e5ef540144))
+
 ## [0.3.2](https://github.com/fxwiegand/predictosaurus/compare/v0.3.1...v0.3.2) (2025-04-29)
 
 
