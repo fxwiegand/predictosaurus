@@ -1,4 +1,5 @@
 use crate::graph::paths::{Cds, Weight};
+use crate::graph::score::HaplotypeLikelihoods;
 use anyhow::anyhow;
 use anyhow::Result;
 use csv::{Writer, WriterBuilder};
@@ -73,15 +74,16 @@ pub(crate) fn render_html_paths(
     Ok(())
 }
 
-/// Writes given scores for each transcript into one single TSV file with the columns `transcript` and `score`
+/// Writes given per-haplotype scores into a single TSV file with the columns:
+/// `transcript`, `score`, and one column per sample . Each row corresponds to one (score, per-sample) pair for a given transcript.
 ///
 /// # Arguments
 ///
 /// * `output_path` - A reference to a `PathBuf` that holds the path of the output TSV file.
-/// * `scores` - A reference to a `HashMap` that holds the scores for each transcript.
+/// * `scores` - A reference to a `HashMap` that holds the scores and likelihoods for each transcript.
 pub(crate) fn render_scores(
     output_path: &PathBuf,
-    scores: &HashMap<String, Vec<(f64, HashMap<String, f32>)>>,
+    scores: &HashMap<String, Vec<(f64, HaplotypeLikelihoods)>>,
 ) -> Result<()> {
     let mut wtr = WriterBuilder::new()
         .delimiter(b'\t')
