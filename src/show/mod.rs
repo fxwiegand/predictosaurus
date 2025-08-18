@@ -81,7 +81,9 @@ pub(crate) fn render_scores(
     output_path: &PathBuf,
     scores: &HashMap<String, Vec<f64>>,
 ) -> Result<()> {
-    let mut wtr = WriterBuilder::new().delimiter(b'\t').from_path(Path::new(output_path))?;
+    let mut wtr = WriterBuilder::new()
+        .delimiter(b'\t')
+        .from_path(Path::new(output_path))?;
     wtr.write_record(["transcript", "score"])?;
     for (transcript, score) in scores {
         for s in score {
@@ -171,5 +173,4 @@ mod tests {
         render_scores(&output_path, &scores).unwrap();
         assert!(output_path.exists());
     }
-
 }
