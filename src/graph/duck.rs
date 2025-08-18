@@ -166,36 +166,49 @@ pub(crate) fn variants_on_graph(path: &PathBuf) -> Result<HashMap<String, BTreeS
 
 pub(crate) fn create_scores(output_path: &Path) -> Result<()> {
     let db = Connection::open(output_path)?;
-    db.execute("CREATE TABLE scores (transcript String, score FLOAT)", [])?;
+    db.execute(
+        "CREATE TABLE scores (transcript String, score FLOAT, likelihoods String)",
+        [],
+    )?;
     db.close().unwrap();
     Ok(())
 }
 
 pub(crate) fn write_scores(
     path: &Path,
-    scores: Vec<EffectScore>,
+    scores: Vec<(EffectScore, HashMap<String, f32>)>,
     transcript: Transcript,
 ) -> Result<()> {
     let db = Connection::open(path)?;
-    for score in scores {
+    for (score, likelihoods) in scores {
         db.execute(
-            "INSERT INTO scores VALUES (?, ?)",
-            [transcript.name(), score.normalized().to_string()],
+            "INSERT INTO scores VALUES (?, ?, ?)",
+            [
+                transcript.name(),
+                score.normalized().to_string(),
+                json5::to_string(&likelihoods)?,
+            ],
         )?;
     }
     db.close().unwrap();
     Ok(())
 }
 
-pub(crate) fn read_scores(path: &Path) -> Result<HashMap<String, Vec<f64>>> {
+pub(crate) fn read_scores(
+    path: &Path,
+) -> Result<HashMap<String, Vec<(f64, HashMap<String, f32>)>>> {
     let db = Connection::open(path)?;
     let mut scores = HashMap::new();
-    let mut stmt = db.prepare("SELECT transcript, score FROM scores")?;
+    let mut stmt = db.prepare("SELECT transcript, score, likelihoods FROM scores")?;
     let mut rows = stmt.query([])?;
     while let Some(row) = rows.next()? {
         let transcript = row.get(0)?;
         let score = row.get(1)?;
-        scores.entry(transcript).or_insert(Vec::new()).push(score);
+        let likelihoods: String = row.get(2)?;
+        scores
+            .entry(transcript)
+            .or_insert(Vec::new())
+            .push((score, json5::from_str(&likelihoods)?));
     }
     db.close().unwrap();
     Ok(scores)
@@ -566,10 +579,29 @@ mod tests {
             stop_fraction: None,
             distance_metric: DistanceMetric::default(),
         };
-        let scores = vec![effect_score];
+        let likelihoods = HashMap::from([("A".to_string(), 0.1), ("C".to_string(), 0.2)]);
+        let scores = vec![(effect_score, likelihoods)];
         write_scores(output_path.as_path(), scores, transcript).unwrap();
         let scores = read_scores(output_path.as_path()).unwrap();
         assert_eq!(scores.len(), 1);
-        assert!((scores.get("chr1:some feature").unwrap()[0] - 0.3333333).abs() < 1e-6);
+        assert!((scores.get("chr1:some feature").unwrap()[0].0 - 0.3333333).abs() < 1e-6);
+        assert!(
+            (scores.get("chr1:some feature").unwrap()[0]
+                .1
+                .get("A")
+                .unwrap()
+                - 0.1)
+                .abs()
+                < 1e-6
+        );
+        assert!(
+            (scores.get("chr1:some feature").unwrap()[0]
+                .1
+                .get("C")
+                .unwrap()
+                - 0.2)
+                .abs()
+                < 1e-6
+        );
     }
 }

@@ -1,7 +1,9 @@
 use crate::graph::paths::{Cds, Weight};
+use anyhow::anyhow;
 use anyhow::Result;
 use csv::{Writer, WriterBuilder};
 use itertools::Itertools;
+use rust_htslib::bcf::header::SampleSubset;
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -79,17 +81,43 @@ pub(crate) fn render_html_paths(
 /// * `scores` - A reference to a `HashMap` that holds the scores for each transcript.
 pub(crate) fn render_scores(
     output_path: &PathBuf,
-    scores: &HashMap<String, Vec<f64>>,
+    scores: &HashMap<String, Vec<(f64, HashMap<String, f32>)>>,
 ) -> Result<()> {
     let mut wtr = WriterBuilder::new()
         .delimiter(b'\t')
         .from_path(Path::new(output_path))?;
-    wtr.write_record(["transcript", "score"])?;
-    for (transcript, score) in scores {
-        for s in score {
-            wtr.write_record([transcript, &s.to_string()])?;
+
+    let samples: Vec<String> = scores
+        .values()
+        .flat_map(|scores| {
+            scores
+                .iter()
+                .flat_map(|(_, sample_scores)| sample_scores.keys().cloned())
+        })
+        .unique()
+        .collect();
+
+    let mut headers = vec!["transcript", "score"];
+    headers.extend(samples.iter().map(|s| s.as_str()));
+    wtr.write_record(headers)?;
+
+    for (transcript, hap_scores) in scores {
+        for (score_val, sample_scores) in hap_scores {
+            let mut row = vec![transcript.to_string(), score_val.to_string()];
+            for sample in &samples {
+                let val = sample_scores.get(sample).ok_or_else(|| {
+                    anyhow!(
+                        "No score found for sample '{}' in transcript '{}'",
+                        sample,
+                        transcript
+                    )
+                })?;
+                row.push(val.to_string());
+            }
+            wtr.write_record(row)?;
         }
     }
+
     wtr.flush()?;
     Ok(())
 }
@@ -167,8 +195,8 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let output_path = temp_dir.keep().join("scores.tsv");
         let scores = HashMap::from([
-            ("transcript1".to_string(), vec![0.8]),
-            ("transcript2".to_string(), vec![0.6]),
+            ("transcript1".to_string(), vec![(0.8, HashMap::new())]),
+            ("transcript2".to_string(), vec![(0.6, HashMap::new())]),
         ]);
         render_scores(&output_path, &scores).unwrap();
         assert!(output_path.exists());
