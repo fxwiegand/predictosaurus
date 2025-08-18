@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/fxwiegand/predictosaurus/compare/v0.4.0...v0.4.1) (2025-08-18)
+
+
+### Bug Fixes
+
+* Write score output to single TSV file instead of per transcript ([#124](https://github.com/fxwiegand/predictosaurus/issues/124)) ([df0773d](https://github.com/fxwiegand/predictosaurus/commit/df0773d3dfe8748754a4530deb2648f760216c08))
+
 ## [0.4.0](https://github.com/fxwiegand/predictosaurus/compare/v0.3.2...v0.4.0) (2025-08-06)
 
 
