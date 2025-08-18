@@ -119,11 +119,11 @@ impl Command {
                 write_peptides(peptides, output)?;
             }
             Command::Plot { input, output } => {
-                create_output_dir(output)?;
-                let scores = read_scores(input)?;
-                for (transcript, s) in scores {
-                    render_scores(output, &s, transcript)?;
+                if let Some(parent) = output.parent() {
+                    create_output_dir(parent)?;
                 }
+                let scores = read_scores(input)?;
+                render_scores(output, &scores)?;
             }
         }
         Ok(())

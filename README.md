@@ -110,17 +110,17 @@ predictosaurus peptides --features path/to/features.gff --reference path/to/refe
 
 ### Plot
 
-Outputs the calculated scores in one TSV file per transcript.
+Outputs the calculated scores in one TSV file with the columns "transcript" and "score".
 
 **Options:**
 
 - `--input <path>`: Path to the input data file generated with the process command.
-- `--output <path>`: Path to the output files.
+- `--output <path>`: Path to the output TSV file.
 
 **Example:**
 
 ```bash
-predictosaurus plot --input path/to/scores.duckdb --output /out_dir/
+predictosaurus plot --input path/to/scores.duckdb --output scores.tsv
 ```
 
 ## Example
@@ -135,7 +135,7 @@ predictosaurus build --calls calls.vcf --observations sample1=observations1.vcf 
 predictosaurus process --features features.gff --reference reference.fasta --graph graphs.duckdb --output scores.duckdb
 
 # Step 3: plot visualizations
-predictosaurus plot --input scores.duckdb --output out_dir/
+predictosaurus plot --input scores.duckdb --output scores.tsv
 ```
 
 ## License
