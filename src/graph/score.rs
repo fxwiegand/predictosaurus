@@ -202,7 +202,7 @@ impl HaplotypeMetric {
                     let product: f32 = vafs.iter().product();
                     product.powf(1.0 / vafs.len() as f32)
                 }
-                HaplotypeMetric::Minimum => vafs.iter().cloned().fold(f32::INFINITY, f32::min),
+                HaplotypeMetric::Minimum => vafs.iter().cloned().fold(1.0, f32::min),
             };
             metrics.insert(sample.to_string(), result);
         }
@@ -387,6 +387,26 @@ mod tests {
         let result = metric.calculate(&nodes);
         let expected = (0.5_f32 * 0.25_f32).powf(1.0 / 2.0);
         assert!((result.get("S1").unwrap() - expected).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_all_metrics_return_one_with_only_reference_nodes() {
+        let nodes = vec![Node {
+            node_type: NodeType::Ref("".to_string()),
+            vaf: [("S1".to_string(), 0.5)].into(),
+            probs: EventProbs(HashMap::new()),
+            pos: 0,
+            index: 0,
+        }];
+        let metric = HaplotypeMetric::GeometricMean;
+        let result = metric.calculate(&nodes);
+        assert_eq!(result.get("S1").unwrap(), &1.0);
+        let metric = HaplotypeMetric::Product;
+        let result = metric.calculate(&nodes);
+        assert_eq!(result.get("S1").unwrap(), &1.0);
+        let metric = HaplotypeMetric::Minimum;
+        let result = metric.calculate(&nodes);
+        assert_eq!(result.get("S1").unwrap(), &1.0);
     }
 
     #[test]
