@@ -53,7 +53,7 @@ pub(crate) enum Command {
         graph: PathBuf,
 
         /// Metric to use for haplotype quantification
-        #[clap(short, long, default_value = "geometric-mean")]
+        #[clap(long, default_value = "geometric-mean")]
         haplotype_metric: HaplotypeMetric,
 
         /// Path to the output file containing the paths for the features given via the GFF file
