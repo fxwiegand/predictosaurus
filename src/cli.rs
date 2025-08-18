@@ -98,7 +98,7 @@ pub(crate) enum Command {
         #[clap(short, long)]
         input: PathBuf,
 
-        /// Path to the output directory
+        /// Path to the output TSV file containing the predicted scores per transcript.
         #[clap(short, long)]
         output: PathBuf,
     },

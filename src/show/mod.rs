@@ -1,7 +1,8 @@
 use crate::graph::paths::{Cds, Weight};
 use anyhow::Result;
-use csv::Writer;
+use csv::{Writer, WriterBuilder};
 use itertools::Itertools;
+use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use tera::Tera;
@@ -70,14 +71,22 @@ pub(crate) fn render_html_paths(
     Ok(())
 }
 
+/// Writes given scores for each transcript into one single TSV file with the columns `transcript` and `score`
+///
+/// # Arguments
+///
+/// * `output_path` - A reference to a `PathBuf` that holds the path of the output TSV file.
+/// * `scores` - A reference to a `HashMap` that holds the scores for each transcript.
 pub(crate) fn render_scores(
     output_path: &PathBuf,
-    scores: &[f64],
-    transcript: String,
+    scores: &HashMap<String, Vec<f64>>,
 ) -> Result<()> {
-    let mut wtr = Writer::from_path(Path::new(output_path).join(format!("{transcript}.tsv")))?;
-    for score in scores {
-        wtr.write_record(&[score.to_string()])?;
+    let mut wtr = WriterBuilder::new().delimiter(b'\t').from_path(Path::new(output_path))?;
+    wtr.write_record(["transcript", "score"])?;
+    for (transcript, score) in scores {
+        for s in score {
+            wtr.write_record([transcript, &s.to_string()])?;
+        }
     }
     wtr.flush()?;
     Ok(())
@@ -150,4 +159,17 @@ mod tests {
         let file_path = Path::new(&output_path).join(format!("{}.html", transcript));
         assert!(file_path.exists());
     }
+
+    #[test]
+    fn test_render_scores() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let output_path = temp_dir.keep().join("scores.tsv");
+        let scores = HashMap::from([
+            ("transcript1".to_string(), vec![0.8]),
+            ("transcript2".to_string(), vec![0.6]),
+        ]);
+        render_scores(&output_path, &scores).unwrap();
+        assert!(output_path.exists());
+    }
+
 }
