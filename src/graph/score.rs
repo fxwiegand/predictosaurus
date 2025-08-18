@@ -6,7 +6,6 @@ use crate::translation::distance::DistanceMetric;
 use anyhow::Result;
 use bio::bio_types::strand::Strand;
 use clap::ValueEnum;
-use serde_json::de;
 use std::collections::{HashMap, HashSet};
 
 /// Tuning constants for the score components
@@ -183,8 +182,10 @@ pub enum HaplotypeMetric {
     Minimum,
 }
 
+pub type HaplotypeLikelihoods = HashMap<String, f32>;
+
 impl HaplotypeMetric {
-    pub fn calculate(&self, haplotype: &[Node]) -> HashMap<String, f32> {
+    pub fn calculate(&self, haplotype: &[Node]) -> HaplotypeLikelihoods {
         let samples = haplotype
             .iter()
             .flat_map(|n| n.vaf.keys())

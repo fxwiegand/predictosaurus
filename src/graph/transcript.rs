@@ -4,6 +4,7 @@ use crate::graph::node::{Node, NodeType};
 use crate::graph::paths::{Cds, HaplotypePath, Weight};
 use crate::graph::peptide::Peptide;
 use crate::graph::score::EffectScore;
+use crate::graph::score::HaplotypeLikelihoods;
 use crate::graph::score::HaplotypeMetric;
 use crate::graph::{shift_phase, EventProbs, VariantGraph};
 use crate::translation::amino_acids::AminoAcid;
@@ -174,7 +175,7 @@ impl Transcript {
         graph: &PathBuf,
         reference: &HashMap<String, Vec<u8>>,
         haplotype_metric: HaplotypeMetric,
-    ) -> Result<Vec<(EffectScore, HashMap<String, f32>)>> {
+    ) -> Result<Vec<(EffectScore, HaplotypeLikelihoods)>> {
         let haplotypes = self.haplotypes(graph)?;
         let mut scores = Vec::with_capacity(haplotypes.len());
         for haplotype in haplotypes {
