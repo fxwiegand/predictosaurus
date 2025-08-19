@@ -19,6 +19,7 @@ use env_logger::Env;
 use itertools::Itertools;
 use log::{debug, info};
 use rayon::prelude::*;
+use rayon::ThreadPoolBuilder;
 use std::collections::HashMap;
 
 mod cli;
@@ -33,6 +34,12 @@ fn main() -> Result<()> {
     let args = Predictosaurus::parse();
     let log_level = if args.verbose { "info" } else { "off" };
     env_logger::Builder::from_env(Env::default().default_filter_or(log_level)).init();
+    if let Some(n) = args.threads {
+        ThreadPoolBuilder::new()
+            .num_threads(n)
+            .build_global()
+            .expect("Failed to build thread pool");
+    }
     args.command.run()
 }
 
@@ -46,24 +53,29 @@ impl Command {
                 output,
             } => {
                 let targets = get_targets(calls)?;
-                let mut graphs = HashMap::new();
-                for target in targets {
-                    info!("Building graph for target {target}");
-                    let variant_graph = VariantGraph::build(
-                        calls,
-                        observations,
-                        &target,
-                        LogProb::from(Prob(*min_prob_present)),
-                    )?;
-                    info!(
-                        "Finished building graph for target {} with {} nodes",
-                        target,
-                        variant_graph.graph.node_count()
-                    );
-                    if !variant_graph.is_empty() {
-                        graphs.insert(target, variant_graph);
-                    }
-                }
+                let mut graphs = targets
+                    .into_par_iter()
+                    .filter_map(|target| {
+                        info!("Building graph for target {target}");
+                        let variant_graph = VariantGraph::build(
+                            calls,
+                            observations,
+                            &target,
+                            LogProb::from(Prob(*min_prob_present)),
+                        )
+                        .ok()?;
+                        info!(
+                            "Finished building graph for target {} with {} nodes",
+                            target,
+                            variant_graph.graph.node_count()
+                        );
+                        if !variant_graph.is_empty() {
+                            Some((target, variant_graph))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
                 write_graphs(graphs, output)?;
             }
             Command::Process {
