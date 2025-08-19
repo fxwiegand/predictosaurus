@@ -70,6 +70,7 @@ impl Command {
                 features,
                 reference,
                 graph,
+                haplotype_metric,
                 output,
             } => {
                 create_scores(output)?;
@@ -77,7 +78,7 @@ impl Command {
                 let reference_genome = utils::fasta::read_reference(reference);
                 for transcript in transcripts(features, graph)? {
                     info!("Processing transcript {}", transcript.name());
-                    let scores = transcript.scores(graph, &reference_genome)?;
+                    let scores = transcript.scores(graph, &reference_genome, *haplotype_metric)?;
                     info!(
                         "Writing scores for {} different haplotypes for transcript {}",
                         scores.len(),
