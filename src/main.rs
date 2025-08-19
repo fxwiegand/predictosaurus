@@ -87,16 +87,19 @@ impl Command {
                 create_scores(output)?;
                 info!("Reading reference genome from {reference:?}");
                 let reference_genome = utils::fasta::read_reference(reference);
-                for transcript in transcripts(features, graph)? {
-                    info!("Processing transcript {}", transcript.name());
-                    let scores = transcript.scores(graph, &reference_genome)?;
-                    info!(
-                        "Writing scores for {} different haplotypes for transcript {}",
-                        scores.len(),
-                        transcript.name()
-                    );
-                    write_scores(output, &scores, transcript)?;
-                }
+                transcripts(features, graph)?.into_par_iter().try_for_each(
+                    |transcript| -> anyhow::Result<()> {
+                        info!("Processing transcript {}", transcript.name());
+                        let scores = transcript.scores(graph, &reference_genome)?;
+                        info!(
+                            "Writing scores for {} different haplotypes for transcript {}",
+                            scores.len(),
+                            transcript.name()
+                        );
+                        write_scores(output, &scores, transcript)?;
+                        Ok(())
+                    },
+                )?;
             }
             Command::Peptides {
                 features,
