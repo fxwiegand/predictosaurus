@@ -95,7 +95,7 @@ impl Command {
                         scores.len(),
                         transcript.name()
                     );
-                    write_scores(output, scores, transcript)?;
+                    write_scores(output, &scores, transcript)?;
                 }
             }
             Command::Peptides {
