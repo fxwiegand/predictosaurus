@@ -181,7 +181,7 @@ pub(crate) fn write_scores(
     let mut stmt = transaction.prepare("INSERT INTO scores VALUES (?, ?)")?;
     let transcript_name = transcript.name();
     for score in scores {
-        stmt.execute([transcript_name.to_string(), score.normalized().to_string()])?;
+        stmt.execute(params![transcript_name.as_str(), score.normalized()])?;
     }
     transaction.commit()?;
     db.close().unwrap();
