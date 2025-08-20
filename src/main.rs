@@ -21,6 +21,7 @@ use log::{debug, info};
 use rayon::prelude::*;
 use rayon::ThreadPoolBuilder;
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 mod cli;
 mod graph;
@@ -87,6 +88,7 @@ impl Command {
                 create_scores(output)?;
                 info!("Reading reference genome from {reference:?}");
                 let reference_genome = utils::fasta::read_reference(reference);
+                let write_lock = Arc::new(Mutex::new(()));
                 transcripts(features, graph)?.into_par_iter().try_for_each(
                     |transcript| -> anyhow::Result<()> {
                         info!("Processing transcript {}", transcript.name());
@@ -96,6 +98,7 @@ impl Command {
                             scores.len(),
                             transcript.name()
                         );
+                        let _lock = write_lock.lock().unwrap();
                         write_scores(output, &scores, transcript)?;
                         Ok(())
                     },
