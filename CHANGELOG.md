@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.2](https://github.com/fxwiegand/predictosaurus/compare/v0.4.1...v0.4.2) (2025-08-20)
+
+
+### Bug Fixes
+
+* Refactor get_targets to return only chromosomes that are actually ([#132](https://github.com/fxwiegand/predictosaurus/issues/132)) ([1e1c57b](https://github.com/fxwiegand/predictosaurus/commit/1e1c57b976a7e6c21f7708f226d72cefd36f2df6))
+
+
+### Performance Improvements
+
+* Add threads option and parallelize build and process command ([#130](https://github.com/fxwiegand/predictosaurus/issues/130)) ([8c83f96](https://github.com/fxwiegand/predictosaurus/commit/8c83f96c88e87616755ec46934a044c1db9dcd48))
+
 ## [0.4.1](https://github.com/fxwiegand/predictosaurus/compare/v0.4.0...v0.4.1) (2025-08-18)
 
 
