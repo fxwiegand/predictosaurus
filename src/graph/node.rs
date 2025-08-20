@@ -183,7 +183,7 @@ impl Node {
                 ]
                 .concat();
                 if alt_codon_bases.contains(&b'N') {
-                    return Ok(vec![]); // Don not warn since we probably warn already for reference_amino_acid
+                    return Ok(vec![]); // Do not warn since we probably warn already for reference_amino_acid
                 }
                 Ok(transcription::transcribe_dna_to_rna(&alt_codon_bases)?
                     .iter()
