@@ -13,60 +13,54 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 pub(crate) fn write_graphs(graphs: HashMap<String, VariantGraph>, path: &Path) -> Result<()> {
-    let db = Connection::open(path)?;
-    db.execute("CREATE TABLE graphs (target STRING PRIMARY KEY, start_position INTEGER, end_position INTEGER)", [])?;
-    db.execute(
+    let mut db = Connection::open(path)?;
+    let transaction = db.transaction()?;
+    transaction.execute("CREATE TABLE graphs (target STRING PRIMARY KEY, start_position INTEGER, end_position INTEGER)", [])?;
+    transaction.execute(
         "CREATE TABLE nodes (target STRING, node_index INTEGER, node_type STRING, vaf STRING, probs STRING, pos INTEGER, index INTEGER)",
         [],
     )?;
-    db.execute(
+    transaction.execute(
         "CREATE TABLE edges (target STRING, from_node INTEGER, to_node INTEGER, supporting_reads STRING)",
         [],
     )?;
+
+    let mut insert_graph = transaction.prepare("INSERT INTO graphs VALUES (?, ?, ?)")?;
+    let mut insert_node = transaction.prepare("INSERT INTO nodes VALUES (?, ?, ?, ?, ?, ?, ?)")?;
+    let mut insert_edge = transaction.prepare("INSERT INTO edges VALUES (?, ?, ?, ?)")?;
+
     for (target, graph) in graphs {
-        db.execute(
-            "INSERT INTO graphs VALUES (?, ?, ?)",
-            [
-                target.to_string(),
-                graph.start.to_string(),
-                graph.end.to_string(),
-            ],
-        )?;
+        insert_graph.execute(params![target, graph.start, graph.end])?;
         for node_index in graph.graph.node_indices() {
             let node = graph.graph.node_weight(node_index).unwrap();
-            db.execute(
-                "INSERT INTO nodes VALUES (?, ?, ?, ?, ?, ?, ?)",
-                [
-                    &target.to_string(),
-                    &node_index.index().to_string(),
-                    &node.node_type.to_string(),
-                    &json5::to_string(&node.vaf)?,
-                    &json5::to_string(&node.probs)?,
-                    &node.pos.to_string(),
-                    &node.index.to_string(),
-                ],
-            )?;
+            insert_node.execute(params![
+                target,
+                node_index.index() as i64,
+                node.node_type.to_string(),
+                json5::to_string(&node.vaf)?,
+                json5::to_string(&node.probs)?,
+                node.pos,
+                node.index as i64,
+            ])?;
         }
         for edge in graph.graph.edge_indices() {
             let (from_node, to_node) = graph.graph.edge_endpoints(edge).unwrap();
             let edge = graph.graph.edge_weight(edge).unwrap();
-            db.execute(
-                "INSERT INTO edges VALUES (?, ?, ?, ?)",
-                [
-                    &target.to_string(),
-                    &from_node.index().to_string(),
-                    &to_node.index().to_string(),
-                    &serde_json::to_string(&edge.supporting_reads)?,
-                ],
-            )?;
+            insert_edge.execute(params![
+                target,
+                from_node.index() as i64,
+                to_node.index() as i64,
+                serde_json::to_string(&edge.supporting_reads)?,
+            ])?;
         }
     }
-    db.execute(
+    transaction.execute(
         "CREATE INDEX idx_nodes_target_pos ON nodes (target, pos)",
         [],
     )?;
-    db.execute("CREATE INDEX idx_edges_target ON edges (target)", [])?;
-    db.execute("CREATE INDEX idx_graphs_target ON graphs (target)", [])?;
+    transaction.execute("CREATE INDEX idx_edges_target ON edges (target)", [])?;
+    transaction.execute("CREATE INDEX idx_graphs_target ON graphs (target)", [])?;
+    transaction.commit()?;
     db.close().unwrap();
     Ok(())
 }
