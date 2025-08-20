@@ -7,7 +7,6 @@ use bio::bio_types::strand::Strand;
 use itertools::Itertools;
 use log::warn;
 use rust_htslib::bcf::Record;
-use rust_htslib::htslib::WAIT_ANY;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Display;
