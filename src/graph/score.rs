@@ -157,7 +157,7 @@ impl AminoAcidChange {
     pub fn distance(&self, metric: &DistanceMetric) -> f64 {
         match (&self.reference, self.variants.first(), self.variants.len()) {
             (Some(r), Some(v), 1) => metric.compute(r, v),
-            (Some(r), Some(v), _) => 1.0, // Complex change adding more amino acids to the protein.
+            (Some(_), Some(_), _) => 1.0, // Complex change adding more amino acids to the protein.
             _ => 0.0, // This will mostly happen when the variant is mapped to a region where the reference contains N. Therefore, we return 0.0 for now.
         }
     }
