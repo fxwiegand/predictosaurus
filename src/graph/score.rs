@@ -155,9 +155,10 @@ pub struct AminoAcidChange {
 
 impl AminoAcidChange {
     pub fn distance(&self, metric: &DistanceMetric) -> f64 {
-        match (&self.reference, self.variants.first()) {
-            (Some(r), Some(v)) if self.variants.len() == 1 => metric.compute(r, v),
-            _ => 1.0, // default penalty for complex changes
+        match (&self.reference, self.variants.first(), self.variants.len()) {
+            (Some(r), Some(v), 1) => metric.compute(r, v),
+            (Some(r), Some(v), _) => 1.0, // Complex change adding more amino acids to the protein.
+            _ => 0.0, // This will mostly happen when the variant is mapped to a region where the reference contains N. Therefore, we return 0.0 for now.
         }
     }
 
@@ -208,7 +209,7 @@ mod tests {
             reference: None,
             variants: vec![AminoAcid::AsparticAcid],
         };
-        assert!((change.distance(&metric) - 1.0).abs() < 1e-6);
+        assert!((change.distance(&metric) - 0.0).abs() < 1e-6);
 
         let change = AminoAcidChange {
             reference: Some(AminoAcid::Isoleucine),
@@ -220,7 +221,7 @@ mod tests {
             reference: Some(AminoAcid::Isoleucine),
             variants: vec![],
         };
-        assert!((change.distance(&metric) - 1.0).abs() < 1e-6);
+        assert!((change.distance(&metric) - 0.0).abs() < 1e-6);
     }
 
     #[test]

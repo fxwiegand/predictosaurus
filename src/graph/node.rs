@@ -5,7 +5,9 @@ use crate::translation::amino_acids::AminoAcid;
 use anyhow::anyhow;
 use bio::bio_types::strand::Strand;
 use itertools::Itertools;
+use log::warn;
 use rust_htslib::bcf::Record;
+use rust_htslib::htslib::WAIT_ANY;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Display;
@@ -60,6 +62,12 @@ pub(crate) struct Node {
     pub(crate) probs: EventProbs,
     pub(crate) pos: i64,
     pub(crate) index: u32,
+}
+
+impl std::fmt::Display for Node {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} at position {}", self.node_type, self.pos)
+    }
 }
 
 impl Node {
@@ -132,6 +140,10 @@ impl Node {
             return Ok(None);
         }
         let ref_codon_bases = reference[start_pos..start_pos + 3].to_vec();
+        if ref_codon_bases.contains(&b'N') {
+            warn!("Found nucleotide 'N' in reference sequence for Node: {self}");
+            return Ok(None);
+        }
         let rna_codon = transcription::transcribe_dna_to_rna(&ref_codon_bases)?;
         Ok(AminoAcid::from_codon(&rna_codon).ok())
     }
@@ -171,6 +183,9 @@ impl Node {
                     &ref_codon_bases[position_in_codon + 1..],
                 ]
                 .concat();
+                if alt_codon_bases.contains(&b'N') {
+                    return Ok(vec![]); // Don not warn since we probably warn already for reference_amino_acid
+                }
                 Ok(transcription::transcribe_dna_to_rna(&alt_codon_bases)?
                     .iter()
                     .tuples::<(_, _, _)>()
@@ -710,5 +725,26 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(result, "Met -> Ile");
+    }
+
+    #[test]
+    fn test_node_display() {
+        let var_node = Node {
+            node_type: NodeType::Var("A".to_string()),
+            vaf: Default::default(),
+            probs: EventProbs(Default::default()),
+            pos: 42,
+            index: 0,
+        };
+        let ref_node = Node {
+            node_type: NodeType::Ref("".to_string()),
+            vaf: Default::default(),
+            probs: EventProbs(Default::default()),
+            pos: 99,
+            index: 1,
+        };
+
+        assert_eq!(format!("{}", var_node), "Var(A) at position 42");
+        assert_eq!(format!("{}", ref_node), "Ref at position 99");
     }
 }
