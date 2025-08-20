@@ -173,16 +173,17 @@ pub(crate) fn create_scores(output_path: &Path) -> Result<()> {
 
 pub(crate) fn write_scores(
     path: &Path,
-    scores: Vec<EffectScore>,
+    scores: &[EffectScore],
     transcript: Transcript,
 ) -> Result<()> {
-    let db = Connection::open(path)?;
+    let mut db = Connection::open(path)?;
+    let transaction = db.transaction()?;
+    let mut stmt = transaction.prepare("INSERT INTO scores VALUES (?, ?)")?;
+    let transcript_name = transcript.name();
     for score in scores {
-        db.execute(
-            "INSERT INTO scores VALUES (?, ?)",
-            [transcript.name(), score.normalized().to_string()],
-        )?;
+        stmt.execute(params![transcript_name.as_str(), score.normalized()])?;
     }
+    transaction.commit()?;
     db.close().unwrap();
     Ok(())
 }
@@ -567,7 +568,7 @@ mod tests {
             distance_metric: DistanceMetric::default(),
         };
         let scores = vec![effect_score];
-        write_scores(output_path.as_path(), scores, transcript).unwrap();
+        write_scores(output_path.as_path(), &scores, transcript).unwrap();
         let scores = read_scores(output_path.as_path()).unwrap();
         assert_eq!(scores.len(), 1);
         assert!((scores.get("chr1:some feature").unwrap()[0] - 0.3333333).abs() < 1e-6);
