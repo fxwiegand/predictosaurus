@@ -295,7 +295,7 @@ impl VariantGraph {
         for start_node in start_nodes {
             let mut stack = vec![(start_node, vec![start_node])];
 
-            while let Some((node, path)) = stack.pop() {
+            while let Some((node, mut path)) = stack.pop() {
                 // Use the forward-only filter to only traverse neighbors with higher indices.
                 let mut found_forward = false;
                 for neighbor in self
@@ -303,10 +303,13 @@ impl VariantGraph {
                     .neighbors(node)
                     .filter(|n| n.index() > node.index())
                 {
+                    if path.contains(&neighbor) {
+                        continue;
+                    }
                     found_forward = true;
-                    let mut new_path = path.clone();
-                    new_path.push(neighbor);
-                    stack.push((neighbor, new_path));
+                    path.push(neighbor);
+                    stack.push((neighbor, path.clone()));
+                    path.pop();
                 }
                 // If no valid forward neighbor is found, we've reached a "leaf" in terms of forward traversal.
                 if !found_forward {
