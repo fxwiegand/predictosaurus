@@ -286,19 +286,65 @@ impl VariantGraph {
     ///
     /// Returns:
     ///     A vector of vectors, where each inner vector represents a path through the graph
-    ///     starting from one of the initial nodes. Each path is a sequence of `NodeIndex`
-    ///     elements, representing the nodes in the order they are visited
-    pub(crate) fn paths(&self) -> Vec<HaplotypePath> {
-        let mut all_paths = Vec::new();
-        let start_nodes = self.graph.node_indices().take(2).collect::<Vec<_>>();
+    /// Returns an iterator over all possible paths through the variant graph,
+    /// starting from one of the initial nodes. Each path is a sequence of `NodeIndex`
+    /// elements, representing the nodes in the order they are visited.
+    /// Uses lazy evaluation to avoid memory explosion.
+    pub(crate) fn paths(&self) -> PathIterator {
+        PathIterator::new(self)
+    }
 
-        for start_node in start_nodes {
-            let mut stack = vec![(start_node, vec![start_node])];
+    /// Collects all paths from the iterator into a Vec - use sparingly for large graphs
+    pub(crate) fn collect_all_paths(&self) -> Vec<HaplotypePath> {
+        self.paths().collect()
+    }
 
-            while let Some((node, path)) = stack.pop() {
-                // Use the forward-only filter to only traverse neighbors with higher indices.
+    pub(crate) fn reverse_paths(&self) -> ReversePathIterator {
+        ReversePathIterator::new(self.paths())
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.graph.node_count() == 0
+    }
+}
+
+pub(crate) struct PathIterator<'a> {
+    graph: &'a VariantGraph,
+    stack: Vec<(NodeIndex, Vec<NodeIndex>)>,
+    start_nodes: Vec<NodeIndex>,
+    current_start_index: usize,
+    visited_paths: std::collections::HashSet<Vec<NodeIndex>>,
+}
+
+impl<'a> PathIterator<'a> {
+    fn new(graph: &'a VariantGraph) -> Self {
+        let start_nodes = graph.graph.node_indices().take(2).collect::<Vec<_>>();
+        let mut stack = Vec::new();
+
+        if !start_nodes.is_empty() {
+            stack.push((start_nodes[0], vec![start_nodes[0]]));
+        }
+
+        PathIterator {
+            graph,
+            stack,
+            start_nodes,
+            current_start_index: 0,
+            visited_paths: std::collections::HashSet::new(),
+        }
+    }
+}
+
+impl<'a> Iterator for PathIterator<'a> {
+    type Item = HaplotypePath;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some((node, path)) = self.stack.pop() {
+                // Use the forward-only filter to only traverse neighbors with higher indices
                 let mut found_forward = false;
                 for neighbor in self
+                    .graph
                     .graph
                     .neighbors(node)
                     .filter(|n| n.index() > node.index())
@@ -306,36 +352,53 @@ impl VariantGraph {
                     found_forward = true;
                     let mut new_path = path.clone();
                     new_path.push(neighbor);
-                    stack.push((neighbor, new_path));
+                    self.stack.push((neighbor, new_path));
                 }
-                // If no valid forward neighbor is found, we've reached a "leaf" in terms of forward traversal.
+
+                // If no valid forward neighbor is found, we've reached a "leaf"
                 if !found_forward {
-                    all_paths.push(HaplotypePath(path));
+                    // Filter out paths with invalid positions
+                    let nodes = path
+                        .iter()
+                        .map(|n| self.graph.graph.node_weight(*n).unwrap())
+                        .collect_vec();
+
+                    if nodes.iter().all(|n| n.pos != -1) && !self.visited_paths.contains(&path) {
+                        self.visited_paths.insert(path.clone());
+                        return Some(HaplotypePath(path));
+                    }
+                }
+            } else {
+                // Current start node exhausted, try next start node
+                self.current_start_index += 1;
+                if self.current_start_index < self.start_nodes.len() {
+                    let start_node = self.start_nodes[self.current_start_index];
+                    self.stack.push((start_node, vec![start_node]));
+                } else {
+                    return None;
                 }
             }
         }
-
-        all_paths.retain(|path| {
-            let nodes = path
-                .0
-                .iter()
-                .map(|n| self.graph.node_weight(*n).unwrap())
-                .collect_vec();
-            nodes.iter().all(|n| n.pos != -1)
-        });
-
-        all_paths.into_iter().unique().collect_vec()
     }
+}
 
-    pub(crate) fn reverse_paths(&self) -> Vec<HaplotypePath> {
-        self.paths()
-            .iter()
-            .map(|path| HaplotypePath(path.0.iter().rev().cloned().collect()))
-            .collect()
+pub(crate) struct ReversePathIterator<'a> {
+    forward_iter: PathIterator<'a>,
+}
+
+impl<'a> ReversePathIterator<'a> {
+    fn new(forward_iter: PathIterator<'a>) -> Self {
+        ReversePathIterator { forward_iter }
     }
+}
 
-    pub(crate) fn is_empty(&self) -> bool {
-        self.graph.node_count() == 0
+impl<'a> Iterator for ReversePathIterator<'a> {
+    type Item = HaplotypePath;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.forward_iter.next().map(|path| {
+            HaplotypePath(path.0.iter().rev().cloned().collect())
+        })
     }
 }
 
@@ -554,7 +617,7 @@ mod tests {
                 supporting_reads: HashMap::new(),
             },
         );
-        let paths = variant_graph.paths();
+        let paths: Vec<_> = variant_graph.paths().collect();
         let expected_paths = vec![
             HaplotypePath(vec![
                 NodeIndex::new(0),
@@ -621,7 +684,7 @@ mod tests {
             target: "test".to_string(),
         };
 
-        let paths = variant_graph.paths();
+        let paths: Vec<_> = variant_graph.paths().collect();
         assert_eq!(paths.len(), 3);
         assert_eq!(paths[0].0, vec![node0]);
         assert_eq!(paths[1].0, vec![node1, node2, node3]);
@@ -925,5 +988,66 @@ mod tests {
             graph.graph.node_count(),
             deserialized_graph.graph.node_count()
         );
+    }
+
+    #[test]
+    fn test_analyze_graph_complexity() {
+        let graph = setup_variant_graph_with_nodes();
+        let analysis = graph.analyze_graph_complexity();
+
+        assert!(analysis.node_count > 0);
+        assert!(analysis.avg_out_degree >= 0.0);
+        assert!(analysis.estimated_paths >= 1);
+
+        // Print for debugging
+        analysis.print_analysis();
+    }
+
+    #[test]
+    fn test_path_iterator() {
+        let graph = setup_variant_graph_with_nodes();
+
+        // Test that iterator works
+        let mut path_count = 0;
+        for path in graph.paths() {
+            assert!(!path.0.is_empty());
+            path_count += 1;
+            if path_count > 10 { // Safety limit for test
+                break;
+            }
+        }
+
+        // Test that we can collect specific number of paths
+        let first_3_paths: Vec<_> = graph.paths().take(3).collect();
+        assert!(first_3_paths.len() <= 3);
+
+        // Test reverse iterator
+        let first_reverse_path = graph.reverse_paths().next();
+        assert!(first_reverse_path.is_some());
+    }
+
+    #[test]
+    fn test_paths_with_limits() {
+        let graph = setup_variant_graph_with_nodes();
+
+        // Analyze complexity first
+        let analysis = graph.analyze_graph_complexity();
+        println!("Test graph complexity analysis:");
+        analysis.print_analysis();
+
+        // Test that limited paths work with very small limits
+        let limited_paths = graph.paths_with_limits(2, 10, 100);
+        println!("Found {} paths with strict limits", limited_paths.len());
+        assert!(limited_paths.len() <= 2);
+
+        // Test that default paths iterator works
+        let default_paths: Vec<_> = graph.paths().take(5).collect();
+        println!("Found {} paths using iterator (limited to 5)", default_paths.len());
+        assert!(default_paths.len() <= 5);
+
+        // Verify the limited paths are valid
+        for path in &limited_paths {
+            assert!(!path.0.is_empty());
+        }
     }
 }

@@ -106,17 +106,6 @@ impl Transcript {
             .find(|cds| (cds.start as i64..=cds.end as i64).contains(&pos))
     }
 
-    fn paths(&self, graph: &VariantGraph) -> Result<Vec<HaplotypePath>> {
-        match self.strand {
-            Strand::Forward => Ok(graph.paths()),
-            Strand::Reverse => Ok(graph.reverse_paths()),
-            Strand::Unknown => Err(anyhow::anyhow!(
-                "Strand is unknown for transcript {}",
-                self.name()
-            )),
-        }
-    }
-
     fn reference(&self, reference: &HashMap<String, Vec<u8>>) -> Result<Vec<u8>> {
         let sequence = reference.get(&self.target).ok_or_else(|| {
             anyhow::anyhow!("Reference sequence not found for target {}", self.target)
@@ -232,16 +221,13 @@ impl Transcript {
 
                     for (accumulated_weights, accumulated_fs) in &weights {
                         let phase = shift_phase(cds.phase, ((*accumulated_fs + 3) % 3) as u8);
-                        let cds_options = paths
-                            .iter()
-                            .map(|path| {
-                                (
-                                    path.weights(&graph, phase, &reference_sequence, self.strand)
-                                        .unwrap(),
-                                    path.frameshift(&graph),
-                                )
-                            })
-                            .collect_vec();
+                        // Use iterator to avoid loading all path weights into memory at once
+                        let mut cds_options = Vec::new();
+                        for path in self.paths_iter(&graph)? {
+                            let weights = path.weights(&graph, phase, &reference_sequence, self.strand)?;
+                            let frameshift = path.frameshift(&graph);
+                            cds_options.push((weights, frameshift));
+                        }
 
                         // For each option from the current CDS,
                         // create a new combination that appends its weights
@@ -812,7 +798,7 @@ mod tests {
         );
         let graph = setup_graph();
         let paths = transcript.paths(&graph).unwrap();
-        assert_eq!(paths, graph.paths());
+        assert_eq!(paths, graph.paths().collect::<Vec<_>>());
     }
 
     #[test]

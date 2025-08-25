@@ -247,7 +247,7 @@ mod tests {
     #[test]
     fn weights_returns_correct_weights() {
         let graph = setup_variant_graph();
-        let path = &graph.paths()[0];
+        let path = graph.paths().next().unwrap();
         let reference = b"ACGTTTGTTA";
         let strand = Strand::Forward;
         let weights = path.weights(&graph, 0, reference, strand).unwrap();
@@ -290,7 +290,7 @@ mod tests {
     #[test]
     fn protein_returns_correct_protein_sequence() {
         let graph = setup_protein_graph();
-        let path = &graph.paths()[0];
+        let path = graph.paths().next().unwrap();
         let protein = path
             .protein(&graph, 0, b"ACGTTTGTTAG", Strand::Forward, 2, 10)
             .unwrap();
@@ -300,7 +300,7 @@ mod tests {
     #[test]
     fn protein_returns_correct_protein_sequence_for_reverse_strand() {
         let graph = setup_protein_graph();
-        let path = &graph.reverse_paths()[0];
+        let path = graph.reverse_paths().next().unwrap();
         let protein = path
             .protein(&graph, 0, b"CTAACAAATGCA", Strand::Reverse, 2, 10)
             .unwrap();
@@ -310,7 +310,7 @@ mod tests {
     #[test]
     fn protein_returns_correct_protein_sequence_for_reverse_strand_with_phase_offset() {
         let graph = setup_protein_graph();
-        let path = &graph.reverse_paths()[0];
+        let path = graph.reverse_paths().next().unwrap();
         let protein = path
             .protein(&graph, 1, b"AAAAAAAAAAAAAAAAAAAAAT", Strand::Reverse, 3, 21)
             .unwrap();
