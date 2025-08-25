@@ -148,6 +148,10 @@ impl Transcript {
                     );
                     continue;
                 }
+                info!(
+                    "Calculating paths for {cds:?}. Graph has {} nodes",
+                    graph.graph.node_count()
+                );
                 let paths = self
                     .paths(&graph)?
                     .iter()
