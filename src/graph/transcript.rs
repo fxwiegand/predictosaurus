@@ -12,7 +12,7 @@ use bio::bio_types::strand::Strand;
 use bio::io::gff::{self, Phase};
 use bio::stats::LogProb;
 use itertools::Itertools;
-use log::info;
+use log::{info, warn};
 use petgraph::adj::NodeIndex;
 use rust_htslib::bgzf::CompressionLevel::Default;
 use serde::{Deserialize, Serialize};
@@ -140,6 +140,14 @@ impl Transcript {
                 cds.start,
                 cds.end,
             ) {
+                if graph.graph.node_count() > 50 {
+                    warn!(
+                        "Skipping transcript {} with more than 50 nodes ({} nodes)",
+                        self.name(),
+                        graph.graph.node_count()
+                    );
+                    continue;
+                }
                 let paths = self
                     .paths(&graph)?
                     .iter()
