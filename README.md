@@ -51,6 +51,8 @@ Use `predictosaurus --help` to view general help information, or `predictosaurus
 
 ## Commands
 
+All commands provide a verbose output with logging information via the `--verbose`/`-v` flag. Additionally the `--threads`/`-t` flag allows for multi-threaded execution. If not specified or `0`, the number of threads is set to the number of available logical cores.
+
 ### Build
 
 Builds a full variant graph from VCF files and stores it.

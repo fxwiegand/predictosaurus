@@ -142,6 +142,10 @@ impl Transcript {
                 cds.start,
                 cds.end,
             ) {
+                info!(
+                    "Calculating paths for {cds:?}. Graph has {} nodes",
+                    graph.graph.node_count()
+                );
                 let paths = self
                     .paths(&graph)?
                     .iter()
@@ -510,7 +514,7 @@ pub(crate) fn transcripts(gff_file: &PathBuf, graph: &PathBuf) -> Result<Vec<Tra
         })?;
         let cds = Cds::new(start, end, phase);
         if !variant_coverage.get(ensp).copied().unwrap_or(false) {
-            let has_variant = cds.contains_variant(&variants);
+            let has_variant = cds.contains_variant(&target, &variants);
             if has_variant {
                 variant_coverage.insert(ensp.to_string(), true);
             }
@@ -682,10 +686,10 @@ mod tests {
     #[test]
     fn transcripts_parses_gff_file_correctly() {
         let gff_content = "\
-            ##gff-version 3
-            chr1\tsource\tCDS\t1\t100\t.\t+\t0\tID=ENSP00000493376
-            chr1\tsource\tCDS\t200\t300\t.\t+\t0\tID=ENSP00000493376
-            chr1\tsource\tCDS\t400\t500\t.\t-\t0\tID=ENSP00000493377
+##gff-version 3
+chr1\tsource\tCDS\t1\t100\t.\t+\t0\tID=ENSP00000493376
+chr1\tsource\tCDS\t200\t300\t.\t+\t0\tID=ENSP00000493376
+chr1\tsource\tCDS\t400\t500\t.\t-\t0\tID=ENSP00000493377
         ";
         let tmp = tempfile::tempdir().unwrap();
         let gff_path = tmp.path().join("test.gff");

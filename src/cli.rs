@@ -15,6 +15,10 @@ pub(crate) struct Predictosaurus {
 
     #[clap(short, long, global = true)]
     pub(crate) verbose: bool,
+
+    /// Number of threads to use (default: all available cores)
+    #[arg(short, long)]
+    pub(crate) threads: Option<usize>,
 }
 
 #[derive(Subcommand, Debug)]
