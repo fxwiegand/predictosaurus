@@ -51,6 +51,7 @@ impl Command {
                 calls,
                 observations,
                 min_prob_present,
+                min_vaf,
                 output,
             } => {
                 let targets = get_targets(calls)?;
@@ -63,6 +64,7 @@ impl Command {
                             observations,
                             &target,
                             LogProb::from(Prob(*min_prob_present)),
+                            *min_vaf,
                         )
                         .ok()?;
                         info!(

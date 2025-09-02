@@ -42,6 +42,7 @@ impl VariantGraph {
         observation_files: &[ObservationFile],
         target: &str,
         min_prob_present: LogProb,
+        min_vaf: f32,
     ) -> Result<VariantGraph> {
         let mut calls_reader = Reader::from_path(calls_file)?;
         let header = calls_reader.header().clone();
@@ -144,6 +145,9 @@ impl VariantGraph {
                 &samples,
                 index,
             );
+            if var_node.max_vaf() < min_vaf {
+                continue;
+            }
             let var_node_index = variant_graph.add_node(var_node);
             let mut ref_node_index = None;
             if last_position != position {
@@ -489,6 +493,7 @@ mod tests {
             &observations,
             "OX512233.1",
             LogProb::from(Prob(0.0)),
+            0.05,
         );
         assert!(variant_graph.is_ok());
     }
@@ -506,6 +511,7 @@ mod tests {
             &observations,
             "not actually in file",
             LogProb::from(Prob(0.0)),
+            0.05,
         );
         assert!(variant_graph.unwrap().is_empty());
     }
@@ -534,6 +540,7 @@ mod tests {
             &observations,
             "OX512233.1",
             LogProb::from(Prob(0.0)),
+            0.00,
         )
         .unwrap();
         variant_graph.graph.add_edge(

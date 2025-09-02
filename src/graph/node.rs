@@ -123,6 +123,15 @@ impl Node {
         (reference_length as i64 - 1) - self.pos
     }
 
+    /// Returns the maximum VAF across all samples
+    pub(crate) fn max_vaf(&self) -> f32 {
+        *self
+            .vaf
+            .values()
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap_or(&0.0)
+    }
+
     pub(crate) fn reference_amino_acid(
         &self,
         phase: u8,
@@ -745,5 +754,22 @@ mod tests {
 
         assert_eq!(format!("{}", var_node), "Var(A) at position 42");
         assert_eq!(format!("{}", ref_node), "Ref at position 99");
+    }
+
+    #[test]
+    fn test_node_max_vaf() {
+        let mut vafs = HashMap::new();
+        vafs.insert("A".to_string(), 0.05);
+        vafs.insert("C".to_string(), 0.1);
+        vafs.insert("G".to_string(), 0.02);
+        vafs.insert("T".to_string(), 0.03);
+        let var_node = Node {
+            node_type: NodeType::Var("A".to_string()),
+            vaf: vafs.clone(),
+            probs: EventProbs(Default::default()),
+            pos: 42,
+            index: 0,
+        };
+        assert_eq!(var_node.max_vaf(), 0.1);
     }
 }

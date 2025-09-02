@@ -35,6 +35,9 @@ pub(crate) enum Command {
         #[clap(short, long, default_value = "0.8")]
         min_prob_present: f64,
 
+        /// Minimum VAF for a variant to be kept. The maximum VAF across samples must meet or exceed this threshold.
+        #[clap(long, default_value = "0.05")]
+        min_vaf: f32,
         /// Path to the output file containing the impact graph
         #[clap(long)]
         output: PathBuf,
