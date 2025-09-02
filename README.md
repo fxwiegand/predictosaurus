@@ -62,6 +62,7 @@ Builds a full variant graph from VCF files and stores it.
 - `--calls <path>`: Path to the VCF calls file.
 - `--observations <sample=observations.vcf>`: One or more observation files; ensure sample names match those in the calls file.
 - `--min-prob-present <float>`: Minimum probability for a variant to be considered for the graph generation. Defaults to 0.8.
+- `--min-vaf <float>`: Minimum VAF for a variant to be considered in the graph. Needs to be higher for at least one of all given samples. Defaults to 0.05.
 - `--output <path>`: Path to store the generated variant graphs.
 
 **Example:**

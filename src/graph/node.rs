@@ -123,6 +123,15 @@ impl Node {
         (reference_length as i64 - 1) - self.pos
     }
 
+    /// Returns the maximum VAF across all samples
+    pub(crate) fn max_vaf(&self) -> f32 {
+        *self
+            .vaf
+            .values()
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap_or(&0.0)
+    }
+
     pub(crate) fn reference_amino_acid(
         &self,
         phase: u8,
