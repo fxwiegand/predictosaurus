@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.5.0](https://github.com/fxwiegand/predictosaurus/compare/v0.4.2...v0.5.0) (2025-09-02)
+
+
+### Features
+
+* Add --min-vaf parameter to build subcommand ([#141](https://github.com/fxwiegand/predictosaurus/issues/141)) ([5ca19c3](https://github.com/fxwiegand/predictosaurus/commit/5ca19c3a7c9cad5b03b4f68f3c062d25c887af62))
+
+
+### Bug Fixes
+
+* Add mutex to synchronize score writing in parallel loop ([#135](https://github.com/fxwiegand/predictosaurus/issues/135)) ([1f44ae2](https://github.com/fxwiegand/predictosaurus/commit/1f44ae226de3afbb71698b907d76751cc2c991be))
+* Fix contains_variant to take target string argument ([#137](https://github.com/fxwiegand/predictosaurus/issues/137)) ([4a1a9e3](https://github.com/fxwiegand/predictosaurus/commit/4a1a9e3d02e48489a261e8c38cf0c8cbfa84f7eb))
+* Gracefully handle ambiguous nucleotide 'N' for amino acid changes ([#133](https://github.com/fxwiegand/predictosaurus/issues/133)) ([f0e72a8](https://github.com/fxwiegand/predictosaurus/commit/f0e72a8cd5940e9bed4806014f2f0615199d67ff))
+* Prevent cycles in forward traversal by checking path containment ([#136](https://github.com/fxwiegand/predictosaurus/issues/136)) ([31f0cf4](https://github.com/fxwiegand/predictosaurus/commit/31f0cf4c3e2b1f4e319cd3d1efc3599a6a2a976f))
+
+
+### Performance Improvements
+
+* Use transaction for writing graphs via DuckDB ([cdc2873](https://github.com/fxwiegand/predictosaurus/commit/cdc28730bd8d82eed60422b43c2139fce2ed8fa4))
+
 ## [0.4.2](https://github.com/fxwiegand/predictosaurus/compare/v0.4.1...v0.4.2) (2025-08-20)
 
 
