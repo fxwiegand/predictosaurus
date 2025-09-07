@@ -5,7 +5,8 @@ use crate::translation::amino_acids::AminoAcid;
 use crate::translation::distance::DistanceMetric;
 use anyhow::Result;
 use bio::bio_types::strand::Strand;
-use std::collections::HashMap;
+use clap::ValueEnum;
+use std::collections::{HashMap, HashSet};
 
 /// Tuning constants for the score components
 const SNV_WEIGHT: f64 = 0.1; // Weight per SNV
@@ -38,7 +39,7 @@ impl EffectScore {
     pub(crate) fn from_haplotype(
         reference: &HashMap<String, Vec<u8>>,
         transcript: &Transcript,
-        haplotype: Vec<Node>,
+        haplotype: &[Node],
     ) -> Result<Self> {
         let target_ref = reference.get(&transcript.target).unwrap();
         let mut snvs = Vec::new();
@@ -175,6 +176,42 @@ impl AminoAcidChange {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, ValueEnum)]
+pub enum HaplotypeMetric {
+    Product,
+    GeometricMean,
+    Minimum,
+}
+
+pub type HaplotypeLikelihoods = HashMap<String, f32>;
+
+impl HaplotypeMetric {
+    pub fn calculate(&self, haplotype: &[Node]) -> HaplotypeLikelihoods {
+        let samples = haplotype
+            .iter()
+            .flat_map(|n| n.vaf.keys())
+            .collect::<HashSet<_>>();
+        let mut metrics = HashMap::new();
+        for sample in samples {
+            let vafs = haplotype
+                .iter()
+                .filter(|n| n.node_type.is_variant())
+                .map(|n| *n.vaf.get(sample).unwrap_or(&0.0))
+                .collect::<Vec<_>>();
+            let result = match self {
+                HaplotypeMetric::Product => vafs.iter().product(),
+                HaplotypeMetric::GeometricMean => {
+                    let product: f32 = vafs.iter().product();
+                    product.powf(1.0 / vafs.len() as f32)
+                }
+                HaplotypeMetric::Minimum => vafs.iter().cloned().fold(1.0, f32::min),
+            };
+            metrics.insert(sample.to_string(), result);
+        }
+        metrics
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -285,7 +322,7 @@ mod tests {
             Node::new(NodeType::Var("C".into()), 22),
         ];
 
-        let result = EffectScore::from_haplotype(&reference, &transcript, haplotype).unwrap();
+        let result = EffectScore::from_haplotype(&reference, &transcript, &haplotype).unwrap();
         let aa_exchange = AminoAcidChange {
             reference: Some(AminoAcid::Methionine),
             variants: vec![AminoAcid::Isoleucine],
@@ -298,5 +335,109 @@ mod tests {
         assert_eq!(result.snvs, vec![aa_exchange, aa_exchange_2,]);
         assert!((result.fs_fraction - 0.75).abs() < 1e-6);
         assert!(result.stop_fraction.is_none());
+    }
+
+    #[test]
+    fn test_product_metric() {
+        let nodes = vec![
+            Node {
+                node_type: NodeType::Var("A".to_string()),
+                vaf: [("S1".to_string(), 0.5)].into(),
+                probs: EventProbs(HashMap::new()),
+                pos: 0,
+                index: 0,
+            },
+            Node {
+                node_type: NodeType::Var("A".to_string()),
+                vaf: [("S1".to_string(), 0.25)].into(),
+                probs: EventProbs(HashMap::new()),
+                pos: 1,
+                index: 1,
+            },
+            Node {
+                node_type: NodeType::Ref("".to_string()),
+                vaf: [("S1".to_string(), 0.75)].into(),
+                probs: EventProbs(HashMap::new()),
+                pos: 2,
+                index: 2,
+            },
+        ];
+        let metric = HaplotypeMetric::Product;
+        let result = metric.calculate(&nodes);
+        assert_eq!(result.get("S1").unwrap(), &(0.5 * 0.25));
+    }
+
+    #[test]
+    fn test_geometric_mean_metric() {
+        let nodes = vec![
+            Node {
+                node_type: NodeType::Var("A".to_string()),
+                vaf: [("S1".to_string(), 0.5)].into(),
+                probs: EventProbs(HashMap::new()),
+                pos: 0,
+                index: 0,
+            },
+            Node {
+                node_type: NodeType::Var("A".to_string()),
+                vaf: [("S1".to_string(), 0.25)].into(),
+                probs: EventProbs(HashMap::new()),
+                pos: 1,
+                index: 1,
+            },
+        ];
+        let metric = HaplotypeMetric::GeometricMean;
+        let result = metric.calculate(&nodes);
+        let expected = (0.5_f32 * 0.25_f32).powf(1.0 / 2.0);
+        assert!((result.get("S1").unwrap() - expected).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_all_metrics_return_one_with_only_reference_nodes() {
+        let nodes = vec![Node {
+            node_type: NodeType::Ref("".to_string()),
+            vaf: [("S1".to_string(), 0.5)].into(),
+            probs: EventProbs(HashMap::new()),
+            pos: 0,
+            index: 0,
+        }];
+        let metric = HaplotypeMetric::GeometricMean;
+        let result = metric.calculate(&nodes);
+        assert_eq!(result.get("S1").unwrap(), &1.0);
+        let metric = HaplotypeMetric::Product;
+        let result = metric.calculate(&nodes);
+        assert_eq!(result.get("S1").unwrap(), &1.0);
+        let metric = HaplotypeMetric::Minimum;
+        let result = metric.calculate(&nodes);
+        assert_eq!(result.get("S1").unwrap(), &1.0);
+    }
+
+    #[test]
+    fn test_minimum_metric() {
+        let nodes = vec![
+            Node {
+                node_type: NodeType::Var("A".to_string()),
+                vaf: [("S1".to_string(), 0.5)].into(),
+                probs: EventProbs(HashMap::new()),
+                pos: 0,
+                index: 0,
+            },
+            Node {
+                node_type: NodeType::Var("A".to_string()),
+                vaf: [("S1".to_string(), 0.25)].into(),
+                probs: EventProbs(HashMap::new()),
+                pos: 1,
+                index: 1,
+            },
+            Node {
+                node_type: NodeType::Var("A".to_string()),
+                vaf: [("S1".to_string(), 0.75)].into(),
+                probs: EventProbs(HashMap::new()),
+                pos: 2,
+                index: 2,
+            },
+        ];
+        let metric = HaplotypeMetric::Minimum;
+        let result = metric.calculate(&nodes);
+        assert_eq!(*result.get("S1").unwrap(), 0.25);
     }
 }

@@ -85,6 +85,7 @@ impl Command {
                 features,
                 reference,
                 graph,
+                haplotype_metric,
                 output,
             } => {
                 create_scores(output)?;
@@ -94,14 +95,15 @@ impl Command {
                 transcripts(features, graph)?.into_par_iter().try_for_each(
                     |transcript| -> anyhow::Result<()> {
                         info!("Processing transcript {}", transcript.name());
-                        let scores = transcript.scores(graph, &reference_genome)?;
+                        let scores =
+                            transcript.scores(graph, &reference_genome, *haplotype_metric)?;
                         info!(
                             "Writing scores for {} different haplotypes for transcript {}",
                             scores.len(),
                             transcript.name()
                         );
                         let _lock = write_lock.lock().unwrap();
-                        write_scores(output, &scores, transcript)?;
+                        write_scores(output, scores, transcript)?;
                         Ok(())
                     },
                 )?;
