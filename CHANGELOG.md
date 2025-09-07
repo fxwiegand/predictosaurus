@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/fxwiegand/predictosaurus/compare/v0.5.0...v0.6.0) (2025-09-07)
+
+
+### Features
+
+* Add haplotype quantification metrics and store per sample likelihoods derived from VAFs of variants on haplotype ([#126](https://github.com/fxwiegand/predictosaurus/issues/126)) ([6b296a7](https://github.com/fxwiegand/predictosaurus/commit/6b296a7a82de3803e85b2fa8397696221ce5023b))
+
 ## [0.5.0](https://github.com/fxwiegand/predictosaurus/compare/v0.4.2...v0.5.0) (2025-09-02)
 
 
