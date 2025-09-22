@@ -17,7 +17,7 @@ anyhow = "1.0.99"
 varlociraptor = "8.7.3"
 petgraph = { version = "0.8.2", features = ["serde-1"]}
 itertools = "0.14.0"
-serde = { version = "1.0.219", features = ["derive"] }
+serde = { version = "1.0.226", features = ["derive"] }
 serde_json = "1.0.145"
 json5 = "0.4.1"
 colored = "3"
