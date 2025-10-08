@@ -598,10 +598,30 @@ mod tests {
     #[test]
     fn test_graph_paths_with_loop() {
         let mut graph = Graph::<Node, Edge, Directed>::new();
-        let node0 = graph.add_node(Node::new(NodeType::Ref("A".to_string()), 1));
-        let node1 = graph.add_node(Node::new(NodeType::Var("A".to_string()), 1));
-        let node2 = graph.add_node(Node::new(NodeType::Var("T".to_string()), 3));
-        let node3 = graph.add_node(Node::new(NodeType::Var("G".to_string()), 7));
+        let node0 = graph.add_node(Node::new(
+            NodeType::Reference,
+            1,
+            "".to_string(),
+            "".to_string(),
+        ));
+        let node1 = graph.add_node(Node::new(
+            NodeType::Variant,
+            1,
+            "C".to_string(),
+            "A".to_string(),
+        ));
+        let node2 = graph.add_node(Node::new(
+            NodeType::Variant,
+            3,
+            "A".to_string(),
+            "T".to_string(),
+        ));
+        let node3 = graph.add_node(Node::new(
+            NodeType::Variant,
+            7,
+            "A".to_string(),
+            "G".to_string(),
+        ));
         graph.add_edge(
             node1,
             node2,
@@ -641,11 +661,36 @@ mod tests {
     #[test]
     fn test_graph_reverse_paths() {
         let mut graph = Graph::<Node, Edge, Directed>::new();
-        let node0 = graph.add_node(Node::new(NodeType::Ref("A".to_string()), 1));
-        let node1 = graph.add_node(Node::new(NodeType::Var("A".to_string()), 1));
-        let node2 = graph.add_node(Node::new(NodeType::Var("T".to_string()), 2));
-        let node3 = graph.add_node(Node::new(NodeType::Var("G".to_string()), 2));
-        let node4 = graph.add_node(Node::new(NodeType::Var("G".to_string()), 3));
+        let node0 = graph.add_node(Node::new(
+            NodeType::Reference,
+            1,
+            "C".to_string(),
+            "A".to_string(),
+        ));
+        let node1 = graph.add_node(Node::new(
+            NodeType::Variant,
+            1,
+            "C".to_string(),
+            "A".to_string(),
+        ));
+        let node2 = graph.add_node(Node::new(
+            NodeType::Variant,
+            2,
+            "T".to_string(),
+            "T".to_string(),
+        ));
+        let node3 = graph.add_node(Node::new(
+            NodeType::Variant,
+            2,
+            "T".to_string(),
+            "G".to_string(),
+        ));
+        let node4 = graph.add_node(Node::new(
+            NodeType::Variant,
+            3,
+            "T".to_string(),
+            "G".to_string(),
+        ));
         graph.add_edge(
             node1,
             node2,
@@ -691,14 +736,14 @@ mod tests {
 
     #[test]
     fn impact_returns_none_for_ref_node_type() {
-        let node = Node::new(NodeType::Ref("".to_string()), 0);
+        let node = Node::new(NodeType::Reference, 0, "".to_string(), "".to_string());
         let impact = node.impact(0, 0, &[], Strand::Forward).unwrap();
         assert_eq!(impact, Impact::None);
     }
 
     #[test]
     fn impact_identifies_low_for_identical_ref_and_alt_amino_acids() {
-        let node = Node::new(NodeType::Var("C".to_string()), 2);
+        let node = Node::new(NodeType::Variant, 2, "T".to_string(), "C".to_string());
         let reference = b"ATA";
         let impact = node.impact(0, 0, reference, Strand::Forward).unwrap();
         assert_eq!(impact, Impact::Low);
@@ -706,7 +751,7 @@ mod tests {
 
     #[test]
     fn impact_identifies_moderate_for_different_ref_and_alt_amino_acids() {
-        let node = Node::new(NodeType::Var("G".to_string()), 3);
+        let node = Node::new(NodeType::Variant, 3, "A".to_string(), "G".to_string());
         let reference = b"ATTTG";
         let impact = node.impact(2, 2, reference, Strand::Forward).unwrap();
         assert_eq!(impact, Impact::Moderate);
@@ -714,7 +759,7 @@ mod tests {
 
     #[test]
     fn impact_identifies_high_for_early_stop() {
-        let node = Node::new(NodeType::Var("A".to_string()), 6);
+        let node = Node::new(NodeType::Variant, 6, "C".to_string(), "A".to_string());
         let reference = b"CATATAC";
         let impact = node.impact(1, 1, reference, Strand::Forward).unwrap();
         assert_eq!(impact, Impact::High);
@@ -722,12 +767,42 @@ mod tests {
 
     pub(crate) fn setup_variant_graph_with_nodes() -> VariantGraph {
         let mut graph = Graph::<Node, Edge, Directed>::new();
-        let node1 = graph.add_node(Node::new(NodeType::Var("A".to_string()), 1));
-        let node2 = graph.add_node(Node::new(NodeType::Ref("".to_string()), 2));
-        let node3 = graph.add_node(Node::new(NodeType::Var("T".to_string()), 3));
-        let node4 = graph.add_node(Node::new(NodeType::Var("".to_string()), 4));
-        let node5 = graph.add_node(Node::new(NodeType::Var("A".to_string()), 8));
-        let node6 = graph.add_node(Node::new(NodeType::Var("TT".to_string()), 9));
+        let node1 = graph.add_node(Node::new(
+            NodeType::Variant,
+            1,
+            "G".to_string(),
+            "A".to_string(),
+        ));
+        let node2 = graph.add_node(Node::new(
+            NodeType::Reference,
+            2,
+            "".to_string(),
+            "".to_string(),
+        ));
+        let node3 = graph.add_node(Node::new(
+            NodeType::Variant,
+            3,
+            "C".to_string(),
+            "T".to_string(),
+        ));
+        let node4 = graph.add_node(Node::new(
+            NodeType::Variant,
+            4,
+            "C".to_string(),
+            "".to_string(),
+        ));
+        let node5 = graph.add_node(Node::new(
+            NodeType::Variant,
+            8,
+            "C".to_string(),
+            "A".to_string(),
+        ));
+        let node6 = graph.add_node(Node::new(
+            NodeType::Variant,
+            9,
+            "A".to_string(),
+            "TT".to_string(),
+        ));
         VariantGraph {
             graph,
             start: 0,
@@ -800,8 +875,18 @@ mod tests {
 
     fn setup_variant_graph_with_nodes_2() -> VariantGraph {
         let mut graph = Graph::<Node, Edge, Directed>::new();
-        let node1 = graph.add_node(Node::new(NodeType::Var("AA".to_string()), 1));
-        let node2 = graph.add_node(Node::new(NodeType::Var("".to_string()), 7));
+        let node1 = graph.add_node(Node::new(
+            NodeType::Variant,
+            1,
+            "T".to_string(),
+            "AA".to_string(),
+        ));
+        let node2 = graph.add_node(Node::new(
+            NodeType::Variant,
+            7,
+            "C".to_string(),
+            "".to_string(),
+        ));
         VariantGraph {
             graph,
             start: 0,
@@ -824,8 +909,18 @@ mod tests {
     #[test]
     fn impact_handles_phase_shift_caused_by_big_frameshift() {
         let mut graph = Graph::<Node, Edge, Directed>::new();
-        let node1 = graph.add_node(Node::new(NodeType::Var("TTTTT".to_string()), 1));
-        let node2 = graph.add_node(Node::new(NodeType::Var("GG".to_string()), 7));
+        let node1 = graph.add_node(Node::new(
+            NodeType::Variant,
+            1,
+            "T".to_string(),
+            "TTTTT".to_string(),
+        ));
+        let node2 = graph.add_node(Node::new(
+            NodeType::Variant,
+            7,
+            "C".to_string(),
+            "GG".to_string(),
+        ));
         let graph = VariantGraph {
             graph,
             start: 0,
@@ -847,13 +942,13 @@ mod tests {
 
     #[test]
     fn is_variant_returns_true_for_variant_node() {
-        let node_type = NodeType::Var("A".to_string());
+        let node_type = NodeType::Variant;
         assert!(node_type.is_variant());
     }
 
     #[test]
     fn is_variant_returns_false_for_reference_node() {
-        let node_type = NodeType::Ref("A".to_string());
+        let node_type = NodeType::Reference;
         assert!(!node_type.is_variant());
     }
 

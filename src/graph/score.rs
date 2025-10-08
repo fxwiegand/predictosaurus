@@ -221,7 +221,7 @@ mod tests {
 
     #[test]
     fn test_from_node() {
-        let node = Node::new(NodeType::Var("A".to_string()), 2);
+        let node = Node::new(NodeType::Variant, 2, "G".to_string(), "A".to_string());
         let reference = b"ATGCGCGTA";
         let phase = 0;
         let strand = Strand::Forward;
@@ -317,9 +317,9 @@ mod tests {
         };
 
         let haplotype = vec![
-            Node::new(NodeType::Var("A".into()), 2),
-            Node::new(NodeType::Var("TT".into()), 6),
-            Node::new(NodeType::Var("C".into()), 22),
+            Node::new(NodeType::Variant, 2, "A".to_string(), "A".to_string()),
+            Node::new(NodeType::Variant, 6, "C".to_string(), "TT".to_string()),
+            Node::new(NodeType::Variant, 22, "G".to_string(), "C".to_string()),
         ];
 
         let result = EffectScore::from_haplotype(&reference, &transcript, &haplotype).unwrap();
@@ -341,21 +341,27 @@ mod tests {
     fn test_product_metric() {
         let nodes = vec![
             Node {
-                node_type: NodeType::Var("A".to_string()),
+                node_type: NodeType::Variant,
+                reference_allele: "C".to_string(),
+                alternative_allele: "A".to_string(),
                 vaf: [("S1".to_string(), 0.5)].into(),
                 probs: EventProbs(HashMap::new()),
                 pos: 0,
                 index: 0,
             },
             Node {
-                node_type: NodeType::Var("A".to_string()),
+                node_type: NodeType::Variant,
+                reference_allele: "C".to_string(),
+                alternative_allele: "A".to_string(),
                 vaf: [("S1".to_string(), 0.25)].into(),
                 probs: EventProbs(HashMap::new()),
                 pos: 1,
                 index: 1,
             },
             Node {
-                node_type: NodeType::Ref("".to_string()),
+                node_type: NodeType::Reference,
+                reference_allele: "".to_string(),
+                alternative_allele: "".to_string(),
                 vaf: [("S1".to_string(), 0.75)].into(),
                 probs: EventProbs(HashMap::new()),
                 pos: 2,
@@ -371,14 +377,18 @@ mod tests {
     fn test_geometric_mean_metric() {
         let nodes = vec![
             Node {
-                node_type: NodeType::Var("A".to_string()),
+                node_type: NodeType::Variant,
+                reference_allele: "C".to_string(),
+                alternative_allele: "A".to_string(),
                 vaf: [("S1".to_string(), 0.5)].into(),
                 probs: EventProbs(HashMap::new()),
                 pos: 0,
                 index: 0,
             },
             Node {
-                node_type: NodeType::Var("A".to_string()),
+                node_type: NodeType::Variant,
+                reference_allele: "C".to_string(),
+                alternative_allele: "A".to_string(),
                 vaf: [("S1".to_string(), 0.25)].into(),
                 probs: EventProbs(HashMap::new()),
                 pos: 1,
@@ -394,7 +404,9 @@ mod tests {
     #[test]
     fn test_all_metrics_return_one_with_only_reference_nodes() {
         let nodes = vec![Node {
-            node_type: NodeType::Ref("".to_string()),
+            node_type: NodeType::Reference,
+            reference_allele: "".to_string(),
+            alternative_allele: "".to_string(),
             vaf: [("S1".to_string(), 0.5)].into(),
             probs: EventProbs(HashMap::new()),
             pos: 0,
@@ -415,21 +427,27 @@ mod tests {
     fn test_minimum_metric() {
         let nodes = vec![
             Node {
-                node_type: NodeType::Var("A".to_string()),
+                node_type: NodeType::Variant,
+                reference_allele: "C".to_string(),
+                alternative_allele: "A".to_string(),
                 vaf: [("S1".to_string(), 0.5)].into(),
                 probs: EventProbs(HashMap::new()),
                 pos: 0,
                 index: 0,
             },
             Node {
-                node_type: NodeType::Var("A".to_string()),
+                node_type: NodeType::Variant,
+                reference_allele: "C".to_string(),
+                alternative_allele: "A".to_string(),
                 vaf: [("S1".to_string(), 0.25)].into(),
                 probs: EventProbs(HashMap::new()),
                 pos: 1,
                 index: 1,
             },
             Node {
-                node_type: NodeType::Var("A".to_string()),
+                node_type: NodeType::Variant,
+                reference_allele: "C".to_string(),
+                alternative_allele: "A".to_string(),
                 vaf: [("S1".to_string(), 0.75)].into(),
                 probs: EventProbs(HashMap::new()),
                 pos: 2,

@@ -561,28 +561,36 @@ mod tests {
             ("PROB_SOMATIC".to_string(), LogProb::from(Prob(0.8))),
         ]));
         let alt_node_1 = graph.add_node(Node {
-            node_type: NodeType::Var("".to_string()),
+            node_type: NodeType::Variant,
+            reference_allele: "A".to_string(),
+            alternative_allele: "".to_string(),
             vaf: alt_node_vaf_1,
             probs: event_probs.clone(),
             pos: 1,
             index: 0,
         });
         let alt_node_2 = graph.add_node(Node {
-            node_type: NodeType::Var("G".to_string()),
+            node_type: NodeType::Variant,
+            reference_allele: "G".to_string(),
+            alternative_allele: "G".to_string(),
             vaf: alt_node_vaf_2.clone(),
             probs: event_probs.clone(),
             pos: 4,
             index: 1,
         });
         let alt_node_3 = graph.add_node(Node {
-            node_type: NodeType::Var("A".to_string()),
+            node_type: NodeType::Variant,
+            reference_allele: "C".to_string(),
+            alternative_allele: "A".to_string(),
             vaf: alt_node_vaf_2.clone(),
             probs: event_probs.clone(),
             pos: 14,
             index: 3,
         });
         let ref_node_1 = graph.add_node(Node {
-            node_type: NodeType::Ref("".to_string()),
+            node_type: NodeType::Reference,
+            reference_allele: "".to_string(),
+            alternative_allele: "".to_string(),
             vaf: alt_node_vaf_2,
             probs: event_probs.clone(),
             pos: 12,

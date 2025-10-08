@@ -167,8 +167,38 @@ impl HaplotypePath {
         }
         sequence = sequence[phase as usize..].to_vec();
 
-        unimplemented!()
-        //dna_to_amino_acids(&sequence)
+        for node_index in self.0.iter() {
+            let node = graph.graph.node_weight(*node_index).unwrap();
+            if node.node_type.is_variant() {
+                let allele = node.alternative_allele.clone();
+                let position_in_protein = match strand {
+                    Strand::Forward => {
+                        (node.pos - start as i64 + frameshift + phase as i64) as usize
+                    }
+                    Strand::Reverse => (end as i64 - node.pos + frameshift - phase as i64) as usize,
+                    Strand::Unknown => return Err(anyhow::anyhow!("Strand is unknown")),
+                };
+                match strand {
+                    Strand::Forward => {
+                        sequence
+                            .splice(position_in_protein..position_in_protein + 1, allele.bytes());
+                    }
+                    Strand::Reverse => {
+                        sequence.splice(
+                            position_in_protein..position_in_protein + 1,
+                            String::from_utf8_lossy(
+                                reverse_complement(allele.as_bytes()).as_slice(),
+                            )
+                            .bytes(),
+                        );
+                    }
+                    Strand::Unknown => unreachable!(),
+                }
+
+                frameshift += node.frameshift();
+            }
+        }
+        dna_to_amino_acids(&sequence)
     }
 }
 
