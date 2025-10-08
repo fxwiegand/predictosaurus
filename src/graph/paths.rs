@@ -135,7 +135,7 @@ impl HaplotypePath {
         let mut protein = String::new();
         for node_index in self.0.iter() {
             let node = graph.graph.node_weight(*node_index).unwrap();
-            if let NodeType::Ref(_) = node.node_type {
+            if !node.node_type.is_variant() {
                 continue;
             }
             let ref_amino_acid = node.reference_amino_acid(ref_phase, reference, strand)?;
@@ -167,37 +167,8 @@ impl HaplotypePath {
         }
         sequence = sequence[phase as usize..].to_vec();
 
-        for node_index in self.0.iter() {
-            let node = graph.graph.node_weight(*node_index).unwrap();
-            if let NodeType::Var(allele) = &node.node_type {
-                let position_in_protein = match strand {
-                    Strand::Forward => {
-                        (node.pos - start as i64 + frameshift + phase as i64) as usize
-                    }
-                    Strand::Reverse => (end as i64 - node.pos + frameshift - phase as i64) as usize,
-                    Strand::Unknown => return Err(anyhow::anyhow!("Strand is unknown")),
-                };
-                match strand {
-                    Strand::Forward => {
-                        sequence
-                            .splice(position_in_protein..position_in_protein + 1, allele.bytes());
-                    }
-                    Strand::Reverse => {
-                        sequence.splice(
-                            position_in_protein..position_in_protein + 1,
-                            String::from_utf8_lossy(
-                                reverse_complement(allele.as_bytes()).as_slice(),
-                            )
-                            .bytes(),
-                        );
-                    }
-                    Strand::Unknown => unreachable!(),
-                }
-
-                frameshift += node.frameshift();
-            }
-        }
-        dna_to_amino_acids(&sequence)
+        unimplemented!()
+        //dna_to_amino_acids(&sequence)
     }
 }
 
@@ -218,14 +189,18 @@ mod tests {
         let alt_node_vaf =
             HashMap::from([("sample1".to_string(), 0.3), ("sample2".to_string(), 0.7)]);
         let ref_node = graph.add_node(Node {
-            node_type: NodeType::Ref("".to_string()),
+            node_type: NodeType::Reference,
+            reference_allele: "".to_string(),
+            alternative_allele: "".to_string(),
             vaf: ref_node_vaf,
             probs: EventProbs(HashMap::new()),
             pos: 1,
             index: 0,
         });
         let alt_node = graph.add_node(Node {
-            node_type: NodeType::Var("ACGTTTGTTA".to_string()),
+            node_type: NodeType::Variant,
+            reference_allele: "".to_string(),
+            alternative_allele: "ACGTTTGTTA".to_string(),
             vaf: alt_node_vaf,
             probs: EventProbs(HashMap::new()),
             pos: 6,
@@ -261,14 +236,18 @@ mod tests {
     fn setup_protein_graph() -> VariantGraph {
         let mut graph = Graph::<Node, Edge, Directed>::new();
         let node_1 = graph.add_node(Node {
-            node_type: NodeType::Var("AT".to_string()),
+            node_type: NodeType::Variant,
+            reference_allele: "A".to_string(),
+            alternative_allele: "AT".to_string(),
             vaf: HashMap::new(),
             probs: EventProbs(HashMap::new()),
             pos: 4,
             index: 0,
         });
         let node_2 = graph.add_node(Node {
-            node_type: NodeType::Var("".to_string()),
+            node_type: NodeType::Variant,
+            reference_allele: "T".to_string(),
+            alternative_allele: "".to_string(),
             vaf: HashMap::new(),
             probs: EventProbs(HashMap::new()),
             pos: 8,

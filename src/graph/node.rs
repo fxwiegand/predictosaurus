@@ -16,30 +16,27 @@ use varlociraptor::variants::evidence::observations::read_observation::Processed
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[allow(dead_code)] // TODO: Remove this attribute when graph is properly serialized
 pub(crate) enum NodeType {
-    Var(String),
-    Ref(String),
-}
-
-impl Display for NodeType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            NodeType::Var(alt) => write!(f, "Var({alt})"),
-            NodeType::Ref(_) => write!(f, "Ref"),
-        }
-    }
+    Variant,
+    Reference,
 }
 
 impl FromStr for NodeType {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.starts_with("Var(") && s.ends_with(')') {
-            let inner = &s[4..s.len() - 1];
-            Ok(NodeType::Var(inner.to_string()))
-        } else if s == "Ref" {
-            Ok(NodeType::Ref("".to_string()))
-        } else {
-            Err(anyhow!("Invalid node type"))
+        match s {
+            "Variant" => Ok(NodeType::Variant),
+            "Reference" => Ok(NodeType::Reference),
+            _ => Err(anyhow!("Invalid node type: {}", s)),
+        }
+    }
+}
+
+impl Display for NodeType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NodeType::Variant => write!(f, "Variant"),
+            NodeType::Reference => write!(f, "Reference"),
         }
     }
 }
@@ -47,8 +44,8 @@ impl FromStr for NodeType {
 impl NodeType {
     pub(crate) fn is_variant(&self) -> bool {
         match self {
-            NodeType::Var(_) => true,
-            NodeType::Ref(_) => false,
+            NodeType::Variant => true,
+            NodeType::Reference => false,
         }
     }
 }
@@ -57,6 +54,8 @@ impl NodeType {
 #[allow(dead_code)] // TODO: Remove this attribute when graph is properly serialized
 pub(crate) struct Node {
     pub(crate) node_type: NodeType,
+    pub(crate) reference_allele: String,
+    pub(crate) alternative_allele: String,
     pub(crate) vaf: HashMap<String, f32>,
     pub(crate) probs: EventProbs,
     pub(crate) pos: i64,
@@ -79,8 +78,13 @@ impl Node {
         index: u32,
     ) -> Self {
         let vafs = calls_record.format(b"AF").float().unwrap();
+        let alleles = calls_record.alleles();
+        let ref_allele = String::from_utf8(alleles[0].to_vec()).unwrap();
+        let alt_allele = String::from_utf8(alleles[1].to_vec()).unwrap();
         Node {
             node_type,
+            reference_allele: ref_allele,
+            alternative_allele: alt_allele,
             vaf: samples
                 .iter()
                 .zip(vafs.iter())
@@ -92,9 +96,16 @@ impl Node {
         }
     }
 
-    pub(crate) fn new(node_type: NodeType, pos: i64) -> Self {
+    pub(crate) fn new(
+        node_type: NodeType,
+        pos: i64,
+        reference_allele: String,
+        alternative_allele: String,
+    ) -> Self {
         Node {
             node_type,
+            reference_allele,
+            alternative_allele,
             vaf: Default::default(),
             probs: EventProbs(HashMap::new()),
             pos,
@@ -105,16 +116,18 @@ impl Node {
     // Returns whether the node is a SNV
     pub(crate) fn is_snv(&self) -> bool {
         match &self.node_type {
-            NodeType::Var(alt_allele) => alt_allele.len() == 1,
-            NodeType::Ref(_) => false,
+            NodeType::Variant => self.alternative_allele.len() == 1,
+            NodeType::Reference => false,
         }
     }
 
     /// Returns the frameshift caused by the variant at this node.
     pub(crate) fn frameshift(&self) -> i64 {
         match &self.node_type {
-            NodeType::Var(alt_allele) => alt_allele.len() as i64 - 1,
-            NodeType::Ref(_) => 0,
+            NodeType::Variant => {
+                self.alternative_allele.len() as i64 - self.reference_allele.len() as i64
+            }
+            NodeType::Reference => 0,
         }
     }
 
@@ -163,7 +176,8 @@ impl Node {
         strand: Strand,
     ) -> anyhow::Result<Vec<AminoAcid>> {
         match &self.node_type {
-            NodeType::Var(alt_allele) => {
+            NodeType::Variant => {
+                let alt_allele = self.alternative_allele.clone();
                 let p = match strand {
                     Strand::Forward => self.pos,
                     Strand::Reverse => self.position_on_reverse_strand(reference.len()),
@@ -213,7 +227,7 @@ impl Node {
         reference: &[u8],
         strand: Strand,
     ) -> anyhow::Result<Option<String>> {
-        if let NodeType::Ref(_) = self.node_type {
+        if !self.node_type.is_variant() {
             return Ok(None);
         }
         let ref_amino_acid = self
@@ -234,7 +248,7 @@ impl Node {
         strand: Strand,
     ) -> anyhow::Result<Impact> {
         match &self.node_type {
-            NodeType::Var(_) => {
+            NodeType::Variant => {
                 let ref_amino_acid = self.reference_amino_acid(ref_phase, reference, strand)?;
                 match ref_amino_acid {
                     None => Ok(Impact::None),
@@ -267,7 +281,7 @@ impl Node {
                     }
                 }
             }
-            NodeType::Ref(_) => Ok(Impact::None),
+            NodeType::Reference => Ok(Impact::None),
         }
     }
 }

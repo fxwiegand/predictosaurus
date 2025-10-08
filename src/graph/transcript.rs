@@ -343,7 +343,7 @@ impl Transcript {
                     let mut path_sequence = sequence.clone();
                     for node_index in path.0.iter() {
                         let node = graph.graph.node_weight(*node_index).unwrap();
-                        if let NodeType::Var(allele) = &node.node_type {
+                        if &node.node_type == &NodeType::Variant {
                             let position_in_cds = match self.strand {
                                 Strand::Forward => {
                                     (node.pos - cds.start as i64 + frameshift + cds.phase as i64)
@@ -369,14 +369,15 @@ impl Transcript {
                                 Strand::Forward => {
                                     path_sequence.splice(
                                         position_in_cds..position_in_cds + 1,
-                                        allele.bytes(),
+                                        node.alternative_allele.bytes(),
                                     );
                                 }
                                 Strand::Reverse => {
                                     path_sequence.splice(
                                         position_in_cds..position_in_cds + 1,
                                         String::from_utf8_lossy(
-                                            reverse_complement(allele.as_bytes()).as_slice(),
+                                            reverse_complement(node.alternative_allele.as_bytes())
+                                                .as_slice(),
                                         )
                                         .bytes(),
                                     );

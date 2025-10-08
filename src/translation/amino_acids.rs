@@ -1,7 +1,14 @@
 use crate::cli::Interval;
+use crate::graph::node::{Node, NodeType};
+use crate::graph::transcript::Transcript;
 use crate::translation::distance::DistanceMetric;
+use crate::translation::dna_to_amino_acids;
+use crate::utils::fasta::reverse_complement;
 use anyhow::Result;
+use bio::bio_types::strand::Strand;
 use itertools::Itertools;
+use petgraph::algo::UnitMeasure;
+use std::collections::HashMap;
 use std::fmt::Display;
 
 /// A protein consisting of a sequence of amino acids
@@ -30,6 +37,37 @@ impl Protein {
             .into_iter()
             .flat_map(|i| self.k_peptides(i))
             .collect()
+    }
+
+    pub(crate) fn from_transcript(
+        reference: &HashMap<String, Vec<u8>>,
+        transcript: &Transcript,
+    ) -> Result<Protein> {
+        let target_ref = reference
+            .get(&transcript.target)
+            .ok_or_else(|| anyhow::anyhow!("Missing reference for {}", transcript.target))?;
+
+        let cds_seq: Vec<u8> = transcript
+            .cds()
+            .flat_map(|cds| {
+                let region = &target_ref[cds.start as usize..cds.end as usize];
+                match transcript.strand {
+                    Strand::Reverse => reverse_complement(region),
+                    _ => region.to_vec(),
+                }
+            })
+            .collect();
+
+        Ok(Protein::new(dna_to_amino_acids(&cds_seq)?))
+    }
+
+    pub(crate) fn from_haplotype(
+        reference: &HashMap<String, Vec<u8>>,
+        transcript: &Transcript,
+        haplotype: &[Node],
+    ) -> Result<Protein> {
+        let target_ref = reference.get(&transcript.target).unwrap();
+        unimplemented!()
     }
 }
 

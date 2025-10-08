@@ -1,5 +1,5 @@
 pub(crate) mod duck;
-mod node;
+pub(crate) mod node;
 pub(crate) mod paths;
 pub(crate) mod peptide;
 pub(crate) mod score;
@@ -141,7 +141,7 @@ impl VariantGraph {
                 &calls_record,
                 &observations,
                 &event_probs,
-                NodeType::Var(alt_allele),
+                NodeType::Variant,
                 &samples,
                 index,
             );
@@ -155,7 +155,7 @@ impl VariantGraph {
                     &calls_record,
                     &observations,
                     &event_probs,
-                    NodeType::Ref(ref_allele),
+                    NodeType::Reference,
                     &samples,
                     index,
                 );
