@@ -67,8 +67,36 @@ impl Protein {
         transcript: &Transcript,
         haplotype: &[Node],
     ) -> Result<Protein> {
-        let target_ref = reference.get(&transcript.target).unwrap();
-        unimplemented!()
+        let target_ref = reference
+            .get(&transcript.target)
+            .ok_or_else(|| anyhow::anyhow!("Missing reference for {}", transcript.target))?;
+
+        let cds_seq: Vec<u8> = transcript
+            .cds()
+            .flat_map(|cds| {
+                let mut region = target_ref[cds.start as usize..cds.end as usize].to_vec();
+                let mut offset: isize = 0;
+
+                for node in haplotype.iter().filter(|n| {
+                    n.pos >= cds.start as i64 && n.pos < cds.end as i64 && n.node_type.is_variant()
+                }) {
+                    let pos = (node.pos - cds.start as i64) as usize + offset as usize;
+                    region.splice(
+                        pos..pos + node.reference_allele.len(),
+                        node.alternative_allele.bytes(),
+                    );
+                    offset += node.frameshift() as isize;
+                }
+
+                let phase = cds.phase as usize;
+                match transcript.strand {
+                    Strand::Reverse => reverse_complement(&region[..region.len() - phase]),
+                    _ => region[phase..].to_vec(),
+                }
+            })
+            .collect();
+
+        Ok(Protein::new(dna_to_amino_acids(&cds_seq)?))
     }
 }
 
