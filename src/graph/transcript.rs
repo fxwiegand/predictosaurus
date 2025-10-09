@@ -343,7 +343,7 @@ impl Transcript {
                     let mut path_sequence = sequence.clone();
                     for node_index in path.0.iter() {
                         let node = graph.graph.node_weight(*node_index).unwrap();
-                        if &node.node_type == &NodeType::Variant {
+                        if node.node_type == NodeType::Variant {
                             let position_in_cds = match self.strand {
                                 Strand::Forward => {
                                     (node.pos - cds.start as i64 + frameshift + cds.phase as i64)
