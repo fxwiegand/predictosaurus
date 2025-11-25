@@ -7,7 +7,6 @@ use crate::utils::fasta::reverse_complement;
 use anyhow::Result;
 use bio::bio_types::strand::Strand;
 use itertools::Itertools;
-use petgraph::algo::UnitMeasure;
 use std::collections::HashMap;
 use std::fmt::Display;
 
