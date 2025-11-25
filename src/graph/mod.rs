@@ -356,7 +356,7 @@ fn shift_phase(phase: u8, frameshift: u8) -> u8 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct EventProbs(HashMap<String, LogProb>);
+pub(crate) struct EventProbs(pub(crate) HashMap<String, LogProb>);
 
 impl EventProbs {
     fn from_record(record: &Record, tags: &Vec<String>) -> Self {

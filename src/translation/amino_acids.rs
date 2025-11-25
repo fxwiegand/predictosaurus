@@ -240,6 +240,9 @@ impl Display for AminoAcid {
 
 #[cfg(test)]
 mod tests {
+    use crate::graph::paths::Cds;
+    use crate::graph::EventProbs;
+
     use super::*;
 
     #[test]
@@ -493,5 +496,81 @@ mod tests {
                 ],
             ]
         );
+    }
+
+    #[test]
+    fn test_protein_from_transcript() {
+        let mut reference = HashMap::new();
+        reference.insert(
+            "chr1".to_string(),
+            "AAAAAATTTAAATTTAAATTTAAATTTAAATTTAAATTTAAATTTAAATTTAAATTT"
+                .bytes()
+                .collect(),
+        );
+        let mut cds = Vec::new();
+        cds.push(Cds {
+            start: 3,
+            end: 9,
+            phase: 0,
+        });
+        cds.push(Cds {
+            start: 12,
+            end: 18,
+            phase: 0,
+        });
+        let transcript = Transcript {
+            feature: "ENSG007".to_string(),
+            target: "chr1".to_string(),
+            strand: Strand::Forward,
+            coding_sequences: cds,
+        };
+        let protein = Protein::from_transcript(&reference, &transcript);
+        assert!(protein.is_ok());
+        let expected_protein = Protein {
+            sequence: vec![
+                AminoAcid::Lysine,
+                AminoAcid::Phenylalanine,
+                AminoAcid::Phenylalanine,
+                AminoAcid::Lysine,
+            ],
+        };
+        assert_eq!(protein.unwrap(), expected_protein);
+    }
+
+    #[test]
+    fn test_protein_from_haplotype() {
+        let mut reference = HashMap::new();
+        reference.insert("chr1".to_string(), b"AAACCC".to_vec());
+        let cds = vec![Cds {
+            start: 0,
+            end: 6,
+            phase: 0,
+        }];
+
+        let transcript = Transcript {
+            feature: "ENST_TEST".to_string(),
+            target: "chr1".to_string(),
+            strand: Strand::Forward,
+            coding_sequences: cds,
+        };
+
+        let haplotype = vec![Node {
+            node_type: NodeType::Variant,
+            reference_allele: "A".to_string(),
+            alternative_allele: "T".to_string(),
+            vaf: HashMap::new(),
+            probs: EventProbs(HashMap::new()),
+            pos: 2,
+            index: 0,
+        }];
+
+        let protein = Protein::from_haplotype(&reference, &transcript, &haplotype);
+        assert!(protein.is_ok());
+
+        let expected = Protein {
+            sequence: vec![AminoAcid::Asparagine, AminoAcid::Proline],
+        };
+
+        assert_eq!(protein.unwrap(), expected);
     }
 }
