@@ -195,7 +195,7 @@ pub(crate) fn write_scores(
     for (score, likelihoods) in scores {
         stmt.execute(params![
             transcript_name.as_str(),
-            score.normalized(),
+            score.score(),
             json5::to_string(&likelihoods)?
         ])?;
     }

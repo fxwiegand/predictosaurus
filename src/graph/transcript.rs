@@ -7,7 +7,8 @@ use crate::graph::score::EffectScore;
 use crate::graph::score::HaplotypeLikelihoods;
 use crate::graph::score::HaplotypeMetric;
 use crate::graph::{shift_phase, EventProbs, VariantGraph};
-use crate::translation::amino_acids::AminoAcid;
+use crate::translation::amino_acids::{AminoAcid, Protein};
+use crate::translation::distance::DistanceMetric;
 use crate::utils::fasta::reverse_complement;
 use anyhow::{bail, Result};
 use bio::bio_types::strand::Strand;
@@ -179,11 +180,19 @@ impl Transcript {
         graph: &PathBuf,
         reference: &HashMap<String, Vec<u8>>,
         haplotype_metric: HaplotypeMetric,
+        distance_metric: DistanceMetric,
     ) -> Result<Vec<(EffectScore, HaplotypeLikelihoods)>> {
         let haplotypes = self.haplotypes(graph)?;
         let mut scores = Vec::with_capacity(haplotypes.len());
+        let original_protein = Protein::from_transcript(reference, self)?;
         for haplotype in haplotypes {
-            let effect_score = EffectScore::from_haplotype(reference, self, &haplotype)?;
+            let effect_score = EffectScore::from_haplotype(
+                reference,
+                self,
+                &haplotype,
+                original_protein.clone(),
+                distance_metric,
+            )?;
             let likelihood = haplotype_metric.calculate(&haplotype);
             scores.push((effect_score, likelihood));
         }

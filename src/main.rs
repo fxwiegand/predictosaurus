@@ -85,6 +85,7 @@ impl Command {
                 features,
                 reference,
                 graph,
+                distance_metric,
                 haplotype_metric,
                 output,
             } => {
@@ -95,8 +96,12 @@ impl Command {
                 transcripts(features, graph)?.into_par_iter().try_for_each(
                     |transcript| -> anyhow::Result<()> {
                         info!("Processing transcript {}", transcript.name());
-                        let scores =
-                            transcript.scores(graph, &reference_genome, *haplotype_metric)?;
+                        let scores = transcript.scores(
+                            graph,
+                            &reference_genome,
+                            *haplotype_metric,
+                            *distance_metric,
+                        )?;
                         info!(
                             "Writing scores for {} different haplotypes for transcript {}",
                             scores.len(),
