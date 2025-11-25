@@ -38,6 +38,10 @@ impl Protein {
             .collect()
     }
 
+    pub(crate) fn amino_acids(&self) -> Vec<AminoAcid> {
+        self.sequence.clone()
+    }
+
     pub(crate) fn from_transcript(
         reference: &HashMap<String, Vec<u8>>,
         transcript: &Transcript,

@@ -186,12 +186,14 @@ impl Transcript {
         let mut scores = Vec::with_capacity(haplotypes.len());
         let original_protein = Protein::from_transcript(reference, self)?;
         for haplotype in haplotypes {
+            let realign = haplotype.iter().map(|node| node.frameshift()).sum::<i64>() != 0;
             let effect_score = EffectScore::from_haplotype(
                 reference,
                 self,
                 &haplotype,
                 original_protein.clone(),
                 distance_metric,
+                realign,
             )?;
             let likelihood = haplotype_metric.calculate(&haplotype);
             scores.push((effect_score, likelihood));

@@ -14,6 +14,7 @@ pub struct EffectScore {
     pub original_protein: Protein,
     pub altered_protein: Protein,
     pub distance_metric: DistanceMetric,
+    realign: bool,
 }
 
 impl EffectScore {
@@ -23,17 +24,36 @@ impl EffectScore {
         haplotype: &[Node],
         original_protein: Protein,
         distance_metric: DistanceMetric,
+        realign: bool,
     ) -> Result<Self> {
         let altered_protein = Protein::from_haplotype(reference, transcript, haplotype)?;
         Ok(Self {
             original_protein,
             altered_protein,
             distance_metric,
+            realign,
         })
     }
 
     pub fn score(&self) -> f64 {
-        unimplemented!()
+        // Compare proteins:
+        // If equal return 0
+        // If no frameshift occured in the changed protein, simply compare amino acid by amino acid based on the distance metric and divide by the length of the protein
+        // If a frameshift occurs, re-align the proteins and compare amino acid by amino acid based on the distance metric and divide by the length of the protein
+        if self.original_protein == self.altered_protein {
+            0.0
+        } else if !self.realign {
+            // We can assume both proteins have the same length
+            self.original_protein
+                .amino_acids()
+                .into_iter()
+                .zip(self.altered_protein.amino_acids())
+                .map(|(a, b)| self.distance_metric.compute(&a, &b))
+                .sum::<f64>()
+                / self.original_protein.amino_acids().len() as f64
+        } else {
+            unimplemented!()
+        }
     }
 }
 
