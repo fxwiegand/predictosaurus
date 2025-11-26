@@ -305,6 +305,7 @@ mod tests {
     use crate::graph::node::{Node, NodeType};
     use crate::graph::Edge;
     use crate::impact::Impact;
+    use crate::translation::amino_acids::{AminoAcid, Protein};
     use crate::translation::distance::DistanceMetric;
     use bio::bio_types::strand::Strand;
     use itertools::Itertools;
@@ -613,18 +614,20 @@ mod tests {
             Strand::Forward,
             vec![Cds::new(0, 100, 0)],
         );
+        let p1 = Protein::new(vec![AminoAcid::Phenylalanine, AminoAcid::Leucine]);
+        let p2 = Protein::new(vec![AminoAcid::Isoleucine, AminoAcid::Leucine]);
         let effect_score = EffectScore {
-            snvs: Vec::new(),
-            fs_fraction: 0.5,
-            stop_fraction: None,
-            distance_metric: DistanceMetric::default(),
+            original_protein: p1,
+            altered_protein: p2,
+            distance_metric: DistanceMetric::Epstein,
+            realign: false,
         };
         let likelihoods = HashMap::from([("A".to_string(), 0.1), ("C".to_string(), 0.2)]);
         let scores = vec![(effect_score, likelihoods)];
         write_scores(output_path.as_path(), scores, transcript).unwrap();
         let scores = read_scores(output_path.as_path()).unwrap();
         assert_eq!(scores.len(), 1);
-        assert!((scores.get("chr1:some feature").unwrap()[0].0 - 0.3333333).abs() < 1e-6);
+        assert!((scores.get("chr1:some feature").unwrap()[0].0 - 0.03999999910593033).abs() < 1e-6);
         assert!(
             (scores.get("chr1:some feature").unwrap()[0]
                 .1

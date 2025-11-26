@@ -101,6 +101,13 @@ impl Protein {
 
         Ok(Protein::new(dna_to_amino_acids(&cds_seq)?))
     }
+
+    pub fn as_bytes(&self) -> Vec<u8> {
+        self.amino_acids()
+            .iter()
+            .map(|aa| aa.short_abbreviation() as u8)
+            .collect()
+    }
 }
 
 impl Display for Protein {
@@ -239,6 +246,35 @@ impl AminoAcid {
 impl Display for AminoAcid {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.abbreviation())
+    }
+}
+
+impl From<u8> for AminoAcid {
+    fn from(byte: u8) -> Self {
+        match byte {
+            b'A' => AminoAcid::Alanine,
+            b'R' => AminoAcid::Arginine,
+            b'N' => AminoAcid::Asparagine,
+            b'D' => AminoAcid::AsparticAcid,
+            b'C' => AminoAcid::Cysteine,
+            b'Q' => AminoAcid::Glutamine,
+            b'E' => AminoAcid::GlutamicAcid,
+            b'G' => AminoAcid::Glycine,
+            b'H' => AminoAcid::Histidine,
+            b'I' => AminoAcid::Isoleucine,
+            b'L' => AminoAcid::Leucine,
+            b'K' => AminoAcid::Lysine,
+            b'M' => AminoAcid::Methionine,
+            b'F' => AminoAcid::Phenylalanine,
+            b'P' => AminoAcid::Proline,
+            b'S' => AminoAcid::Serine,
+            b'T' => AminoAcid::Threonine,
+            b'W' => AminoAcid::Tryptophan,
+            b'Y' => AminoAcid::Tyrosine,
+            b'V' => AminoAcid::Valine,
+            b'X' => AminoAcid::Stop,
+            _ => panic!("Invalid amino acid byte"),
+        }
     }
 }
 

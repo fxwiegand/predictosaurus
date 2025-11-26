@@ -5,6 +5,8 @@ use crate::translation::amino_acids::AminoAcid;
 use crate::translation::amino_acids::Protein;
 use crate::translation::distance::DistanceMetric;
 use anyhow::Result;
+use bio::alignment::pairwise::Aligner;
+use bio::alignment::AlignmentOperation::*;
 use bio::bio_types::strand::Strand;
 use clap::ValueEnum;
 use std::collections::{HashMap, HashSet};
@@ -14,7 +16,7 @@ pub struct EffectScore {
     pub original_protein: Protein,
     pub altered_protein: Protein,
     pub distance_metric: DistanceMetric,
-    realign: bool,
+    pub realign: bool,
 }
 
 impl EffectScore {
@@ -44,44 +46,89 @@ impl EffectScore {
             0.0
         } else if !self.realign {
             // We can assume both proteins have the same length
-            self.original_protein
+            let mut total = 0.0;
+            for (i, (ref_aa, alt_aa)) in self
+                .original_protein
                 .amino_acids()
                 .into_iter()
                 .zip(self.altered_protein.amino_acids())
-                .map(|(a, b)| self.distance_metric.compute(&a, &b))
-                .sum::<f64>()
-                / self.original_protein.amino_acids().len() as f64
+                .enumerate()
+            {
+                if alt_aa.is_stop() && !ref_aa.is_stop() {
+                    total += (self.altered_protein.amino_acids().len() - i - 1) as f64;
+                }
+                total += self.distance_metric.compute(&ref_aa, &alt_aa) as f64;
+            }
+            total / self.altered_protein.amino_acids().len() as f64
         } else {
-            unimplemented!()
+            // Realign using semiglobal
+            let prot_x = self.original_protein.as_bytes();
+            let prot_y = self.altered_protein.as_bytes();
+
+            let score_fn = |a: u8, b: u8| {
+                // Convert used distance matrix to a negative cost with integer scaling as expected by bio
+                let d = self
+                    .distance_metric
+                    .compute(&AminoAcid::from(a), &AminoAcid::from(b));
+                (-d * 10.0).round() as i32
+            };
+
+            let gap_open = -8;
+            let gap_extend = -1;
+
+            let mut aligner =
+                Aligner::with_capacity(prot_x.len(), prot_y.len(), gap_open, gap_extend, &score_fn);
+
+            let alignment = aligner.semiglobal(&prot_x, &prot_y);
+
+            let ops = alignment.operations;
+
+            let mut total = 0.0;
+
+            let mut i = alignment.xstart;
+            let mut j = alignment.ystart;
+
+            for op in ops {
+                match op {
+                    Match => {
+                        i += 1;
+                        j += 1;
+                    }
+                    Subst => {
+                        let aa_x_opt = prot_x.get(i).map(|&b| AminoAcid::from(b));
+                        let aa_y_opt = prot_y.get(j).map(|&b| AminoAcid::from(b));
+
+                        match (aa_x_opt, aa_y_opt) {
+                            (Some(aa_x), Some(aa_y)) => {
+                                if aa_y.is_stop() && !aa_x.is_stop() {
+                                    let remaining = (prot_x.len() - i).max(prot_y.len() - j);
+                                    total += remaining as f64;
+                                    break;
+                                }
+                                total += self.distance_metric.compute(&aa_x, &aa_y);
+                            }
+                            _ => {
+                                total += 1.0;
+                            }
+                        }
+
+                        i += 1;
+                        j += 1;
+                    }
+                    Del | Ins => {
+                        total += 1.0;
+
+                        if let Del = op {
+                            i += 1;
+                        } else {
+                            j += 1;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            total / self.altered_protein.amino_acids().len() as f64
         }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AminoAcidChange {
-    pub reference: Option<AminoAcid>,
-    pub variants: Vec<AminoAcid>,
-}
-
-impl AminoAcidChange {
-    pub fn distance(&self, metric: &DistanceMetric) -> f64 {
-        match (&self.reference, self.variants.first(), self.variants.len()) {
-            (Some(r), Some(v), 1) => metric.compute(r, v),
-            (Some(_), Some(_), _) => 1.0, // Complex change adding more amino acids to the protein.
-            _ => 0.0, // This will mostly happen when the variant is mapped to a region where the reference contains N. Therefore, we return 0.0 for now.
-        }
-    }
-
-    pub fn from_node(
-        node: &Node,
-        phase: u8,
-        reference: &[u8],
-        strand: Strand,
-    ) -> anyhow::Result<Self> {
-        Ok(AminoAcidChange {
-            reference: node.reference_amino_acid(phase, reference, strand)?,
-            variants: node.variant_amino_acids(phase, reference, strand)?,
-        })
     }
 }
 
@@ -127,48 +174,6 @@ mod tests {
     use crate::graph::EventProbs;
     use crate::translation::amino_acids::AminoAcid;
     use crate::Cds;
-
-    #[test]
-    fn test_from_node() {
-        let node = Node::new(NodeType::Variant, 2, "G".to_string(), "A".to_string());
-        let reference = b"ATGCGCGTA";
-        let phase = 0;
-        let strand = Strand::Forward;
-        let change = AminoAcidChange::from_node(&node, phase, reference, strand).unwrap();
-        assert_eq!(change.reference, Some(AminoAcid::Methionine));
-        assert_eq!(change.variants, vec![AminoAcid::Isoleucine]);
-    }
-
-    #[test]
-    fn test_amino_acid_change_distance() {
-        use crate::translation::distance::DistanceMetric;
-
-        let change = AminoAcidChange {
-            reference: Some(AminoAcid::Isoleucine),
-            variants: vec![AminoAcid::AsparticAcid],
-        };
-        let metric = DistanceMetric::Grantham;
-        let expected = metric.compute(&AminoAcid::Isoleucine, &AminoAcid::AsparticAcid);
-        assert!((change.distance(&metric) - expected).abs() < 1e-6);
-
-        let change = AminoAcidChange {
-            reference: None,
-            variants: vec![AminoAcid::AsparticAcid],
-        };
-        assert!((change.distance(&metric) - 0.0).abs() < 1e-6);
-
-        let change = AminoAcidChange {
-            reference: Some(AminoAcid::Isoleucine),
-            variants: vec![AminoAcid::AsparticAcid, AminoAcid::Threonine],
-        };
-        assert!((change.distance(&metric) - 1.0).abs() < 1e-6);
-
-        let change = AminoAcidChange {
-            reference: Some(AminoAcid::Isoleucine),
-            variants: vec![],
-        };
-        assert!((change.distance(&metric) - 0.0).abs() < 1e-6);
-    }
 
     #[test]
     fn test_product_metric() {
@@ -290,5 +295,70 @@ mod tests {
         let metric = HaplotypeMetric::Minimum;
         let result = metric.calculate(&nodes);
         assert_eq!(*result.get("S1").unwrap(), 0.25);
+    }
+
+    #[test]
+    fn test_score_equal_proteins() {
+        let p1 = Protein::new(vec![AminoAcid::Phenylalanine, AminoAcid::Leucine]);
+        let p2 = Protein::new(vec![AminoAcid::Phenylalanine, AminoAcid::Leucine]);
+        let score = EffectScore {
+            original_protein: p1,
+            altered_protein: p2,
+            distance_metric: DistanceMetric::Epstein,
+            realign: false,
+        };
+        assert!(score.score().abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_score_different_proteins() {
+        let p1 = Protein::new(vec![AminoAcid::Phenylalanine, AminoAcid::Leucine]);
+        let p2 = Protein::new(vec![AminoAcid::Phenylalanine, AminoAcid::Valine]);
+        let score = EffectScore {
+            original_protein: p1,
+            altered_protein: p2,
+            distance_metric: DistanceMetric::Epstein,
+            realign: false,
+        };
+        // Distance between Leucine and Valine is 0.03 / 2 since len = 2
+        assert!((score.score() - 0.015).abs() < 1e-6)
+    }
+
+    #[test]
+    fn test_score_different_proteins_with_stop() {
+        let p1 = Protein::new(vec![
+            AminoAcid::Phenylalanine,
+            AminoAcid::Leucine,
+            AminoAcid::Valine,
+        ]);
+        let p2 = Protein::new(vec![
+            AminoAcid::Phenylalanine,
+            AminoAcid::Stop,
+            AminoAcid::Valine,
+        ]);
+        let score = EffectScore {
+            original_protein: p1,
+            altered_protein: p2,
+            distance_metric: DistanceMetric::Epstein,
+            realign: false,
+        };
+        assert!((score.score() - (2.0 / 3.0)).abs() < 1e-6)
+    }
+
+    #[test]
+    fn test_score_different_proteins_realign() {
+        let p1 = Protein::new(vec![
+            AminoAcid::Phenylalanine,
+            AminoAcid::Leucine,
+            AminoAcid::Valine,
+        ]);
+        let p2 = Protein::new(vec![AminoAcid::Leucine, AminoAcid::Valine]);
+        let score = EffectScore {
+            original_protein: p1,
+            altered_protein: p2,
+            distance_metric: DistanceMetric::Epstein,
+            realign: true,
+        };
+        assert!((score.score() - 0.5).abs() < 1e-6)
     }
 }
