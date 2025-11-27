@@ -361,4 +361,30 @@ mod tests {
         };
         assert!((score.score() - 0.5).abs() < 1e-6)
     }
+
+    #[test]
+    fn test_score_different_proteins_realign_with_substitution() {
+        let p1 = Protein::new(vec![
+            AminoAcid::Phenylalanine,
+            AminoAcid::Phenylalanine,
+            AminoAcid::Leucine,
+            AminoAcid::Phenylalanine,
+            AminoAcid::Phenylalanine,
+            AminoAcid::Phenylalanine,
+        ]);
+        let p2 = Protein::new(vec![
+            AminoAcid::Phenylalanine,
+            AminoAcid::Valine,
+            AminoAcid::Phenylalanine,
+            AminoAcid::Phenylalanine,
+            AminoAcid::Phenylalanine,
+        ]);
+        let score = EffectScore {
+            original_protein: p1,
+            altered_protein: p2,
+            distance_metric: DistanceMetric::Epstein,
+            realign: true,
+        };
+        assert!((score.score() - 0.2).abs() < 1e-6)
+    }
 }
