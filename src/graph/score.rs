@@ -57,7 +57,7 @@ impl EffectScore {
                 if alt_aa.is_stop() && !ref_aa.is_stop() {
                     total += (self.altered_protein.amino_acids().len() - i - 1) as f64;
                 }
-                total += self.distance_metric.compute(&ref_aa, &alt_aa) as f64;
+                total += self.distance_metric.compute(&ref_aa, &alt_aa);
             }
             total / self.altered_protein.amino_acids().len() as f64
         } else {
