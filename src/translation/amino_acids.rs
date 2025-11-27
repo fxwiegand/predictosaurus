@@ -1,7 +1,13 @@
 use crate::cli::Interval;
+use crate::graph::node::{Node, NodeType};
+use crate::graph::transcript::Transcript;
 use crate::translation::distance::DistanceMetric;
+use crate::translation::dna_to_amino_acids;
+use crate::utils::fasta::reverse_complement;
 use anyhow::Result;
+use bio::bio_types::strand::Strand;
 use itertools::Itertools;
+use std::collections::HashMap;
 use std::fmt::Display;
 
 /// A protein consisting of a sequence of amino acids
@@ -29,6 +35,77 @@ impl Protein {
         interval
             .into_iter()
             .flat_map(|i| self.k_peptides(i))
+            .collect()
+    }
+
+    pub(crate) fn amino_acids(&self) -> Vec<AminoAcid> {
+        self.sequence.clone()
+    }
+
+    pub(crate) fn from_transcript(
+        reference: &HashMap<String, Vec<u8>>,
+        transcript: &Transcript,
+    ) -> Result<Protein> {
+        let target_ref = reference
+            .get(&transcript.target)
+            .ok_or_else(|| anyhow::anyhow!("Missing reference for {}", transcript.target))?;
+
+        let cds_seq: Vec<u8> = transcript
+            .cds()
+            .flat_map(|cds| {
+                let region = &target_ref[cds.start as usize..cds.end as usize];
+                let phase = cds.phase as usize;
+                match transcript.strand {
+                    Strand::Reverse => reverse_complement(&region[..region.len() - phase]),
+                    _ => region[phase..].to_vec(),
+                }
+            })
+            .collect();
+
+        Ok(Protein::new(dna_to_amino_acids(&cds_seq)?))
+    }
+
+    pub(crate) fn from_haplotype(
+        reference: &HashMap<String, Vec<u8>>,
+        transcript: &Transcript,
+        haplotype: &[Node],
+    ) -> Result<Protein> {
+        let target_ref = reference
+            .get(&transcript.target)
+            .ok_or_else(|| anyhow::anyhow!("Missing reference for {}", transcript.target))?;
+
+        let cds_seq: Vec<u8> = transcript
+            .cds()
+            .flat_map(|cds| {
+                let mut region = target_ref[cds.start as usize..cds.end as usize].to_vec();
+                let mut offset: isize = 0;
+
+                for node in haplotype.iter().filter(|n| {
+                    n.pos >= cds.start as i64 && n.pos < cds.end as i64 && n.node_type.is_variant()
+                }) {
+                    let pos = ((node.pos - cds.start as i64) as isize + offset) as usize;
+                    region.splice(
+                        pos..pos + node.reference_allele.len(),
+                        node.alternative_allele.bytes(),
+                    );
+                    offset += node.frameshift() as isize;
+                }
+
+                let phase = cds.phase as usize;
+                match transcript.strand {
+                    Strand::Reverse => reverse_complement(&region[..region.len() - phase]),
+                    _ => region[phase..].to_vec(),
+                }
+            })
+            .collect();
+
+        Ok(Protein::new(dna_to_amino_acids(&cds_seq)?))
+    }
+
+    pub fn as_bytes(&self) -> Vec<u8> {
+        self.amino_acids()
+            .iter()
+            .map(|aa| aa.short_abbreviation() as u8)
             .collect()
     }
 }
@@ -172,8 +249,40 @@ impl Display for AminoAcid {
     }
 }
 
+impl From<u8> for AminoAcid {
+    fn from(byte: u8) -> Self {
+        match byte {
+            b'A' => AminoAcid::Alanine,
+            b'R' => AminoAcid::Arginine,
+            b'N' => AminoAcid::Asparagine,
+            b'D' => AminoAcid::AsparticAcid,
+            b'C' => AminoAcid::Cysteine,
+            b'Q' => AminoAcid::Glutamine,
+            b'E' => AminoAcid::GlutamicAcid,
+            b'G' => AminoAcid::Glycine,
+            b'H' => AminoAcid::Histidine,
+            b'I' => AminoAcid::Isoleucine,
+            b'L' => AminoAcid::Leucine,
+            b'K' => AminoAcid::Lysine,
+            b'M' => AminoAcid::Methionine,
+            b'F' => AminoAcid::Phenylalanine,
+            b'P' => AminoAcid::Proline,
+            b'S' => AminoAcid::Serine,
+            b'T' => AminoAcid::Threonine,
+            b'W' => AminoAcid::Tryptophan,
+            b'Y' => AminoAcid::Tyrosine,
+            b'V' => AminoAcid::Valine,
+            b'X' => AminoAcid::Stop,
+            _ => panic!("Invalid amino acid byte"),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use crate::graph::paths::Cds;
+    use crate::graph::EventProbs;
+
     use super::*;
 
     #[test]
@@ -427,5 +536,118 @@ mod tests {
                 ],
             ]
         );
+    }
+
+    #[test]
+    fn test_protein_from_transcript() {
+        let mut reference = HashMap::new();
+        reference.insert(
+            "chr1".to_string(),
+            "AAAAAATTTAAATTTAAATTTAAATTTAAATTTAAATTTAAATTTAAATTTAAATTT"
+                .bytes()
+                .collect(),
+        );
+        let mut cds = Vec::new();
+        cds.push(Cds {
+            start: 3,
+            end: 9,
+            phase: 0,
+        });
+        cds.push(Cds {
+            start: 12,
+            end: 18,
+            phase: 0,
+        });
+        let transcript = Transcript {
+            feature: "ENSG007".to_string(),
+            target: "chr1".to_string(),
+            strand: Strand::Forward,
+            coding_sequences: cds,
+        };
+        let protein = Protein::from_transcript(&reference, &transcript);
+        assert!(protein.is_ok());
+        let expected_protein = Protein {
+            sequence: vec![
+                AminoAcid::Lysine,
+                AminoAcid::Phenylalanine,
+                AminoAcid::Phenylalanine,
+                AminoAcid::Lysine,
+            ],
+        };
+        assert_eq!(protein.unwrap(), expected_protein);
+    }
+
+    #[test]
+    fn test_protein_from_haplotype() {
+        let mut reference = HashMap::new();
+        reference.insert("chr1".to_string(), b"AAACCC".to_vec());
+        let cds = vec![Cds {
+            start: 0,
+            end: 6,
+            phase: 0,
+        }];
+
+        let transcript = Transcript {
+            feature: "ENST_TEST".to_string(),
+            target: "chr1".to_string(),
+            strand: Strand::Forward,
+            coding_sequences: cds,
+        };
+
+        let haplotype = vec![Node {
+            node_type: NodeType::Variant,
+            reference_allele: "A".to_string(),
+            alternative_allele: "T".to_string(),
+            vaf: HashMap::new(),
+            probs: EventProbs(HashMap::new()),
+            pos: 2,
+            index: 0,
+        }];
+
+        let protein = Protein::from_haplotype(&reference, &transcript, &haplotype);
+        assert!(protein.is_ok());
+
+        let expected = Protein {
+            sequence: vec![AminoAcid::Asparagine, AminoAcid::Proline],
+        };
+
+        assert_eq!(protein.unwrap(), expected);
+    }
+
+    #[test]
+    fn test_amino_acid_from_u8() {
+        let cases = vec![
+            (b'A', AminoAcid::Alanine),
+            (b'R', AminoAcid::Arginine),
+            (b'N', AminoAcid::Asparagine),
+            (b'D', AminoAcid::AsparticAcid),
+            (b'E', AminoAcid::GlutamicAcid),
+            (b'Q', AminoAcid::Glutamine),
+            (b'K', AminoAcid::Lysine),
+            (b'H', AminoAcid::Histidine),
+            (b'Y', AminoAcid::Tyrosine),
+            (b'W', AminoAcid::Tryptophan),
+            (b'F', AminoAcid::Phenylalanine),
+            (b'S', AminoAcid::Serine),
+            (b'T', AminoAcid::Threonine),
+            (b'P', AminoAcid::Proline),
+            (b'G', AminoAcid::Glycine),
+            (b'C', AminoAcid::Cysteine),
+            (b'M', AminoAcid::Methionine),
+            (b'V', AminoAcid::Valine),
+            (b'I', AminoAcid::Isoleucine),
+            (b'L', AminoAcid::Leucine),
+            (b'X', AminoAcid::Stop),
+        ];
+
+        for (byte, expected) in cases {
+            assert_eq!(AminoAcid::from(byte), expected);
+        }
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_amino_acid_from_invalid_input() {
+        let aa = AminoAcid::from(b'Z');
     }
 }

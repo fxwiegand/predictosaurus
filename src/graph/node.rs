@@ -16,30 +16,27 @@ use varlociraptor::variants::evidence::observations::read_observation::Processed
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[allow(dead_code)] // TODO: Remove this attribute when graph is properly serialized
 pub(crate) enum NodeType {
-    Var(String),
-    Ref(String),
-}
-
-impl Display for NodeType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            NodeType::Var(alt) => write!(f, "Var({alt})"),
-            NodeType::Ref(_) => write!(f, "Ref"),
-        }
-    }
+    Variant,
+    Reference,
 }
 
 impl FromStr for NodeType {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.starts_with("Var(") && s.ends_with(')') {
-            let inner = &s[4..s.len() - 1];
-            Ok(NodeType::Var(inner.to_string()))
-        } else if s == "Ref" {
-            Ok(NodeType::Ref("".to_string()))
-        } else {
-            Err(anyhow!("Invalid node type"))
+        match s {
+            "Variant" => Ok(NodeType::Variant),
+            "Reference" => Ok(NodeType::Reference),
+            _ => Err(anyhow!("Invalid node type: {}", s)),
+        }
+    }
+}
+
+impl Display for NodeType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NodeType::Variant => write!(f, "Variant"),
+            NodeType::Reference => write!(f, "Reference"),
         }
     }
 }
@@ -47,8 +44,8 @@ impl FromStr for NodeType {
 impl NodeType {
     pub(crate) fn is_variant(&self) -> bool {
         match self {
-            NodeType::Var(_) => true,
-            NodeType::Ref(_) => false,
+            NodeType::Variant => true,
+            NodeType::Reference => false,
         }
     }
 }
@@ -57,6 +54,8 @@ impl NodeType {
 #[allow(dead_code)] // TODO: Remove this attribute when graph is properly serialized
 pub(crate) struct Node {
     pub(crate) node_type: NodeType,
+    pub(crate) reference_allele: String,
+    pub(crate) alternative_allele: String,
     pub(crate) vaf: HashMap<String, f32>,
     pub(crate) probs: EventProbs,
     pub(crate) pos: i64,
@@ -79,8 +78,13 @@ impl Node {
         index: u32,
     ) -> Self {
         let vafs = calls_record.format(b"AF").float().unwrap();
+        let alleles = calls_record.alleles();
+        let ref_allele = String::from_utf8(alleles[0].to_vec()).unwrap();
+        let alt_allele = String::from_utf8(alleles[1].to_vec()).unwrap();
         Node {
             node_type,
+            reference_allele: ref_allele,
+            alternative_allele: alt_allele,
             vaf: samples
                 .iter()
                 .zip(vafs.iter())
@@ -92,9 +96,16 @@ impl Node {
         }
     }
 
-    pub(crate) fn new(node_type: NodeType, pos: i64) -> Self {
+    pub(crate) fn new(
+        node_type: NodeType,
+        pos: i64,
+        reference_allele: String,
+        alternative_allele: String,
+    ) -> Self {
         Node {
             node_type,
+            reference_allele,
+            alternative_allele,
             vaf: Default::default(),
             probs: EventProbs(HashMap::new()),
             pos,
@@ -105,16 +116,18 @@ impl Node {
     // Returns whether the node is a SNV
     pub(crate) fn is_snv(&self) -> bool {
         match &self.node_type {
-            NodeType::Var(alt_allele) => alt_allele.len() == 1,
-            NodeType::Ref(_) => false,
+            NodeType::Variant => self.alternative_allele.len() == 1,
+            NodeType::Reference => false,
         }
     }
 
     /// Returns the frameshift caused by the variant at this node.
     pub(crate) fn frameshift(&self) -> i64 {
         match &self.node_type {
-            NodeType::Var(alt_allele) => alt_allele.len() as i64 - 1,
-            NodeType::Ref(_) => 0,
+            NodeType::Variant => {
+                self.alternative_allele.len() as i64 - self.reference_allele.len() as i64
+            }
+            NodeType::Reference => 0,
         }
     }
 
@@ -163,7 +176,8 @@ impl Node {
         strand: Strand,
     ) -> anyhow::Result<Vec<AminoAcid>> {
         match &self.node_type {
-            NodeType::Var(alt_allele) => {
+            NodeType::Variant => {
+                let alt_allele = self.alternative_allele.clone();
                 let p = match strand {
                     Strand::Forward => self.pos,
                     Strand::Reverse => self.position_on_reverse_strand(reference.len()),
@@ -213,7 +227,7 @@ impl Node {
         reference: &[u8],
         strand: Strand,
     ) -> anyhow::Result<Option<String>> {
-        if let NodeType::Ref(_) = self.node_type {
+        if !self.node_type.is_variant() {
             return Ok(None);
         }
         let ref_amino_acid = self
@@ -234,7 +248,7 @@ impl Node {
         strand: Strand,
     ) -> anyhow::Result<Impact> {
         match &self.node_type {
-            NodeType::Var(_) => {
+            NodeType::Variant => {
                 let ref_amino_acid = self.reference_amino_acid(ref_phase, reference, strand)?;
                 match ref_amino_acid {
                     None => Ok(Impact::None),
@@ -267,7 +281,7 @@ impl Node {
                     }
                 }
             }
-            NodeType::Ref(_) => Ok(Impact::None),
+            NodeType::Reference => Ok(Impact::None),
         }
     }
 }
@@ -301,7 +315,9 @@ mod tests {
         let vaf = HashMap::new();
         let ep = EventProbs(HashMap::new());
         let weight_1 = Node {
-            node_type: NodeType::Ref("".to_string()),
+            node_type: NodeType::Reference,
+            reference_allele: "".to_string(),
+            alternative_allele: "".to_string(),
             vaf: vaf.clone(),
             probs: ep.clone(),
             pos: 1,
@@ -310,7 +326,9 @@ mod tests {
         let node0 = graph.add_node(weight_1.clone());
         let node1 = graph.add_node(weight_1.clone());
         let weight_2 = Node {
-            node_type: NodeType::Ref("".to_string()),
+            node_type: NodeType::Reference,
+            reference_allele: "".to_string(),
+            alternative_allele: "".to_string(),
             vaf: vaf.clone(),
             probs: ep.clone(),
             pos: 4,
@@ -319,7 +337,9 @@ mod tests {
         let _node2 = graph.add_node(weight_2.clone());
         let node3 = graph.add_node(weight_2.clone());
         let weight_3 = Node {
-            node_type: NodeType::Ref("".to_string()),
+            node_type: NodeType::Reference,
+            reference_allele: "".to_string(),
+            alternative_allele: "".to_string(),
             vaf: vaf.clone(),
             probs: ep.clone(),
             pos: 5,
@@ -346,7 +366,9 @@ mod tests {
         let vaf = HashMap::new();
         let ep = EventProbs(HashMap::new());
         let weight_1 = Node {
-            node_type: NodeType::Ref("".to_string()),
+            node_type: NodeType::Reference,
+            reference_allele: "".to_string(),
+            alternative_allele: "".to_string(),
             vaf: vaf.clone(),
             probs: ep.clone(),
             pos: 1,
@@ -355,7 +377,9 @@ mod tests {
         let node0 = graph.add_node(weight_1.clone());
         let node1 = graph.add_node(weight_1.clone());
         let weight_2 = Node {
-            node_type: NodeType::Ref("".to_string()),
+            node_type: NodeType::Reference,
+            reference_allele: "".to_string(),
+            alternative_allele: "".to_string(),
             vaf: vaf.clone(),
             probs: ep.clone(),
             pos: 4,
@@ -364,7 +388,9 @@ mod tests {
         let node2 = graph.add_node(weight_2.clone());
         let node3 = graph.add_node(weight_2.clone());
         let weight_3 = Node {
-            node_type: NodeType::Ref("".to_string()),
+            node_type: NodeType::Reference,
+            reference_allele: "".to_string(),
+            alternative_allele: "".to_string(),
             vaf: vaf.clone(),
             probs: ep.clone(),
             pos: 5,
@@ -402,7 +428,7 @@ mod tests {
 
     #[test]
     fn test_variant_amino_acid_with_different_phases() {
-        let node = Node::new(NodeType::Var("A".to_string()), 2);
+        let node = Node::new(NodeType::Variant, 2, "".to_string(), "A".to_string());
         let reference = b"ATGCGCGTA";
         let ile = node
             .variant_amino_acids(0, reference, Strand::Forward)
@@ -429,7 +455,7 @@ mod tests {
 
     #[test]
     fn test_variant_amino_acid_with_deletion() {
-        let node = Node::new(NodeType::Var("".to_string()), 2);
+        let node = Node::new(NodeType::Variant, 2, "".to_string(), "".to_string());
         let reference = b"ATGCCGT";
         let ile = node
             .variant_amino_acids(0, reference, Strand::Forward)
@@ -456,7 +482,7 @@ mod tests {
 
     #[test]
     fn test_variant_amino_acid_with_one_inserted_base() {
-        let node = Node::new(NodeType::Var("GG".to_string()), 1);
+        let node = Node::new(NodeType::Variant, 1, "A".to_string(), "GG".to_string());
         let reference = b"AGCTCT";
         let arg = node
             .variant_amino_acids(0, reference, Strand::Forward)
@@ -472,7 +498,7 @@ mod tests {
             .unwrap()
             .to_owned();
         assert_eq!(gly, AminoAcid::Glycine);
-        let node_2 = Node::new(NodeType::Var("GG".to_string()), 3);
+        let node_2 = Node::new(NodeType::Variant, 3, "".to_string(), "GG".to_string());
         let arg = node_2
             .variant_amino_acids(2, reference, Strand::Forward)
             .unwrap()
@@ -484,7 +510,7 @@ mod tests {
 
     #[test]
     fn test_variant_amino_acid_with_two_inserted_bases() {
-        let node = Node::new(NodeType::Var("TCC".to_string()), 4);
+        let node = Node::new(NodeType::Variant, 4, "".to_string(), "TCC".to_string());
         let reference = b"ATCATCATC";
         let ile = node
             .variant_amino_acids(0, reference, Strand::Forward)
@@ -511,7 +537,7 @@ mod tests {
 
     #[test]
     fn test_variant_amino_acid_with_six_inserted_bases() {
-        let node = Node::new(NodeType::Var("TCCAGTT".to_string()), 4);
+        let node = Node::new(NodeType::Variant, 4, "".to_string(), "TCCAGTT".to_string());
         let reference = b"ATCATCATC";
         let ile_gln_phe = node
             .variant_amino_acids(0, reference, Strand::Forward)
@@ -542,13 +568,13 @@ mod tests {
 
     #[test]
     fn test_variant_amino_acid_at_feature_end() {
-        let node = Node::new(NodeType::Var("A".to_string()), 9);
+        let node = Node::new(NodeType::Variant, 9, "T".to_string(), "A".to_string());
         let reference = b"ATGCGCGTAT";
         let no_amino_acid = node
             .variant_amino_acids(0, reference, Strand::Forward)
             .unwrap();
         assert!(no_amino_acid.is_empty());
-        let node2 = Node::new(NodeType::Var("A".to_string()), 0);
+        let node2 = Node::new(NodeType::Variant, 0, "T".to_string(), "A".to_string());
         let no_amino_acid_2 = node2
             .variant_amino_acids(0, reference, Strand::Reverse)
             .unwrap();
@@ -557,7 +583,7 @@ mod tests {
 
     #[test]
     fn test_variant_amino_acid_at_feature_start() {
-        let node = Node::new(NodeType::Var("A".to_string()), 0);
+        let node = Node::new(NodeType::Variant, 0, "T".to_string(), "A".to_string());
         let reference = b"ATGCGCGTAT";
         let no_amino_acid = node
             .variant_amino_acids(1, reference, Strand::Forward)
@@ -567,7 +593,7 @@ mod tests {
 
     #[test]
     fn test_variant_amino_acid_on_backward_strand() {
-        let node = Node::new(NodeType::Var("A".to_string()), 2);
+        let node = Node::new(NodeType::Variant, 2, "T".to_string(), "A".to_string());
         let forward_reference = b"ATGCGCGTA";
         let backward_reference = &{ crate::utils::fasta::reverse_complement(forward_reference) };
         assert_eq!(backward_reference, b"TACGCGCAT");
@@ -596,7 +622,7 @@ mod tests {
 
     #[test]
     fn test_reference_amino_acid_with_different_phases() {
-        let node = Node::new(NodeType::Ref("".to_string()), 2);
+        let node = Node::new(NodeType::Reference, 2, "".to_string(), "".to_string());
         let reference = b"ATGCGCGTA";
         let met = node
             .reference_amino_acid(0, reference, Strand::Forward)
@@ -617,7 +643,7 @@ mod tests {
 
     #[test]
     fn test_reference_amino_acid_on_backward_strand() {
-        let node = Node::new(NodeType::Ref("".to_string()), 2);
+        let node = Node::new(NodeType::Reference, 2, "".to_string(), "".to_string());
         let forward_reference = b"ATGCGCGTA";
         let backward_reference = &{ crate::utils::fasta::reverse_complement(forward_reference) };
         assert_eq!(backward_reference, b"TACGCGCAT");
@@ -640,13 +666,13 @@ mod tests {
 
     #[test]
     fn test_empty_reference_amino_acid() {
-        let node = Node::new(NodeType::Ref("".to_string()), 9);
+        let node = Node::new(NodeType::Reference, 9, "".to_string(), "".to_string());
         let reference = b"ATGCGCGTAT";
         let no_amino_acid = node
             .reference_amino_acid(0, reference, Strand::Forward)
             .unwrap();
         assert!(no_amino_acid.is_none());
-        let node2 = Node::new(NodeType::Ref("".to_string()), 0);
+        let node2 = Node::new(NodeType::Reference, 0, "".to_string(), "".to_string());
         let no_amino_acid_2 = node2
             .reference_amino_acid(0, reference, Strand::Reverse)
             .unwrap();
@@ -655,66 +681,60 @@ mod tests {
 
     #[test]
     fn test_frameshift() {
-        let node = Node::new(NodeType::Var("A".to_string()), 2);
+        let node = Node::new(NodeType::Variant, 2, "A".to_string(), "A".to_string());
         let frameshift = node.frameshift();
         assert_eq!(frameshift, 0);
-        let node = Node::new(NodeType::Var("AT".to_string()), 2);
+        let node = Node::new(NodeType::Variant, 2, "A".to_string(), "AT".to_string());
         let frameshift = node.frameshift();
         assert_eq!(frameshift, 1);
-        let node = Node::new(NodeType::Var("".to_string()), 2);
+        let node = Node::new(NodeType::Variant, 2, "A".to_string(), "".to_string());
         let frameshift = node.frameshift();
         assert_eq!(frameshift, -1);
     }
 
     #[test]
     fn position_on_reverse_strand_calculates_correctly_for_position() {
-        let node = Node::new(NodeType::Ref("".to_string()), 5);
+        let node = Node::new(NodeType::Reference, 5, "".to_string(), "".to_string());
         let reference_length = 10;
         assert_eq!(node.position_on_reverse_strand(reference_length), 4);
     }
 
     #[test]
     fn position_on_reverse_strand_calculates_correctly_for_middle_position() {
-        let node = Node::new(NodeType::Ref("".to_string()), 4);
+        let node = Node::new(NodeType::Reference, 4, "".to_string(), "".to_string());
         let reference_length = 9;
         assert_eq!(node.position_on_reverse_strand(reference_length), 4);
     }
 
     #[test]
     fn position_on_reverse_strand_calculates_correctly_for_start_position() {
-        let node = Node::new(NodeType::Ref("".to_string()), 0);
+        let node = Node::new(NodeType::Reference, 0, "".to_string(), "".to_string());
         let reference_length = 10;
         assert_eq!(node.position_on_reverse_strand(reference_length), 9);
     }
 
     #[test]
     fn position_on_reverse_strand_calculates_correctly_for_end_position() {
-        let node = Node::new(NodeType::Ref("".to_string()), 10);
+        let node = Node::new(NodeType::Reference, 10, "".to_string(), "".to_string());
         let reference_length = 11;
         assert_eq!(node.position_on_reverse_strand(reference_length), 0);
     }
 
     #[test]
     fn from_str_parses_variant_node_type() {
-        let result = NodeType::from_str("Var(A)").unwrap();
-        assert_eq!(result, NodeType::Var("A".to_string()));
+        let result = NodeType::from_str("Variant").unwrap();
+        assert_eq!(result, NodeType::Variant);
     }
 
     #[test]
     fn from_str_parses_reference_node_type() {
-        let result = NodeType::from_str("Ref").unwrap();
-        assert_eq!(result, NodeType::Ref("".to_string()));
+        let result = NodeType::from_str("Reference").unwrap();
+        assert_eq!(result, NodeType::Reference);
     }
 
     #[test]
     fn from_str_returns_error_for_invalid_node_type() {
         let result = NodeType::from_str("Invalid");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn from_str_returns_error_for_malformed_variant_node_type() {
-        let result = NodeType::from_str("Var(A");
         assert!(result.is_err());
     }
 
@@ -726,7 +746,7 @@ mod tests {
 
     #[test]
     fn reason_with_valid_reference_and_variant_amino_acids() {
-        let node = Node::new(NodeType::Var("A".to_string()), 2);
+        let node = Node::new(NodeType::Variant, 2, "C".to_string(), "A".to_string());
         let reference = b"ATGCGCGTA";
         let result = node
             .reason(0, 0, reference, Strand::Forward)
@@ -738,22 +758,26 @@ mod tests {
     #[test]
     fn test_node_display() {
         let var_node = Node {
-            node_type: NodeType::Var("A".to_string()),
+            node_type: NodeType::Variant,
+            reference_allele: "C".to_string(),
+            alternative_allele: "A".to_string(),
             vaf: Default::default(),
             probs: EventProbs(Default::default()),
             pos: 42,
             index: 0,
         };
         let ref_node = Node {
-            node_type: NodeType::Ref("".to_string()),
+            node_type: NodeType::Reference,
+            reference_allele: "".to_string(),
+            alternative_allele: "".to_string(),
             vaf: Default::default(),
             probs: EventProbs(Default::default()),
             pos: 99,
             index: 1,
         };
 
-        assert_eq!(format!("{}", var_node), "Var(A) at position 42");
-        assert_eq!(format!("{}", ref_node), "Ref at position 99");
+        assert_eq!(format!("{}", var_node), "Variant at position 42");
+        assert_eq!(format!("{}", ref_node), "Reference at position 99");
     }
 
     #[test]
@@ -764,12 +788,38 @@ mod tests {
         vafs.insert("G".to_string(), 0.02);
         vafs.insert("T".to_string(), 0.03);
         let var_node = Node {
-            node_type: NodeType::Var("A".to_string()),
+            node_type: NodeType::Variant,
+            reference_allele: "C".to_string(),
+            alternative_allele: "A".to_string(),
             vaf: vafs.clone(),
             probs: EventProbs(Default::default()),
             pos: 42,
             index: 0,
         };
         assert_eq!(var_node.max_vaf(), 0.1);
+    }
+
+    #[test]
+    fn test_node_is_snv() {
+        let snv_node = Node {
+            node_type: NodeType::Variant,
+            reference_allele: "C".to_string(),
+            alternative_allele: "A".to_string(),
+            vaf: Default::default(),
+            probs: EventProbs(Default::default()),
+            pos: 42,
+            index: 0,
+        };
+        assert!(snv_node.is_snv());
+        let indel_node = Node {
+            node_type: NodeType::Variant,
+            reference_allele: "G".to_string(),
+            alternative_allele: "CA".to_string(),
+            vaf: Default::default(),
+            probs: EventProbs(Default::default()),
+            pos: 42,
+            index: 0,
+        };
+        assert!(!indel_node.is_snv());
     }
 }

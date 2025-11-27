@@ -3,8 +3,9 @@ pub mod grantham;
 pub mod miyata;
 pub mod sneath;
 use crate::translation::amino_acids::AminoAcid;
+use clap::ValueEnum;
 
-#[derive(Clone, Copy, Default, Debug)]
+#[derive(Clone, Copy, Default, Debug, ValueEnum)]
 pub enum DistanceMetric {
     #[default]
     Grantham,

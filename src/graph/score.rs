@@ -2,177 +2,133 @@ use crate::graph::node::{Node, NodeType};
 use crate::graph::shift_phase;
 use crate::graph::transcript::Transcript;
 use crate::translation::amino_acids::AminoAcid;
+use crate::translation::amino_acids::Protein;
 use crate::translation::distance::DistanceMetric;
 use anyhow::Result;
+use bio::alignment::pairwise::Aligner;
+use bio::alignment::AlignmentOperation::*;
 use bio::bio_types::strand::Strand;
 use clap::ValueEnum;
 use std::collections::{HashMap, HashSet};
 
-/// Tuning constants for the score components
-const SNV_WEIGHT: f64 = 0.1; // Weight per SNV
-const FS_WEIGHT: f64 = 1.0; // Weight for frameshift fraction
-const STOP_WEIGHT: f64 = 1.0; // Weight for stop-gained fraction
-
-/// Breakdown of effects for one haplotype path
 #[derive(Debug, Clone)]
 pub struct EffectScore {
-    /// SNVs on this haplotype
-    pub snvs: Vec<AminoAcidChange>,
-    /// Total fractional CDS length affected by frameshifts (0.0–1.0)
-    pub fs_fraction: f64,
-    /// Stop-gained penalty
-    pub stop_fraction: Option<f64>,
+    pub original_protein: Protein,
+    pub altered_protein: Protein,
     pub distance_metric: DistanceMetric,
+    pub realign: bool,
 }
 
 impl EffectScore {
-    /// Create a new empty score
-    pub fn new() -> Self {
-        EffectScore {
-            snvs: Vec::new(),
-            fs_fraction: 0.0,
-            stop_fraction: None,
-            distance_metric: DistanceMetric::default(),
-        }
-    }
-
     pub(crate) fn from_haplotype(
         reference: &HashMap<String, Vec<u8>>,
         transcript: &Transcript,
         haplotype: &[Node],
+        original_protein: Protein,
+        distance_metric: DistanceMetric,
+        realign: bool,
     ) -> Result<Self> {
-        let target_ref = reference.get(&transcript.target).unwrap();
-        let mut snvs = Vec::new();
-        let mut stop_penalty = None;
-        let mut phase = 0;
-        let mut cds = None;
-        let mut frameshift_positions = Vec::new();
-        for node in haplotype.iter().filter(|n| n.node_type.is_variant()) {
-            if node.is_snv() {
-                snvs.push(AminoAcidChange::from_node(
-                    node,
-                    phase,
-                    target_ref,
-                    transcript.strand,
-                )?);
-            } else if node.frameshift() != 0 {
-                let pos = transcript.position_in_transcript(node.pos as usize)?;
-                frameshift_positions.push((pos, node.frameshift()));
-            }
+        let altered_protein = Protein::from_haplotype(reference, transcript, haplotype)?;
+        Ok(Self {
+            original_protein,
+            altered_protein,
+            distance_metric,
+            realign,
+        })
+    }
 
-            let node_cds = transcript
-                .cds_for_position(node.pos)
-                .expect("Found node located outside of CDS");
-            if cds.as_ref() != Some(node_cds) {
-                cds = Some(node_cds.to_owned());
-                phase = node_cds.phase;
-            }
-
-            if stop_penalty.is_none()
-                && node
-                    .variant_amino_acids(phase, target_ref, transcript.strand)
-                    .unwrap()
-                    .contains(&AminoAcid::Stop)
+    pub fn score(&self) -> f64 {
+        // Compare proteins:
+        // If equal return 0
+        // If no frameshift occured in the changed protein, simply compare amino acid by amino acid based on the distance metric and divide by the length of the protein
+        // If a frameshift occurs, re-align the proteins and compare amino acid by amino acid based on the distance metric and divide by the length of the protein
+        if self.original_protein == self.altered_protein {
+            0.0
+        } else if !self.realign {
+            // We can assume both proteins have the same length
+            let mut total = 0.0;
+            for (i, (ref_aa, alt_aa)) in self
+                .original_protein
+                .amino_acids()
+                .into_iter()
+                .zip(self.altered_protein.amino_acids())
+                .enumerate()
             {
-                // Calculate stop penalty based on position in Transcript. The earlier in the transcript, the higher the penalty
-                let relative_position_fraction =
-                    transcript.position_in_transcript(node.pos as usize)? as f64
-                        / transcript.length() as f64;
-
-                stop_penalty = Some(if transcript.strand == Strand::Forward {
-                    1.0 - relative_position_fraction
-                } else {
-                    relative_position_fraction
-                });
+                if alt_aa.is_stop() && !ref_aa.is_stop() {
+                    total += (self.altered_protein.amino_acids().len() - i - 1) as f64;
+                }
+                total += self.distance_metric.compute(&ref_aa, &alt_aa);
             }
-
-            phase = shift_phase(phase, ((node.frameshift() + 3) % 3) as u8);
-        }
-
-        let (affected_length, remaining_fs, prev_pos) = frameshift_positions.iter().fold(
-            (0i64, 0i64, 0usize), // (accumulated affected length, net frameshift, previous position)
-            |(acc_len, net_fs, prev_pos), &(pos, fs)| {
-                let affected_len = if net_fs % 3 != 0 {
-                    // Calculate affected region length between prev_pos and current pos,
-                    // respecting strand direction
-                    let len = match transcript.strand {
-                        Strand::Forward => pos as i64 - prev_pos as i64,
-                        _ => prev_pos as i64 - pos as i64,
-                    };
-                    acc_len + len
-                } else {
-                    acc_len
-                };
-                let new_net_fs = net_fs + fs;
-                (affected_len, new_net_fs, pos)
-            },
-        );
-
-        // After fold, if net frameshift != 0, add the tail affected region till transcript end
-        let fs_fraction = if remaining_fs % 3 != 0 {
-            let tail_len = match transcript.strand {
-                Strand::Forward => transcript.length() as i64 - prev_pos as i64,
-                _ => prev_pos as i64 + 1,
-            };
-            ((affected_length + tail_len) as f64 / transcript.length() as f64)
+            total / self.altered_protein.amino_acids().len() as f64
         } else {
-            affected_length as f64 / transcript.length() as f64
-        };
+            // Realign using semiglobal
+            let prot_x = self.original_protein.as_bytes();
+            let prot_y = self.altered_protein.as_bytes();
 
-        Ok(EffectScore {
-            snvs,
-            fs_fraction,
-            stop_fraction: stop_penalty,
-            distance_metric: DistanceMetric::default(),
-        })
-    }
+            let score_fn = |a: u8, b: u8| {
+                // Convert used distance matrix to a negative cost with integer scaling as expected by bio
+                let d = self
+                    .distance_metric
+                    .compute(&AminoAcid::from(a), &AminoAcid::from(b));
+                (-d * 10.0).round() as i32
+            };
 
-    fn snv_score(&self) -> f64 {
-        self.snvs
-            .iter()
-            .map(|change| change.distance(&self.distance_metric))
-            .sum()
-    }
+            let gap_open = -8;
+            let gap_extend = -1;
 
-    /// Compute the raw combined score using tuning constants
-    pub fn raw(&self) -> f64 {
-        FS_WEIGHT * self.fs_fraction
-            + SNV_WEIGHT * self.snv_score()
-            + STOP_WEIGHT * self.stop_fraction.unwrap_or(0.0)
-    }
+            let mut aligner =
+                Aligner::with_capacity(prot_x.len(), prot_y.len(), gap_open, gap_extend, &score_fn);
 
-    /// Compute the normalized score in (0,1): raw/(1+raw)
-    pub fn normalized(&self) -> f64 {
-        let r = self.raw();
-        r / (1.0 + r)
-    }
-}
+            let alignment = aligner.semiglobal(&prot_x, &prot_y);
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AminoAcidChange {
-    pub reference: Option<AminoAcid>,
-    pub variants: Vec<AminoAcid>,
-}
+            let ops = alignment.operations;
 
-impl AminoAcidChange {
-    pub fn distance(&self, metric: &DistanceMetric) -> f64 {
-        match (&self.reference, self.variants.first(), self.variants.len()) {
-            (Some(r), Some(v), 1) => metric.compute(r, v),
-            (Some(_), Some(_), _) => 1.0, // Complex change adding more amino acids to the protein.
-            _ => 0.0, // This will mostly happen when the variant is mapped to a region where the reference contains N. Therefore, we return 0.0 for now.
+            let mut total = 0.0;
+
+            let mut i = alignment.xstart;
+            let mut j = alignment.ystart;
+
+            for op in ops {
+                match op {
+                    Match => {
+                        i += 1;
+                        j += 1;
+                    }
+                    Subst => {
+                        let aa_x_opt = prot_x.get(i).map(|&b| AminoAcid::from(b));
+                        let aa_y_opt = prot_y.get(j).map(|&b| AminoAcid::from(b));
+
+                        match (aa_x_opt, aa_y_opt) {
+                            (Some(aa_x), Some(aa_y)) => {
+                                if aa_y.is_stop() && !aa_x.is_stop() {
+                                    let remaining = (prot_x.len() - i).max(prot_y.len() - j);
+                                    total += remaining as f64;
+                                    break;
+                                }
+                                total += self.distance_metric.compute(&aa_x, &aa_y);
+                            }
+                            _ => {
+                                total += 1.0;
+                            }
+                        }
+
+                        i += 1;
+                        j += 1;
+                    }
+                    Del | Ins => {
+                        total += 1.0;
+
+                        if let Del = op {
+                            i += 1;
+                        } else {
+                            j += 1;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            total / self.altered_protein.amino_acids().len() as f64
         }
-    }
-
-    pub fn from_node(
-        node: &Node,
-        phase: u8,
-        reference: &[u8],
-        strand: Strand,
-    ) -> anyhow::Result<Self> {
-        Ok(AminoAcidChange {
-            reference: node.reference_amino_acid(phase, reference, strand)?,
-            variants: node.variant_amino_acids(phase, reference, strand)?,
-        })
     }
 }
 
@@ -220,142 +176,30 @@ mod tests {
     use crate::Cds;
 
     #[test]
-    fn test_from_node() {
-        let node = Node::new(NodeType::Var("A".to_string()), 2);
-        let reference = b"ATGCGCGTA";
-        let phase = 0;
-        let strand = Strand::Forward;
-        let change = AminoAcidChange::from_node(&node, phase, reference, strand).unwrap();
-        assert_eq!(change.reference, Some(AminoAcid::Methionine));
-        assert_eq!(change.variants, vec![AminoAcid::Isoleucine]);
-    }
-
-    #[test]
-    fn test_amino_acid_change_distance() {
-        use crate::translation::distance::DistanceMetric;
-
-        let change = AminoAcidChange {
-            reference: Some(AminoAcid::Isoleucine),
-            variants: vec![AminoAcid::AsparticAcid],
-        };
-        let metric = DistanceMetric::Grantham;
-        let expected = metric.compute(&AminoAcid::Isoleucine, &AminoAcid::AsparticAcid);
-        assert!((change.distance(&metric) - expected).abs() < 1e-6);
-
-        let change = AminoAcidChange {
-            reference: None,
-            variants: vec![AminoAcid::AsparticAcid],
-        };
-        assert!((change.distance(&metric) - 0.0).abs() < 1e-6);
-
-        let change = AminoAcidChange {
-            reference: Some(AminoAcid::Isoleucine),
-            variants: vec![AminoAcid::AsparticAcid, AminoAcid::Threonine],
-        };
-        assert!((change.distance(&metric) - 1.0).abs() < 1e-6);
-
-        let change = AminoAcidChange {
-            reference: Some(AminoAcid::Isoleucine),
-            variants: vec![],
-        };
-        assert!((change.distance(&metric) - 0.0).abs() < 1e-6);
-    }
-
-    #[test]
-    fn test_raw_score() {
-        let aa_exchange = AminoAcidChange {
-            reference: Some(AminoAcid::Isoleucine),
-            variants: vec![AminoAcid::AsparticAcid],
-        };
-        let score = EffectScore {
-            snvs: vec![aa_exchange], // 168/215 -> 0.78139534883
-            fs_fraction: 0.4,
-            stop_fraction: Some(0.2),
-            distance_metric: DistanceMetric::Grantham,
-        };
-        println!("{}", score.snv_score());
-        let expected = FS_WEIGHT * 0.4 + SNV_WEIGHT * 0.78139534883 + STOP_WEIGHT * 0.2;
-        assert!((score.raw() - expected).abs() < 1e-6);
-    }
-
-    #[test]
-    fn test_normalized_score() {
-        let score = EffectScore {
-            snvs: vec![],
-            fs_fraction: 0.1,
-            stop_fraction: Some(0.3),
-            distance_metric: DistanceMetric::Grantham,
-        };
-        let raw = score.raw();
-        let expected = raw / (1.0 + raw);
-        assert!((score.normalized() - expected).abs() < 1e-6);
-    }
-
-    #[test]
-    fn test_from_haplotype_with_frameshift() {
-        let reference = HashMap::from([(
-            "chr1".to_string(),
-            b"ATGCGTACGTATGCGTACGTACGCGTACGTT".to_vec(),
-        )]);
-
-        let transcript = Transcript {
-            feature: "test".to_string(),
-            target: "chr1".to_string(),
-            strand: Strand::Forward,
-            coding_sequences: vec![
-                Cds {
-                    start: 1,
-                    end: 10,
-                    phase: 0,
-                },
-                Cds {
-                    start: 21,
-                    end: 30,
-                    phase: 0,
-                },
-            ],
-        };
-
-        let haplotype = vec![
-            Node::new(NodeType::Var("A".into()), 2),
-            Node::new(NodeType::Var("TT".into()), 6),
-            Node::new(NodeType::Var("C".into()), 22),
-        ];
-
-        let result = EffectScore::from_haplotype(&reference, &transcript, &haplotype).unwrap();
-        let aa_exchange = AminoAcidChange {
-            reference: Some(AminoAcid::Methionine),
-            variants: vec![AminoAcid::Isoleucine],
-        };
-        let aa_exchange_2 = AminoAcidChange {
-            reference: Some(AminoAcid::Threonine),
-            variants: vec![AminoAcid::Threonine],
-        };
-
-        assert_eq!(result.snvs, vec![aa_exchange, aa_exchange_2,]);
-        assert!((result.fs_fraction - 0.75).abs() < 1e-6);
-        assert!(result.stop_fraction.is_none());
-    }
-
-    #[test]
     fn test_product_metric() {
         let nodes = vec![
             Node {
-                node_type: NodeType::Var("A".to_string()),
+                node_type: NodeType::Variant,
+                reference_allele: "C".to_string(),
+                alternative_allele: "A".to_string(),
                 vaf: [("S1".to_string(), 0.5)].into(),
                 probs: EventProbs(HashMap::new()),
                 pos: 0,
                 index: 0,
             },
             Node {
-                node_type: NodeType::Var("A".to_string()),
+                node_type: NodeType::Variant,
+                reference_allele: "C".to_string(),
+                alternative_allele: "A".to_string(),
                 vaf: [("S1".to_string(), 0.25)].into(),
                 probs: EventProbs(HashMap::new()),
                 pos: 1,
                 index: 1,
             },
             Node {
-                node_type: NodeType::Ref("".to_string()),
+                node_type: NodeType::Reference,
+                reference_allele: "".to_string(),
+                alternative_allele: "".to_string(),
                 vaf: [("S1".to_string(), 0.75)].into(),
                 probs: EventProbs(HashMap::new()),
                 pos: 2,
@@ -371,14 +215,18 @@ mod tests {
     fn test_geometric_mean_metric() {
         let nodes = vec![
             Node {
-                node_type: NodeType::Var("A".to_string()),
+                node_type: NodeType::Variant,
+                reference_allele: "C".to_string(),
+                alternative_allele: "A".to_string(),
                 vaf: [("S1".to_string(), 0.5)].into(),
                 probs: EventProbs(HashMap::new()),
                 pos: 0,
                 index: 0,
             },
             Node {
-                node_type: NodeType::Var("A".to_string()),
+                node_type: NodeType::Variant,
+                reference_allele: "C".to_string(),
+                alternative_allele: "A".to_string(),
                 vaf: [("S1".to_string(), 0.25)].into(),
                 probs: EventProbs(HashMap::new()),
                 pos: 1,
@@ -394,7 +242,9 @@ mod tests {
     #[test]
     fn test_all_metrics_return_one_with_only_reference_nodes() {
         let nodes = vec![Node {
-            node_type: NodeType::Ref("".to_string()),
+            node_type: NodeType::Reference,
+            reference_allele: "".to_string(),
+            alternative_allele: "".to_string(),
             vaf: [("S1".to_string(), 0.5)].into(),
             probs: EventProbs(HashMap::new()),
             pos: 0,
@@ -415,21 +265,27 @@ mod tests {
     fn test_minimum_metric() {
         let nodes = vec![
             Node {
-                node_type: NodeType::Var("A".to_string()),
+                node_type: NodeType::Variant,
+                reference_allele: "C".to_string(),
+                alternative_allele: "A".to_string(),
                 vaf: [("S1".to_string(), 0.5)].into(),
                 probs: EventProbs(HashMap::new()),
                 pos: 0,
                 index: 0,
             },
             Node {
-                node_type: NodeType::Var("A".to_string()),
+                node_type: NodeType::Variant,
+                reference_allele: "C".to_string(),
+                alternative_allele: "A".to_string(),
                 vaf: [("S1".to_string(), 0.25)].into(),
                 probs: EventProbs(HashMap::new()),
                 pos: 1,
                 index: 1,
             },
             Node {
-                node_type: NodeType::Var("A".to_string()),
+                node_type: NodeType::Variant,
+                reference_allele: "C".to_string(),
+                alternative_allele: "A".to_string(),
                 vaf: [("S1".to_string(), 0.75)].into(),
                 probs: EventProbs(HashMap::new()),
                 pos: 2,
@@ -439,5 +295,96 @@ mod tests {
         let metric = HaplotypeMetric::Minimum;
         let result = metric.calculate(&nodes);
         assert_eq!(*result.get("S1").unwrap(), 0.25);
+    }
+
+    #[test]
+    fn test_score_equal_proteins() {
+        let p1 = Protein::new(vec![AminoAcid::Phenylalanine, AminoAcid::Leucine]);
+        let p2 = Protein::new(vec![AminoAcid::Phenylalanine, AminoAcid::Leucine]);
+        let score = EffectScore {
+            original_protein: p1,
+            altered_protein: p2,
+            distance_metric: DistanceMetric::Epstein,
+            realign: false,
+        };
+        assert!(score.score().abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_score_different_proteins() {
+        let p1 = Protein::new(vec![AminoAcid::Phenylalanine, AminoAcid::Leucine]);
+        let p2 = Protein::new(vec![AminoAcid::Phenylalanine, AminoAcid::Valine]);
+        let score = EffectScore {
+            original_protein: p1,
+            altered_protein: p2,
+            distance_metric: DistanceMetric::Epstein,
+            realign: false,
+        };
+        // Distance between Leucine and Valine is 0.03 / 2 since len = 2
+        assert!((score.score() - 0.015).abs() < 1e-6)
+    }
+
+    #[test]
+    fn test_score_different_proteins_with_stop() {
+        let p1 = Protein::new(vec![
+            AminoAcid::Phenylalanine,
+            AminoAcid::Leucine,
+            AminoAcid::Valine,
+        ]);
+        let p2 = Protein::new(vec![
+            AminoAcid::Phenylalanine,
+            AminoAcid::Stop,
+            AminoAcid::Valine,
+        ]);
+        let score = EffectScore {
+            original_protein: p1,
+            altered_protein: p2,
+            distance_metric: DistanceMetric::Epstein,
+            realign: false,
+        };
+        assert!((score.score() - (2.0 / 3.0)).abs() < 1e-6)
+    }
+
+    #[test]
+    fn test_score_different_proteins_realign() {
+        let p1 = Protein::new(vec![
+            AminoAcid::Phenylalanine,
+            AminoAcid::Leucine,
+            AminoAcid::Valine,
+        ]);
+        let p2 = Protein::new(vec![AminoAcid::Leucine, AminoAcid::Valine]);
+        let score = EffectScore {
+            original_protein: p1,
+            altered_protein: p2,
+            distance_metric: DistanceMetric::Epstein,
+            realign: true,
+        };
+        assert!((score.score() - 0.5).abs() < 1e-6)
+    }
+
+    #[test]
+    fn test_score_different_proteins_realign_with_substitution() {
+        let p1 = Protein::new(vec![
+            AminoAcid::Phenylalanine,
+            AminoAcid::Phenylalanine,
+            AminoAcid::Leucine,
+            AminoAcid::Phenylalanine,
+            AminoAcid::Phenylalanine,
+            AminoAcid::Phenylalanine,
+        ]);
+        let p2 = Protein::new(vec![
+            AminoAcid::Phenylalanine,
+            AminoAcid::Valine,
+            AminoAcid::Phenylalanine,
+            AminoAcid::Phenylalanine,
+            AminoAcid::Phenylalanine,
+        ]);
+        let score = EffectScore {
+            original_protein: p1,
+            altered_protein: p2,
+            distance_metric: DistanceMetric::Epstein,
+            realign: true,
+        };
+        assert!((score.score() - 0.2).abs() < 1e-6)
     }
 }

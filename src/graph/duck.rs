@@ -18,7 +18,7 @@ pub(crate) fn write_graphs(graphs: HashMap<String, VariantGraph>, path: &Path) -
     let transaction = db.transaction()?;
     transaction.execute("CREATE TABLE graphs (target STRING PRIMARY KEY, start_position INTEGER, end_position INTEGER)", [])?;
     transaction.execute(
-        "CREATE TABLE nodes (target STRING, node_index INTEGER, node_type STRING, vaf STRING, probs STRING, pos INTEGER, index INTEGER)",
+        "CREATE TABLE nodes (target STRING, node_index INTEGER, node_type STRING, reference_allele STRING, alternative_allele STRING, vaf STRING, probs STRING, pos INTEGER, index INTEGER)",
         [],
     )?;
     transaction.execute(
@@ -27,7 +27,8 @@ pub(crate) fn write_graphs(graphs: HashMap<String, VariantGraph>, path: &Path) -
     )?;
 
     let mut insert_graph = transaction.prepare("INSERT INTO graphs VALUES (?, ?, ?)")?;
-    let mut insert_node = transaction.prepare("INSERT INTO nodes VALUES (?, ?, ?, ?, ?, ?, ?)")?;
+    let mut insert_node =
+        transaction.prepare("INSERT INTO nodes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")?;
     let mut insert_edge = transaction.prepare("INSERT INTO edges VALUES (?, ?, ?, ?)")?;
 
     for (target, graph) in graphs {
@@ -38,6 +39,8 @@ pub(crate) fn write_graphs(graphs: HashMap<String, VariantGraph>, path: &Path) -
                 target,
                 node_index.index() as i64,
                 node.node_type.to_string(),
+                node.reference_allele,
+                node.alternative_allele,
                 json5::to_string(&node.vaf)?,
                 json5::to_string(&node.probs)?,
                 node.pos,
@@ -75,9 +78,9 @@ pub(crate) fn feature_graph(
     let db = Connection::open(path)?;
     let mut graph = Graph::<Node, Edge, petgraph::Directed>::new();
     let mut stmt = db.prepare(
-    "SELECT node_index, node_type, vaf, probs, pos, index FROM nodes WHERE target = ? AND pos >= ? AND pos <= ?"
+    "SELECT node_index, node_type, reference_allele, alternative_allele, vaf, probs, pos, index FROM nodes WHERE target = ? AND pos >= ? AND pos <= ?"
     )?;
-    let nodes: Vec<(usize, String, String, String, i64, u32)> = stmt
+    let nodes: Vec<(usize, String, String, String, String, String, i64, u32)> = stmt
         .query_map(
             params![target.to_string(), start as i64, end as i64],
             |row| {
@@ -88,6 +91,8 @@ pub(crate) fn feature_graph(
                     row.get(3)?,
                     row.get(4)?,
                     row.get(5)?,
+                    row.get(6)?,
+                    row.get(7)?,
                 ))
             },
         )?
@@ -95,15 +100,24 @@ pub(crate) fn feature_graph(
         .collect();
     let max_index = *nodes
         .iter()
-        .map(|(index, _, _, _, _, _)| index)
+        .map(|(index, _, _, _, _, _, _, _)| index)
         .max()
         .unwrap_or(&0);
     for _ in 0..=max_index {
-        graph.add_node(Node::new(NodeType::Ref("".to_string()), -1)); // Add placeholder nodes
+        graph.add_node(Node::new(
+            NodeType::Reference,
+            -1,
+            "".to_string(),
+            "".to_string(),
+        )); // Add placeholder nodes
     }
-    for (node_index, node_type, vaf, probs, pos, index) in nodes {
+    for (node_index, node_type, reference_allele, alternative_allele, vaf, probs, pos, index) in
+        nodes
+    {
         let node = Node {
             node_type: NodeType::from_str(&node_type)?,
+            reference_allele,
+            alternative_allele,
             vaf: json5::from_str(&vaf)?,
             probs: json5::from_str(&probs)?,
             pos,
@@ -181,7 +195,7 @@ pub(crate) fn write_scores(
     for (score, likelihoods) in scores {
         stmt.execute(params![
             transcript_name.as_str(),
-            score.normalized(),
+            score.score(),
             json5::to_string(&likelihoods)?
         ])?;
     }
@@ -291,6 +305,7 @@ mod tests {
     use crate::graph::node::{Node, NodeType};
     use crate::graph::Edge;
     use crate::impact::Impact;
+    use crate::translation::amino_acids::{AminoAcid, Protein};
     use crate::translation::distance::DistanceMetric;
     use bio::bio_types::strand::Strand;
     use itertools::Itertools;
@@ -298,12 +313,42 @@ mod tests {
 
     pub(crate) fn setup_graph() -> VariantGraph {
         let mut graph = Graph::<Node, Edge, Directed>::new();
-        let node1 = graph.add_node(Node::new(NodeType::Var("A".to_string()), 1));
-        let node2 = graph.add_node(Node::new(NodeType::Ref("".to_string()), 2));
-        let node3 = graph.add_node(Node::new(NodeType::Var("T".to_string()), 3));
-        let node4 = graph.add_node(Node::new(NodeType::Var("".to_string()), 4));
-        let _node5 = graph.add_node(Node::new(NodeType::Var("A".to_string()), 8));
-        let node6 = graph.add_node(Node::new(NodeType::Var("TT".to_string()), 9));
+        let node1 = graph.add_node(Node::new(
+            NodeType::Variant,
+            1,
+            "T".to_string(),
+            "A".to_string(),
+        ));
+        let node2 = graph.add_node(Node::new(
+            NodeType::Reference,
+            2,
+            "".to_string(),
+            "".to_string(),
+        ));
+        let node3 = graph.add_node(Node::new(
+            NodeType::Variant,
+            3,
+            "A".to_string(),
+            "T".to_string(),
+        ));
+        let node4 = graph.add_node(Node::new(
+            NodeType::Variant,
+            4,
+            "T".to_string(),
+            "".to_string(),
+        ));
+        let _node5 = graph.add_node(Node::new(
+            NodeType::Variant,
+            8,
+            "C".to_string(),
+            "A".to_string(),
+        ));
+        let node6 = graph.add_node(Node::new(
+            NodeType::Variant,
+            9,
+            "A".to_string(),
+            "TT".to_string(),
+        ));
         let _edge1 = graph.add_edge(
             node1,
             node2,
@@ -569,18 +614,20 @@ mod tests {
             Strand::Forward,
             vec![Cds::new(0, 100, 0)],
         );
+        let p1 = Protein::new(vec![AminoAcid::Phenylalanine, AminoAcid::Leucine]);
+        let p2 = Protein::new(vec![AminoAcid::Isoleucine, AminoAcid::Leucine]);
         let effect_score = EffectScore {
-            snvs: Vec::new(),
-            fs_fraction: 0.5,
-            stop_fraction: None,
-            distance_metric: DistanceMetric::default(),
+            original_protein: p1,
+            altered_protein: p2,
+            distance_metric: DistanceMetric::Epstein,
+            realign: false,
         };
         let likelihoods = HashMap::from([("A".to_string(), 0.1), ("C".to_string(), 0.2)]);
         let scores = vec![(effect_score, likelihoods)];
         write_scores(output_path.as_path(), scores, transcript).unwrap();
         let scores = read_scores(output_path.as_path()).unwrap();
         assert_eq!(scores.len(), 1);
-        assert!((scores.get("chr1:some feature").unwrap()[0].0 - 0.3333333).abs() < 1e-6);
+        assert!((scores.get("chr1:some feature").unwrap()[0].0 - 0.03999999910593033).abs() < 1e-6);
         assert!(
             (scores.get("chr1:some feature").unwrap()[0]
                 .1

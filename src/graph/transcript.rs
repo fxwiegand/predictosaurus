@@ -7,7 +7,8 @@ use crate::graph::score::EffectScore;
 use crate::graph::score::HaplotypeLikelihoods;
 use crate::graph::score::HaplotypeMetric;
 use crate::graph::{shift_phase, EventProbs, VariantGraph};
-use crate::translation::amino_acids::AminoAcid;
+use crate::translation::amino_acids::{AminoAcid, Protein};
+use crate::translation::distance::DistanceMetric;
 use crate::utils::fasta::reverse_complement;
 use anyhow::{bail, Result};
 use bio::bio_types::strand::Strand;
@@ -179,11 +180,21 @@ impl Transcript {
         graph: &PathBuf,
         reference: &HashMap<String, Vec<u8>>,
         haplotype_metric: HaplotypeMetric,
+        distance_metric: DistanceMetric,
     ) -> Result<Vec<(EffectScore, HaplotypeLikelihoods)>> {
         let haplotypes = self.haplotypes(graph)?;
         let mut scores = Vec::with_capacity(haplotypes.len());
+        let original_protein = Protein::from_transcript(reference, self)?;
         for haplotype in haplotypes {
-            let effect_score = EffectScore::from_haplotype(reference, self, &haplotype)?;
+            let realign = haplotype.iter().map(|node| node.frameshift()).sum::<i64>() != 0;
+            let effect_score = EffectScore::from_haplotype(
+                reference,
+                self,
+                &haplotype,
+                original_protein.clone(),
+                distance_metric,
+                realign,
+            )?;
             let likelihood = haplotype_metric.calculate(&haplotype);
             scores.push((effect_score, likelihood));
         }
@@ -343,7 +354,7 @@ impl Transcript {
                     let mut path_sequence = sequence.clone();
                     for node_index in path.0.iter() {
                         let node = graph.graph.node_weight(*node_index).unwrap();
-                        if let NodeType::Var(allele) = &node.node_type {
+                        if node.node_type == NodeType::Variant {
                             let position_in_cds = match self.strand {
                                 Strand::Forward => {
                                     (node.pos - cds.start as i64 + frameshift + cds.phase as i64)
@@ -369,14 +380,15 @@ impl Transcript {
                                 Strand::Forward => {
                                     path_sequence.splice(
                                         position_in_cds..position_in_cds + 1,
-                                        allele.bytes(),
+                                        node.alternative_allele.bytes(),
                                     );
                                 }
                                 Strand::Reverse => {
                                     path_sequence.splice(
                                         position_in_cds..position_in_cds + 1,
                                         String::from_utf8_lossy(
-                                            reverse_complement(allele.as_bytes()).as_slice(),
+                                            reverse_complement(node.alternative_allele.as_bytes())
+                                                .as_slice(),
                                         )
                                         .bytes(),
                                     );
@@ -560,28 +572,36 @@ mod tests {
             ("PROB_SOMATIC".to_string(), LogProb::from(Prob(0.8))),
         ]));
         let alt_node_1 = graph.add_node(Node {
-            node_type: NodeType::Var("".to_string()),
+            node_type: NodeType::Variant,
+            reference_allele: "A".to_string(),
+            alternative_allele: "".to_string(),
             vaf: alt_node_vaf_1,
             probs: event_probs.clone(),
             pos: 1,
             index: 0,
         });
         let alt_node_2 = graph.add_node(Node {
-            node_type: NodeType::Var("G".to_string()),
+            node_type: NodeType::Variant,
+            reference_allele: "G".to_string(),
+            alternative_allele: "G".to_string(),
             vaf: alt_node_vaf_2.clone(),
             probs: event_probs.clone(),
             pos: 4,
             index: 1,
         });
         let alt_node_3 = graph.add_node(Node {
-            node_type: NodeType::Var("A".to_string()),
+            node_type: NodeType::Variant,
+            reference_allele: "C".to_string(),
+            alternative_allele: "A".to_string(),
             vaf: alt_node_vaf_2.clone(),
             probs: event_probs.clone(),
             pos: 14,
             index: 3,
         });
         let ref_node_1 = graph.add_node(Node {
-            node_type: NodeType::Ref("".to_string()),
+            node_type: NodeType::Reference,
+            reference_allele: "".to_string(),
+            alternative_allele: "".to_string(),
             vaf: alt_node_vaf_2,
             probs: event_probs.clone(),
             pos: 12,
