@@ -83,7 +83,7 @@ impl Protein {
                 for node in haplotype.iter().filter(|n| {
                     n.pos >= cds.start as i64 && n.pos < cds.end as i64 && n.node_type.is_variant()
                 }) {
-                    let pos = (node.pos - cds.start as i64) as usize + offset as usize;
+                    let pos = ((node.pos - cds.start as i64) as isize + offset) as usize;
                     region.splice(
                         pos..pos + node.reference_allele.len(),
                         node.alternative_allele.bytes(),
