@@ -798,4 +798,28 @@ mod tests {
         };
         assert_eq!(var_node.max_vaf(), 0.1);
     }
+
+    #[test]
+    fn test_node_is_snv() {
+        let snv_node = Node {
+            node_type: NodeType::Variant,
+            reference_allele: "C".to_string(),
+            alternative_allele: "A".to_string(),
+            vaf: Default::default(),
+            probs: EventProbs(Default::default()),
+            pos: 42,
+            index: 0,
+        };
+        assert!(snv_node.is_snv());
+        let indel_node = Node {
+            node_type: NodeType::Variant,
+            reference_allele: "G".to_string(),
+            alternative_allele: "CA".to_string(),
+            vaf: Default::default(),
+            probs: EventProbs(Default::default()),
+            pos: 42,
+            index: 0,
+        };
+        assert!(!indel_node.is_snv());
+    }
 }

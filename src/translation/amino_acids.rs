@@ -644,4 +644,10 @@ mod tests {
             assert_eq!(AminoAcid::from(byte), expected);
         }
     }
+
+    #[test]
+    #[should_panic]
+    fn test_amino_acid_from_invalid_input() {
+        let aa = AminoAcid::from(b'Z');
+    }
 }
