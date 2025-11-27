@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/fxwiegand/predictosaurus/compare/v0.6.0...v0.7.0) (2025-11-27)
+
+
+### Features
+
+* Implement new score method ([#158](https://github.com/fxwiegand/predictosaurus/issues/158)) ([91f17c0](https://github.com/fxwiegand/predictosaurus/commit/91f17c0f14504c730cab4ed8cbb4581cdabdfb46))
+
 ## [0.6.0](https://github.com/fxwiegand/predictosaurus/compare/v0.5.0...v0.6.0) (2025-09-07)
 
 
