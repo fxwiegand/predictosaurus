@@ -613,4 +613,35 @@ mod tests {
 
         assert_eq!(protein.unwrap(), expected);
     }
+
+    #[test]
+    fn test_amino_acid_from_u8() {
+        let cases = vec![
+            (b'A', AminoAcid::Alanine),
+            (b'R', AminoAcid::Arginine),
+            (b'N', AminoAcid::Asparagine),
+            (b'D', AminoAcid::AsparticAcid),
+            (b'E', AminoAcid::GlutamicAcid),
+            (b'Q', AminoAcid::Glutamine),
+            (b'K', AminoAcid::Lysine),
+            (b'H', AminoAcid::Histidine),
+            (b'Y', AminoAcid::Tyrosine),
+            (b'W', AminoAcid::Tryptophan),
+            (b'F', AminoAcid::Phenylalanine),
+            (b'S', AminoAcid::Serine),
+            (b'T', AminoAcid::Threonine),
+            (b'P', AminoAcid::Proline),
+            (b'G', AminoAcid::Glycine),
+            (b'C', AminoAcid::Cysteine),
+            (b'M', AminoAcid::Methionine),
+            (b'V', AminoAcid::Valine),
+            (b'I', AminoAcid::Isoleucine),
+            (b'L', AminoAcid::Leucine),
+            (b'X', AminoAcid::Stop),
+        ];
+
+        for (byte, expected) in cases {
+            assert_eq!(AminoAcid::from(byte), expected);
+        }
+    }
 }
