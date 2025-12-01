@@ -523,7 +523,7 @@ pub(crate) fn transcripts(
             anyhow::anyhow!("No ID found for CDS in sequence {}", record.seqname())
         })?;
         let target = record.seqname().to_string();
-        let start = *record.start();
+        let start = *record.start() - 1;
         let end = *record.end();
         let length = end - start + 1;
         if length > max_cds_length {
