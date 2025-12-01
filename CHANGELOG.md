@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.2](https://github.com/fxwiegand/predictosaurus/compare/v0.7.1...v0.7.2) (2025-12-01)
+
+
+### Bug Fixes
+
+* Convert CDS start to 0-based index ([a5927aa](https://github.com/fxwiegand/predictosaurus/commit/a5927aa91cf7476e929d7912d0a17e794fa08b1b))
+
 ## [0.7.1](https://github.com/fxwiegand/predictosaurus/compare/v0.7.0...v0.7.1) (2025-12-01)
 
 
