@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/fxwiegand/predictosaurus/compare/v0.7.0...v0.7.1) (2025-12-01)
+
+
+### Bug Fixes
+
+* Add max CDS length option and skip long CDSs by default ([#160](https://github.com/fxwiegand/predictosaurus/issues/160)) ([73b7ef5](https://github.com/fxwiegand/predictosaurus/commit/73b7ef5f8b6d795b3f4a84ca1e85d34b5615ee8a))
+
 ## [0.7.0](https://github.com/fxwiegand/predictosaurus/compare/v0.6.0...v0.7.0) (2025-11-27)
 
 
