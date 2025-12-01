@@ -15,11 +15,11 @@ use bio::bio_types::strand::Strand;
 use bio::io::gff::{self, Phase};
 use bio::stats::LogProb;
 use itertools::Itertools;
-use log::info;
+use log::{info, warn};
 use petgraph::adj::NodeIndex;
 use rust_htslib::bgzf::CompressionLevel::Default;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use super::node;
@@ -504,11 +504,16 @@ impl RnaPath {
     }
 }
 
-pub(crate) fn transcripts(gff_file: &PathBuf, graph: &PathBuf) -> Result<Vec<Transcript>> {
+pub(crate) fn transcripts(
+    gff_file: &PathBuf,
+    graph: &PathBuf,
+    max_cds_length: u64,
+) -> Result<Vec<Transcript>> {
     let variants = variants_on_graph(graph)?;
     let mut feature_reader = gff::Reader::from_file(gff_file, gff::GffType::GFF3)?;
     let mut transcripts = HashMap::new();
     let mut variant_coverage = HashMap::new();
+    let mut skip: HashSet<String> = HashSet::new();
     for record in feature_reader
         .records()
         .filter_map(Result::ok)
@@ -520,6 +525,14 @@ pub(crate) fn transcripts(gff_file: &PathBuf, graph: &PathBuf) -> Result<Vec<Tra
         let target = record.seqname().to_string();
         let start = *record.start();
         let end = *record.end();
+        let length = end - start + 1;
+        if length > max_cds_length {
+            skip.insert(ensp.to_string());
+            warn!(
+                "Skipping CDS {} in sequence {} due to high length {}",
+                ensp, target, length
+            );
+        }
         let phase = record.phase().clone().try_into().unwrap();
         let strand = record.strand().ok_or_else(|| {
             anyhow::anyhow!("No strand found for CDS in sequence {}", record.seqname())
@@ -538,6 +551,7 @@ pub(crate) fn transcripts(gff_file: &PathBuf, graph: &PathBuf) -> Result<Vec<Tra
     }
     Ok(transcripts
         .into_values()
+        .filter(|t| !skip.contains(&t.feature))
         .filter(|t| matches!(variant_coverage.get(&t.feature), Some(true)))
         .collect())
 }
@@ -721,7 +735,7 @@ chr1\tsource\tCDS\t400\t500\t.\t-\t0\tID=ENSP00000493377
         )
         .unwrap();
 
-        let transcripts = transcripts(&gff_path, &graph_path).unwrap();
+        let transcripts = transcripts(&gff_path, &graph_path, 5000).unwrap();
         assert_eq!(transcripts.len(), 1);
 
         let transcript1 = transcripts
