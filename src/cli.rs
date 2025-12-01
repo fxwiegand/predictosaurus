@@ -71,6 +71,10 @@ pub(crate) enum Command {
         /// Path to the output file containing the paths for the features given via the GFF file
         #[clap(short, long)]
         output: PathBuf,
+
+        /// Maximum CDS length to consider for processing. Transcripts containing longer CDSs will be ignored with a warning.
+        #[clap(long, default_value = "5000")]
+        max_cds_length: u64,
     },
     /// Output all distinct peptides from the given features to a fastq file per given CDS in the feature file
     Peptides {
@@ -109,6 +113,10 @@ pub(crate) enum Command {
         /// Path to the output directory for the fastq files
         #[clap(short, long)]
         output: PathBuf,
+
+        /// Maximum CDS length to consider for processing. Transcripts containing longer CDSs will be ignored with a warning.
+        #[clap(long, default_value = "5000")]
+        max_cds_length: u64,
     },
     /// Create visualizations and output HTML, TSV, or Vega specs
     Plot {
