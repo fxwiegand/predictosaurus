@@ -13,7 +13,7 @@ clap = { version = "4.5.50", features = ["derive"] }
 clap_derive = "4.5.3"
 rust-htslib = "0.49.0"
 bio = "2.3.0"
-anyhow = "1.0.99"
+anyhow = "1.0.100"
 varlociraptor = "8.7.3"
 petgraph = { version = "0.8.2", features = ["serde-1"]}
 itertools = "0.14.0"
