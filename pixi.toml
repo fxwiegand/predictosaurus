@@ -1,0 +1,22 @@
+[workspace]
+name = "predictosaurus"
+channels = ["conda-forge", "bioconda"]
+platforms = ["linux-64", "osx-64", "osx-arm64"]
+version = "0.7.2"
+description = "Uncertainty aware haplotype-based genomic variant effect prediction"
+license = "MIT"
+repository = "https://github.com/fxwiegand/predictosaurus"
+
+[dependencies]
+rust = ">=1.72"
+cargo-bundle-licenses = "*"
+cmake = ">=3.24"
+make = "*"
+gxx = "*"
+gcc = "*"
+clang = "*"
+pkg-config = "*"
+gsl = ">=2.8"
+blas = "*"
+libcurl = "*"
+openssl = "*"

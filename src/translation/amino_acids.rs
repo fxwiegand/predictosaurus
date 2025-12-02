@@ -84,10 +84,16 @@ impl Protein {
                     n.pos >= cds.start as i64 && n.pos < cds.end as i64 && n.node_type.is_variant()
                 }) {
                     let pos = ((node.pos - cds.start as i64) as isize + offset) as usize;
-                    region.splice(
-                        pos..pos + node.reference_allele.len(),
-                        node.alternative_allele.bytes(),
-                    );
+                    // Check if variant exceeds the boundaries of CDS, if so only use the proportion of the variant within the CDS
+                    // This might affect splicing
+                    let remaining_bases = region.len().saturating_sub(pos);
+                    if remaining_bases == 0 {
+                        continue; // nothing left in CDS
+                    }
+                    let ref_len = node.reference_allele.len().min(remaining_bases);
+                    let alt_bytes: Vec<u8> =
+                        node.alternative_allele.bytes().take(ref_len).collect();
+                    region.splice(pos..pos + ref_len, alt_bytes);
                     offset += node.frameshift() as isize;
                 }
 
