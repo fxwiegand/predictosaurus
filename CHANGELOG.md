@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.3](https://github.com/fxwiegand/predictosaurus/compare/v0.7.2...v0.7.3) (2025-12-02)
+
+
+### Bug Fixes
+
+* Clip variants to CDS boundaries ([#167](https://github.com/fxwiegand/predictosaurus/issues/167)) ([6895f4e](https://github.com/fxwiegand/predictosaurus/commit/6895f4eb0b9547e631998b5cf20ff1e023d208ef))
+
 ## [0.7.2](https://github.com/fxwiegand/predictosaurus/compare/v0.7.1...v0.7.2) (2025-12-01)
 
 
