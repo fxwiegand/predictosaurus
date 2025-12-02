@@ -85,7 +85,7 @@ impl Protein {
                 }) {
                     let pos = ((node.pos - cds.start as i64) as isize + offset) as usize;
                     // Check if variant exceeds the boundaries of CDS, if so only use the proportion of the variant within the CDS
-                    // This might effect splicing
+                    // This might affect splicing
                     let remaining_bases = region.len().saturating_sub(pos);
                     if remaining_bases == 0 {
                         continue; // nothing left in CDS
