@@ -77,6 +77,16 @@ impl Protein {
         let cds_seq: Vec<u8> = transcript
             .cds()
             .flat_map(|cds| {
+                if cds.end as usize > target_ref.len() {
+                    panic!(
+                        "CDS coordinates out of bounds for transcript {}: cds.start={}, cds.end={}, Reference {} has length {}",
+                        transcript.feature,
+                        cds.start,
+                        cds.end,
+                        transcript.target,
+                        target_ref.len()
+                    );
+                }
                 let mut region = target_ref[cds.start as usize..cds.end as usize].to_vec();
                 let mut offset: isize = 0;
 
