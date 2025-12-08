@@ -148,8 +148,11 @@ impl Transcript {
                     graph.graph.node_count()
                 );
                 if graph.graph.node_count() > 50 {
-                    warn!("Skipping transcript {} due to too many paths to enumerate", self.name());
-                    return Ok(vec![])
+                    warn!(
+                        "Skipping transcript {} due to too many paths to enumerate",
+                        self.name()
+                    );
+                    return Ok(vec![]);
                 }
                 let paths = self
                     .paths(&graph)?
