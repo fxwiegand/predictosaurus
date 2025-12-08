@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.4](https://github.com/fxwiegand/predictosaurus/compare/v0.7.3...v0.7.4) (2025-12-08)
+
+
+### Bug Fixes
+
+* Skip path enumeration for large graphs ([04b7c6c](https://github.com/fxwiegand/predictosaurus/commit/04b7c6caf27561f357dfa8254160549296f6b470))
+
 ## [0.7.3](https://github.com/fxwiegand/predictosaurus/compare/v0.7.2...v0.7.3) (2025-12-02)
 
 
