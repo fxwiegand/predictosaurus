@@ -149,8 +149,10 @@ impl Transcript {
                 );
                 if graph.graph.node_count() > 50 {
                     warn!(
-                        "Skipping transcript {} due to too many paths to enumerate",
-                        self.name()
+                        "Skipping transcript {} due to too many paths to enumerate. Graph has {} nodes.\n{}",
+                        self.name(),
+                        graph.graph.node_count(),
+                        graph.nodes()
                     );
                     return Ok(vec![]);
                 }

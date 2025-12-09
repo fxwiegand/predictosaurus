@@ -64,7 +64,11 @@ pub(crate) struct Node {
 
 impl std::fmt::Display for Node {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} at position {}", self.node_type, self.pos)
+        write!(
+            f,
+            "{} {}:{}>{}",
+            self.node_type, self.pos, self.reference_allele, self.alternative_allele
+        )
     }
 }
 

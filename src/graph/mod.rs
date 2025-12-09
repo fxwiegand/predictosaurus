@@ -262,6 +262,15 @@ impl VariantGraph {
         }
     }
 
+    pub(crate) fn nodes(&self) -> String {
+        self.graph
+            .node_indices()
+            .map(|n| self.graph.node_weight(n).unwrap().clone())
+            .map(|node| node.to_string())
+            .collect::<Vec<String>>()
+            .join("\n")
+    }
+
     pub(crate) fn write(&self, path: &Path) -> Result<()> {
         let file = std::fs::File::create(path)?;
         serde_json::to_writer(file, self)?;
