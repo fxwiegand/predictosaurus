@@ -48,7 +48,7 @@ impl Eq for ScoredPath {}
 
 impl PartialOrd for ScoredPath {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        other.max_likelihood().partial_cmp(&self.max_likelihood())
+        Some(self.cmp(other))
     }
 }
 
@@ -379,5 +379,98 @@ mod tests {
         let reverse = graph.beam_search_reverse_paths(config);
 
         assert_eq!(forward.len(), reverse.len());
+    }
+
+    #[test]
+    fn test_beam_search_keeps_highest_likelihood_paths() {
+        let mut graph = Graph::<Node, Edge, Directed>::new();
+
+        let ref_node = graph.add_node(Node {
+            node_type: NodeType::Reference,
+            reference_allele: "A".to_string(),
+            alternative_allele: "A".to_string(),
+            vaf: HashMap::from([("sample1".to_string(), 1.0)]),
+            probs: EventProbs(HashMap::new()),
+            pos: 0,
+            index: 0,
+        });
+        let high_vaf_var = graph.add_node(Node {
+            node_type: NodeType::Variant,
+            reference_allele: "A".to_string(),
+            alternative_allele: "T".to_string(),
+            vaf: HashMap::from([("sample1".to_string(), 0.9)]),
+            probs: EventProbs(HashMap::new()),
+            pos: 1,
+            index: 1,
+        });
+        let low_vaf_var = graph.add_node(Node {
+            node_type: NodeType::Variant,
+            reference_allele: "A".to_string(),
+            alternative_allele: "G".to_string(),
+            vaf: HashMap::from([("sample1".to_string(), 0.1)]),
+            probs: EventProbs(HashMap::new()),
+            pos: 1,
+            index: 2,
+        });
+        let final_node = graph.add_node(Node {
+            node_type: NodeType::Reference,
+            reference_allele: "C".to_string(),
+            alternative_allele: "C".to_string(),
+            vaf: HashMap::from([("sample1".to_string(), 1.0)]),
+            probs: EventProbs(HashMap::new()),
+            pos: 2,
+            index: 3,
+        });
+
+        graph.add_edge(
+            ref_node,
+            high_vaf_var,
+            Edge {
+                supporting_reads: HashMap::new(),
+            },
+        );
+        graph.add_edge(
+            ref_node,
+            low_vaf_var,
+            Edge {
+                supporting_reads: HashMap::new(),
+            },
+        );
+        graph.add_edge(
+            high_vaf_var,
+            final_node,
+            Edge {
+                supporting_reads: HashMap::new(),
+            },
+        );
+        graph.add_edge(
+            low_vaf_var,
+            final_node,
+            Edge {
+                supporting_reads: HashMap::new(),
+            },
+        );
+
+        let variant_graph = VariantGraph {
+            graph,
+            start: 0,
+            end: 2,
+            target: "test".to_string(),
+        };
+
+        let config = BeamSearchConfig {
+            beam_width: 1,
+            haplotype_metric: HaplotypeMetric::Product,
+        };
+
+        let paths = variant_graph.beam_search_paths(config);
+
+        assert_eq!(paths.len(), 1);
+
+        let path = &paths[0].0;
+        assert_eq!(path.len(), 3);
+        assert_eq!(path[0], NodeIndex::new(0));
+        assert_eq!(path[1], NodeIndex::new(1));
+        assert_eq!(path[2], NodeIndex::new(3));
     }
 }
