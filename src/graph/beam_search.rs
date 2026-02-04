@@ -48,7 +48,7 @@ impl Eq for ScoredPath {}
 
 impl PartialOrd for ScoredPath {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
+        self.max_likelihood().partial_cmp(&other.max_likelihood())
     }
 }
 
