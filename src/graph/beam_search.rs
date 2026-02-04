@@ -271,10 +271,34 @@ mod tests {
         for i in 0..all_nodes.len() - 1 {
             let (curr_ref, curr_var) = all_nodes[i];
             let (next_ref, next_var) = all_nodes[i + 1];
-            graph.add_edge(curr_ref, next_ref, Edge { supporting_reads: HashMap::new() });
-            graph.add_edge(curr_ref, next_var, Edge { supporting_reads: HashMap::new() });
-            graph.add_edge(curr_var, next_ref, Edge { supporting_reads: HashMap::new() });
-            graph.add_edge(curr_var, next_var, Edge { supporting_reads: HashMap::new() });
+            graph.add_edge(
+                curr_ref,
+                next_ref,
+                Edge {
+                    supporting_reads: HashMap::new(),
+                },
+            );
+            graph.add_edge(
+                curr_ref,
+                next_var,
+                Edge {
+                    supporting_reads: HashMap::new(),
+                },
+            );
+            graph.add_edge(
+                curr_var,
+                next_ref,
+                Edge {
+                    supporting_reads: HashMap::new(),
+                },
+            );
+            graph.add_edge(
+                curr_var,
+                next_var,
+                Edge {
+                    supporting_reads: HashMap::new(),
+                },
+            );
         }
 
         VariantGraph {
