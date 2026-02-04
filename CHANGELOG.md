@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/fxwiegand/predictosaurus/compare/v0.7.4...v0.8.0) (2026-02-04)
+
+
+### Features
+
+* Use beam search for large path enumeration ([#186](https://github.com/fxwiegand/predictosaurus/issues/186)) ([5fb08d6](https://github.com/fxwiegand/predictosaurus/commit/5fb08d62f3bb2f7009939291ca6aabfc57b0e3d8))
+
 ## [0.7.4](https://github.com/fxwiegand/predictosaurus/compare/v0.7.3...v0.7.4) (2025-12-08)
 
 
