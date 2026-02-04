@@ -134,7 +134,11 @@ impl Transcript {
         }
     }
 
-    fn haplotypes(&self, graph: &PathBuf) -> Result<Vec<Vec<Node>>> {
+    fn haplotypes(
+        &self,
+        graph: &PathBuf,
+        haplotype_metric: HaplotypeMetric,
+    ) -> Result<Vec<Vec<Node>>> {
         let mut haplotypes = Vec::new();
         for cds in self.cds() {
             if let Ok(graph) = feature_graph(
@@ -147,15 +151,34 @@ impl Transcript {
                     "Calculating paths for {cds:?}. Graph has {} nodes",
                     graph.graph.node_count()
                 );
-                if graph.graph.node_count() > 50 {
-                    warn!(
-                        "Skipping transcript {} due to too many paths to enumerate",
-                        self.name()
+
+                let paths = if graph.graph.node_count() > 25 {
+                    info!(
+                        "Using beam search for transcript {} with {} nodes",
+                        self.name(),
+                        graph.graph.node_count()
                     );
-                    return Ok(vec![]);
-                }
-                let paths = self
-                    .paths(&graph)?
+                    use crate::graph::beam_search::BeamSearchConfig;
+                    let config = BeamSearchConfig {
+                        beam_width: 50,
+                        haplotype_metric,
+                    };
+                    match self.strand {
+                        Strand::Forward => graph.beam_search_paths(config),
+                        Strand::Reverse => graph.beam_search_reverse_paths(config),
+                        Strand::Unknown => {
+                            return Err(anyhow::anyhow!(
+                                "Strand is unknown for transcript {}",
+                                self.name()
+                            ))
+                        }
+                    }
+                } else {
+                    // Use traditional exhaustive enumeration for smaller graphs
+                    self.paths(&graph)?
+                };
+
+                let paths = paths
                     .iter()
                     .map(|p| {
                         p.0.iter()
@@ -163,6 +186,7 @@ impl Transcript {
                             .collect_vec()
                     })
                     .collect_vec();
+
                 if haplotypes.is_empty() {
                     haplotypes = paths;
                 } else {
@@ -189,7 +213,7 @@ impl Transcript {
         haplotype_metric: HaplotypeMetric,
         distance_metric: DistanceMetric,
     ) -> Result<Vec<(EffectScore, HaplotypeLikelihoods)>> {
-        let haplotypes = self.haplotypes(graph)?;
+        let haplotypes = self.haplotypes(graph, haplotype_metric)?;
         let mut scores = Vec::with_capacity(haplotypes.len());
         let original_protein = Protein::from_transcript(reference, self)?;
         for haplotype in haplotypes {
