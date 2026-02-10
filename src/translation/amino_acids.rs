@@ -54,14 +54,12 @@ impl Protein {
             .cds()
             .flat_map(|cds| {
                 let region = &target_ref[cds.start as usize..cds.end as usize];
-                let phase = cds.phase as usize;
                 match transcript.strand {
-                    Strand::Reverse => reverse_complement(&region[..region.len() - phase]),
-                    _ => region[phase..].to_vec(),
+                    Strand::Reverse => reverse_complement(region),
+                    _ => region.to_vec(),
                 }
             })
             .collect();
-
         Ok(Protein::new(dna_to_amino_acids(&cds_seq)?))
     }
 
@@ -97,10 +95,9 @@ impl Protein {
                     offset += node.frameshift() as isize;
                 }
 
-                let phase = cds.phase as usize;
                 match transcript.strand {
-                    Strand::Reverse => reverse_complement(&region[..region.len() - phase]),
-                    _ => region[phase..].to_vec(),
+                    Strand::Reverse => reverse_complement(&region),
+                    _ => region.to_vec(),
                 }
             })
             .collect();
@@ -118,15 +115,7 @@ impl Protein {
 
 impl Display for Protein {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            self.sequence
-                .iter()
-                .map(|amino_acid| amino_acid.abbreviation())
-                .collect::<Vec<&str>>()
-                .join("")
-        )
+        write!(f, "{}", String::from_utf8(self.as_bytes()).unwrap())
     }
 }
 
@@ -448,7 +437,7 @@ mod tests {
             AminoAcid::Glutamine,
             AminoAcid::Stop,
         ]);
-        assert_eq!(protein.to_string(), "AlaArgAsnAspCysGluGlnStop");
+        assert_eq!(protein.to_string(), "ARNDCEQX");
     }
 
     #[test]
