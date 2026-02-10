@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/fxwiegand/predictosaurus/compare/v0.8.0...v0.8.1) (2026-02-10)
+
+
+### Bug Fixes
+
+* Fix false region slicing subtracting bases via phase ([#192](https://github.com/fxwiegand/predictosaurus/issues/192)) ([80f0ebd](https://github.com/fxwiegand/predictosaurus/commit/80f0ebd8e7322716fdc41a74bd3ee517dbfdac8a))
+
 ## [0.8.0](https://github.com/fxwiegand/predictosaurus/compare/v0.7.4...v0.8.0) (2026-02-04)
 
 
