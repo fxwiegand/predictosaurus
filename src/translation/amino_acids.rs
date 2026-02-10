@@ -54,7 +54,6 @@ impl Protein {
             .cds()
             .flat_map(|cds| {
                 let region = &target_ref[cds.start as usize..cds.end as usize];
-                let phase = cds.phase as usize;
                 match transcript.strand {
                     Strand::Reverse => reverse_complement(region),
                     _ => region.to_vec(),
@@ -96,7 +95,6 @@ impl Protein {
                     offset += node.frameshift() as isize;
                 }
 
-                let phase = cds.phase as usize;
                 match transcript.strand {
                     Strand::Reverse => reverse_complement(&region),
                     _ => region.to_vec(),
