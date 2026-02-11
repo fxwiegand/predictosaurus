@@ -189,6 +189,8 @@ impl Transcript {
 
                 if haplotypes.is_empty() {
                     haplotypes = paths;
+                } else if paths.is_empty() {
+                    continue;
                 } else {
                     let mut extended = Vec::new();
 
