@@ -437,6 +437,8 @@ impl Transcript {
             }
             if rna.is_empty() {
                 rna = cds_rna;
+            } else if cds_rna.is_empty() {
+                continue;
             } else {
                 let mut new_rna = Vec::new();
                 for rna_path in &rna {
