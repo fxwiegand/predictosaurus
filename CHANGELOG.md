@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.2](https://github.com/fxwiegand/predictosaurus/compare/v0.8.1...v0.8.2) (2026-02-11)
+
+
+### Bug Fixes
+
+* Fix combinatory extension of CDSs ([#195](https://github.com/fxwiegand/predictosaurus/issues/195)) ([9726647](https://github.com/fxwiegand/predictosaurus/commit/9726647e37faaa4beb2b02def3b912de217935bb))
+
 ## [0.8.1](https://github.com/fxwiegand/predictosaurus/compare/v0.8.0...v0.8.1) (2026-02-10)
 
 
