@@ -139,10 +139,10 @@ pub enum HaplotypeMetric {
     Minimum,
 }
 
-pub type HaplotypeLikelihoods = HashMap<String, f32>;
+pub type HaplotypeFrequency = HashMap<String, f32>;
 
 impl HaplotypeMetric {
-    pub fn calculate(&self, haplotype: &[Node]) -> HaplotypeLikelihoods {
+    pub fn calculate(&self, haplotype: &[Node]) -> HaplotypeFrequency {
         let samples = haplotype
             .iter()
             .flat_map(|n| n.vaf.keys())

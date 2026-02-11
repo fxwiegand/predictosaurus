@@ -26,12 +26,12 @@ impl Default for BeamSearchConfig {
 #[derive(Clone, Debug)]
 struct ScoredPath {
     path: Vec<NodeIndex>,
-    sample_likelihoods: HashMap<String, f32>,
+    sample_frequencies: HashMap<String, f32>,
 }
 
 impl ScoredPath {
-    fn max_likelihood(&self) -> f32 {
-        self.sample_likelihoods
+    fn max_frequency(&self) -> f32 {
+        self.sample_frequencies
             .values()
             .cloned()
             .fold(f32::NEG_INFINITY, f32::max)
@@ -40,7 +40,7 @@ impl ScoredPath {
 
 impl PartialEq for ScoredPath {
     fn eq(&self, other: &Self) -> bool {
-        self.max_likelihood() == other.max_likelihood()
+        self.max_frequency() == other.max_frequency()
     }
 }
 
@@ -48,7 +48,7 @@ impl Eq for ScoredPath {}
 
 impl PartialOrd for ScoredPath {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.max_likelihood().partial_cmp(&other.max_likelihood())
+        self.max_frequency().partial_cmp(&other.max_frequency())
     }
 }
 
@@ -61,11 +61,11 @@ impl Ord for ScoredPath {
 impl ScoredPath {
     fn from_node(node: NodeIndex, graph: &VariantGraph, metric: HaplotypeMetric) -> Self {
         let nodes = vec![graph.graph.node_weight(node).unwrap().clone()];
-        let sample_likelihoods = metric.calculate(&nodes);
+        let sample_frequencies = metric.calculate(&nodes);
 
         ScoredPath {
             path: vec![node],
-            sample_likelihoods,
+            sample_frequencies,
         }
     }
 
@@ -78,11 +78,11 @@ impl ScoredPath {
             .map(|&idx| graph.graph.node_weight(idx).unwrap().clone())
             .collect();
 
-        let sample_likelihoods = metric.calculate(&nodes);
+        let sample_frequencies = metric.calculate(&nodes);
 
         ScoredPath {
             path: new_path,
-            sample_likelihoods,
+            sample_frequencies: sample_frequencies,
         }
     }
 }
@@ -161,7 +161,7 @@ impl VariantGraph {
 
         let mut paths: Vec<(HaplotypePath, f32)> = complete_paths
             .into_iter()
-            .map(|sp| (HaplotypePath(sp.path.clone()), sp.max_likelihood()))
+            .map(|sp| (HaplotypePath(sp.path.clone()), sp.max_frequency()))
             .collect();
 
         paths.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
@@ -382,7 +382,7 @@ mod tests {
     }
 
     #[test]
-    fn test_beam_search_keeps_highest_likelihood_paths() {
+    fn test_beam_search_keeps_highest_frequency_paths() {
         let mut graph = Graph::<Node, Edge, Directed>::new();
 
         let ref_node = graph.add_node(Node {

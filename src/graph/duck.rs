@@ -1,7 +1,7 @@
 use crate::graph::node::{Node, NodeType};
 use crate::graph::paths::{Cds, Weight};
 use crate::graph::score::EffectScore;
-use crate::graph::score::HaplotypeLikelihoods;
+use crate::graph::score::HaplotypeFrequency;
 use crate::graph::transcript::Transcript;
 use crate::graph::{Edge, VariantGraph};
 use crate::impact::Impact;
@@ -185,7 +185,7 @@ pub(crate) fn create_scores(output_path: &Path) -> Result<()> {
 
 pub(crate) fn write_scores(
     path: &Path,
-    scores: Vec<(EffectScore, HaplotypeLikelihoods)>,
+    scores: Vec<(EffectScore, HaplotypeFrequency)>,
     transcript: Transcript,
 ) -> Result<()> {
     let mut db = Connection::open(path)?;
@@ -204,9 +204,7 @@ pub(crate) fn write_scores(
     Ok(())
 }
 
-pub(crate) fn read_scores(
-    path: &Path,
-) -> Result<HashMap<String, Vec<(f64, HaplotypeLikelihoods)>>> {
+pub(crate) fn read_scores(path: &Path) -> Result<HashMap<String, Vec<(f64, HaplotypeFrequency)>>> {
     let db = Connection::open(path)?;
     let mut scores = HashMap::new();
     let mut stmt = db.prepare("SELECT transcript, score, likelihoods FROM scores")?;
