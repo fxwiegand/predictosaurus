@@ -65,7 +65,7 @@ pub(crate) enum Command {
         distance_metric: DistanceMetric,
 
         /// Metric to use for haplotype quantification
-        #[clap(long, default_value = "geometric-mean")]
+        #[clap(long, default_value = "minimum")]
         haplotype_metric: HaplotypeMetric,
 
         /// Path to the output file containing the paths for the features given via the GFF file

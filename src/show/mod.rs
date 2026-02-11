@@ -1,5 +1,5 @@
 use crate::graph::paths::{Cds, Weight};
-use crate::graph::score::HaplotypeLikelihoods;
+use crate::graph::score::HaplotypeFrequency;
 use anyhow::anyhow;
 use anyhow::Result;
 use csv::{Writer, WriterBuilder};
@@ -83,7 +83,7 @@ pub(crate) fn render_html_paths(
 /// * `scores` - A reference to a `HashMap` that holds the scores and likelihoods for each transcript.
 pub(crate) fn render_scores(
     output_path: &PathBuf,
-    scores: &HashMap<String, Vec<(f64, HaplotypeLikelihoods)>>,
+    scores: &HashMap<String, Vec<(f64, HaplotypeFrequency)>>,
 ) -> Result<()> {
     let mut wtr = WriterBuilder::new()
         .delimiter(b'\t')

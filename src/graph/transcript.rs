@@ -4,7 +4,7 @@ use crate::graph::node::{Node, NodeType};
 use crate::graph::paths::{Cds, HaplotypePath, Weight};
 use crate::graph::peptide::Peptide;
 use crate::graph::score::EffectScore;
-use crate::graph::score::HaplotypeLikelihoods;
+use crate::graph::score::HaplotypeFrequency;
 use crate::graph::score::HaplotypeMetric;
 use crate::graph::{shift_phase, EventProbs, VariantGraph};
 use crate::translation::amino_acids::{AminoAcid, Protein};
@@ -212,7 +212,7 @@ impl Transcript {
         reference: &HashMap<String, Vec<u8>>,
         haplotype_metric: HaplotypeMetric,
         distance_metric: DistanceMetric,
-    ) -> Result<Vec<(EffectScore, HaplotypeLikelihoods)>> {
+    ) -> Result<Vec<(EffectScore, HaplotypeFrequency)>> {
         let haplotypes = self.haplotypes(graph, haplotype_metric)?;
         let mut scores = Vec::with_capacity(haplotypes.len());
         let original_protein = Protein::from_transcript(reference, self)?;
@@ -226,8 +226,8 @@ impl Transcript {
                 distance_metric,
                 realign,
             )?;
-            let likelihood = haplotype_metric.calculate(&haplotype);
-            scores.push((effect_score, likelihood));
+            let frequency = haplotype_metric.calculate(&haplotype);
+            scores.push((effect_score, frequency));
         }
         Ok(scores)
     }
