@@ -152,7 +152,7 @@ impl Transcript {
                     graph.graph.node_count()
                 );
 
-                let paths = if graph.graph.node_count() > 25 {
+                let paths = if graph.graph.node_count() > 10 {
                     info!(
                         "Using beam search for transcript {} with {} nodes",
                         self.name(),
@@ -160,7 +160,7 @@ impl Transcript {
                     );
                     use crate::graph::beam_search::BeamSearchConfig;
                     let config = BeamSearchConfig {
-                        beam_width: 50,
+                        beam_width: 10,
                         haplotype_metric,
                     };
                     match self.strand {
