@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.3](https://github.com/fxwiegand/predictosaurus/compare/v0.8.2...v0.8.3) (2026-02-12)
+
+
+### Bug Fixes
+
+* Reduce beam search threshold and beam width ([e295c9b](https://github.com/fxwiegand/predictosaurus/commit/e295c9b01103ca786a3d4bbf9b032fac8615c767))
+
 ## [0.8.2](https://github.com/fxwiegand/predictosaurus/compare/v0.8.1...v0.8.2) (2026-02-11)
 
 
