@@ -201,6 +201,26 @@ impl Transcript {
                         combined.extend(new_path.iter().cloned());
                         extended.push(combined);
                     }
+
+                    if extended.len() > 100 {
+                        let mut scored: Vec<(Vec<Node>, f32)> = extended
+                            .into_iter()
+                            .map(|h| {
+                                let score = haplotype_metric
+                                    .calculate(&h)
+                                    .values()
+                                    .cloned()
+                                    .fold(f32::NEG_INFINITY, f32::max);
+                                (h, score)
+                            })
+                            .collect();
+                        scored.sort_by(|a, b| {
+                            b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)
+                        });
+                        scored.truncate(100);
+                        extended = scored.into_iter().map(|(h, _)| h).collect();
+                    }
+
                     haplotypes = extended;
                 }
             }
