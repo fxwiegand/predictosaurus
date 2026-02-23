@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.4](https://github.com/fxwiegand/predictosaurus/compare/v0.8.3...v0.8.4) (2026-02-23)
+
+
+### Bug Fixes
+
+* Prune haplotype paths when extending them via more CDSs ([#200](https://github.com/fxwiegand/predictosaurus/issues/200)) ([bc7ba8b](https://github.com/fxwiegand/predictosaurus/commit/bc7ba8b71b0316335e5aa882a6acfb32b29d065b))
+
 ## [0.8.3](https://github.com/fxwiegand/predictosaurus/compare/v0.8.2...v0.8.3) (2026-02-12)
 
 
