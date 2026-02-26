@@ -80,10 +80,10 @@ pub(crate) fn render_html_paths(
 /// # Arguments
 ///
 /// * `output_path` - A reference to a `PathBuf` that holds the path of the output TSV file.
-/// * `scores` - A reference to a `HashMap` that holds the scores and likelihoods for each transcript.
+/// * `scores` - A reference to a `HashMap` that holds the scores, likelihoods, and haplotypes for each transcript.
 pub(crate) fn render_scores(
     output_path: &PathBuf,
-    scores: &HashMap<String, Vec<(f64, HaplotypeFrequency)>>,
+    scores: &HashMap<String, Vec<(f64, HaplotypeFrequency, String)>>,
 ) -> Result<()> {
     let mut wtr = WriterBuilder::new()
         .delimiter(b'\t')
@@ -94,18 +94,22 @@ pub(crate) fn render_scores(
         .flat_map(|scores| {
             scores
                 .iter()
-                .flat_map(|(_, sample_scores)| sample_scores.keys().cloned())
+                .flat_map(|(_, sample_scores, _)| sample_scores.keys().cloned())
         })
         .unique()
         .collect();
 
-    let mut headers = vec!["transcript", "score"];
+    let mut headers = vec!["transcript", "score", "haplotype"];
     headers.extend(samples.iter().map(|s| s.as_str()));
     wtr.write_record(headers)?;
 
     for (transcript, hap_scores) in scores {
-        for (score_val, sample_scores) in hap_scores {
-            let mut row = vec![transcript.to_string(), score_val.to_string()];
+        for (score_val, sample_scores, haplotype) in hap_scores {
+            let mut row = vec![
+                transcript.to_string(),
+                score_val.to_string(),
+                haplotype.to_string(),
+            ];
             for sample in &samples {
                 let val = sample_scores.get(sample).ok_or_else(|| {
                     anyhow!(
@@ -197,8 +201,14 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let output_path = temp_dir.keep().join("scores.tsv");
         let scores = HashMap::from([
-            ("transcript1".to_string(), vec![(0.8, HashMap::new())]),
-            ("transcript2".to_string(), vec![(0.6, HashMap::new())]),
+            (
+                "transcript1".to_string(),
+                vec![(0.8, HashMap::new(), "c.[100A>G;105C>T]".to_string())],
+            ),
+            (
+                "transcript2".to_string(),
+                vec![(0.6, HashMap::new(), "c.[100A>G;105C>T]".to_string())],
+            ),
         ]);
         render_scores(&output_path, &scores).unwrap();
         assert!(output_path.exists());

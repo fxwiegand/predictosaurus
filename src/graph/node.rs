@@ -145,6 +145,16 @@ impl Node {
             .unwrap_or(&0.0)
     }
 
+    /// Returns the hgvs notation for the node.
+    pub(crate) fn hgvs_notation(&self) -> String {
+        format!(
+            "{}{}>{}",
+            self.pos + 1,
+            self.reference_allele,
+            self.alternative_allele
+        )
+    }
+
     pub(crate) fn reference_amino_acid(
         &self,
         phase: u8,
@@ -821,5 +831,19 @@ mod tests {
             index: 0,
         };
         assert!(!indel_node.is_snv());
+    }
+
+    #[test]
+    fn test_node_hgvs() {
+        let var_node = Node {
+            node_type: NodeType::Variant,
+            reference_allele: "C".to_string(),
+            alternative_allele: "A".to_string(),
+            vaf: Default::default(),
+            probs: EventProbs(Default::default()),
+            pos: 42,
+            index: 0,
+        };
+        assert_eq!(var_node.hgvs_notation(), "43C>A");
     }
 }
