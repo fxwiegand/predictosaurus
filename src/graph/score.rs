@@ -35,7 +35,7 @@ impl EffectScore {
             haplotype
                 .iter()
                 .filter(|n| n.node_type.is_variant())
-                .map(|n| n.hgvsc())
+                .map(|n| n.hgvs_notation())
                 .collect::<Vec<String>>()
                 .join(";")
         );
