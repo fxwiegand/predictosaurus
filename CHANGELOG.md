@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/fxwiegand/predictosaurus/compare/v0.8.4...v0.9.0) (2026-02-26)
+
+
+### Features
+
+* Write haplotypes with their contained variants and add Node::hgvs_notation ([#204](https://github.com/fxwiegand/predictosaurus/issues/204)) ([548d3d4](https://github.com/fxwiegand/predictosaurus/commit/548d3d481cb0046a7260aea01d9689d77129da9d))
+
 ## [0.8.4](https://github.com/fxwiegand/predictosaurus/compare/v0.8.3...v0.8.4) (2026-02-23)
 
 
