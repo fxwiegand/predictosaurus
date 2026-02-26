@@ -17,6 +17,7 @@ pub struct EffectScore {
     pub altered_protein: Protein,
     pub distance_metric: DistanceMetric,
     pub realign: bool,
+    pub haplotype: String,
 }
 
 impl EffectScore {
@@ -29,11 +30,21 @@ impl EffectScore {
         realign: bool,
     ) -> Result<Self> {
         let altered_protein = Protein::from_haplotype(reference, transcript, haplotype)?;
+        let haplotype = format!(
+            "c.[{}]",
+            haplotype
+                .iter()
+                .filter(|n| n.node_type.is_variant())
+                .map(|n| n.hgvsc())
+                .collect::<Vec<String>>()
+                .join(";")
+        );
         Ok(Self {
             original_protein,
             altered_protein,
             distance_metric,
             realign,
+            haplotype,
         })
     }
 
@@ -306,6 +317,7 @@ mod tests {
             altered_protein: p2,
             distance_metric: DistanceMetric::Epstein,
             realign: false,
+            haplotype: "c.[100A>G;105C>T]".to_string(),
         };
         assert!(score.score().abs() < 1e-6);
     }
@@ -319,6 +331,7 @@ mod tests {
             altered_protein: p2,
             distance_metric: DistanceMetric::Epstein,
             realign: false,
+            haplotype: "c.[100A>G;105C>T]".to_string(),
         };
         // Distance between Leucine and Valine is 0.03 / 2 since len = 2
         assert!((score.score() - 0.015).abs() < 1e-6)
@@ -341,6 +354,7 @@ mod tests {
             altered_protein: p2,
             distance_metric: DistanceMetric::Epstein,
             realign: false,
+            haplotype: "c.[100A>G;105C>T]".to_string(),
         };
         assert!((score.score() - (2.0 / 3.0)).abs() < 1e-6)
     }
@@ -358,6 +372,7 @@ mod tests {
             altered_protein: p2,
             distance_metric: DistanceMetric::Epstein,
             realign: true,
+            haplotype: "c.[100A>G;105C>T]".to_string(),
         };
         assert!((score.score() - 0.5).abs() < 1e-6)
     }
@@ -384,6 +399,7 @@ mod tests {
             altered_protein: p2,
             distance_metric: DistanceMetric::Epstein,
             realign: true,
+            haplotype: "c.[100A>G;105C>T]".to_string(),
         };
         assert!((score.score() - 0.2).abs() < 1e-6)
     }

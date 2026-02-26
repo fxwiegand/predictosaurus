@@ -176,7 +176,7 @@ pub(crate) fn variants_on_graph(path: &PathBuf) -> Result<HashMap<String, BTreeS
 pub(crate) fn create_scores(output_path: &Path) -> Result<()> {
     let db = Connection::open(output_path)?;
     db.execute(
-        "CREATE TABLE scores (transcript String, score FLOAT, likelihoods String)",
+        "CREATE TABLE scores (transcript String, score FLOAT, likelihoods String, haplotype String)",
         [],
     )?;
     db.close().unwrap();
@@ -190,13 +190,14 @@ pub(crate) fn write_scores(
 ) -> Result<()> {
     let mut db = Connection::open(path)?;
     let transaction = db.transaction()?;
-    let mut stmt = transaction.prepare("INSERT INTO scores VALUES (?, ?, ?)")?;
+    let mut stmt = transaction.prepare("INSERT INTO scores VALUES (?, ?, ?, ?)")?;
     let transcript_name = transcript.name();
     for (score, likelihoods) in scores {
         stmt.execute(params![
             transcript_name.as_str(),
             score.score(),
-            json5::to_string(&likelihoods)?
+            json5::to_string(&likelihoods)?,
+            score.haplotype
         ])?;
     }
     transaction.commit()?;
@@ -204,19 +205,23 @@ pub(crate) fn write_scores(
     Ok(())
 }
 
-pub(crate) fn read_scores(path: &Path) -> Result<HashMap<String, Vec<(f64, HaplotypeFrequency)>>> {
+pub(crate) fn read_scores(
+    path: &Path,
+) -> Result<HashMap<String, Vec<(f64, HaplotypeFrequency, String)>>> {
     let db = Connection::open(path)?;
     let mut scores = HashMap::new();
-    let mut stmt = db.prepare("SELECT transcript, score, likelihoods FROM scores")?;
+    let mut stmt = db.prepare("SELECT transcript, score, likelihoods, haplotype FROM scores")?;
     let mut rows = stmt.query([])?;
     while let Some(row) = rows.next()? {
         let transcript = row.get(0)?;
         let score = row.get(1)?;
         let likelihoods: String = row.get(2)?;
-        scores
-            .entry(transcript)
-            .or_insert(Vec::new())
-            .push((score, json5::from_str(&likelihoods)?));
+        let haplotype: String = row.get(3)?;
+        scores.entry(transcript).or_insert(Vec::new()).push((
+            score,
+            json5::from_str(&likelihoods)?,
+            haplotype,
+        ));
     }
     db.close().unwrap();
     Ok(scores)
@@ -619,6 +624,7 @@ mod tests {
             altered_protein: p2,
             distance_metric: DistanceMetric::Epstein,
             realign: false,
+            haplotype: "c.[100A>G;105C>T]".to_string(),
         };
         let likelihoods = HashMap::from([("A".to_string(), 0.1), ("C".to_string(), 0.2)]);
         let scores = vec![(effect_score, likelihoods)];
