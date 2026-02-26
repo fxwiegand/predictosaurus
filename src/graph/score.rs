@@ -31,7 +31,7 @@ impl EffectScore {
     ) -> Result<Self> {
         let altered_protein = Protein::from_haplotype(reference, transcript, haplotype)?;
         let haplotype = format!(
-            "c.[{}]",
+            "[{}]",
             haplotype
                 .iter()
                 .filter(|n| n.node_type.is_variant())
