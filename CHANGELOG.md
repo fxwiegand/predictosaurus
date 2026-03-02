@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.1](https://github.com/fxwiegand/predictosaurus/compare/v0.9.0...v0.9.1) (2026-03-02)
+
+
+### Bug Fixes
+
+* Use proper hgvsc notation for haplotypes ([#206](https://github.com/fxwiegand/predictosaurus/issues/206)) ([c056c01](https://github.com/fxwiegand/predictosaurus/commit/c056c01512f4484f3a088e06c3fc9688c257c26b))
+
 ## [0.9.0](https://github.com/fxwiegand/predictosaurus/compare/v0.8.4...v0.9.0) (2026-02-26)
 
 
