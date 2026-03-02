@@ -30,9 +30,10 @@ pub(crate) fn hgvsc(
             1 => format!("{cdna_pos}del"),
             n => format!("{cdna_pos}_{}del", cdna_pos + n - 1),
         },
-        (false, false) => match ref_allele.len() {
-            1 => format!("{cdna_pos}{ref_allele}>{alt_allele}"),
-            n => format!("{cdna_pos}_{}delins{alt_allele}", cdna_pos + n - 1),
+        (false, false) => match (ref_allele.len(), alt_allele.len()) {
+            (1, 1) => format!("{cdna_pos}{ref_allele}>{alt_allele}"),
+            (1, _) => format!("{cdna_pos}delins{alt_allele}"),
+            (n, _) => format!("{cdna_pos}_{}delins{alt_allele}", cdna_pos + n - 1),
         },
         (true, true) => return None,
     };
@@ -212,6 +213,19 @@ mod tests {
                 "TC"
             ),
             Some("6_8delinsTC".into())
+        );
+    }
+
+    #[test]
+    fn delins_single_ref_forward() {
+        assert_eq!(
+            hgvsc(
+                &transcript(vec![Cds::new(100, 200, 0)], Strand::Forward),
+                105,
+                "A",
+                "TT"
+            ),
+            Some("6delinsTT".into())
         );
     }
 }
