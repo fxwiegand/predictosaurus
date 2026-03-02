@@ -1,3 +1,5 @@
+use crate::graph::hgvs::hgvsc;
+use crate::graph::transcript::Transcript;
 use crate::graph::EventProbs;
 use crate::impact::Impact;
 use crate::transcription;
@@ -145,14 +147,14 @@ impl Node {
             .unwrap_or(&0.0)
     }
 
-    /// Returns the hgvs notation for the node.
-    pub(crate) fn hgvs_notation(&self) -> String {
-        format!(
-            "{}{}>{}",
-            self.pos + 1,
-            self.reference_allele,
-            self.alternative_allele
+    pub(crate) fn hgvs_notation(&self, transcript: &Transcript) -> String {
+        hgvsc(
+            transcript,
+            self.pos as u64,
+            &self.reference_allele,
+            &self.alternative_allele,
         )
+        .unwrap_or_default()
     }
 
     pub(crate) fn reference_amino_acid(
@@ -311,7 +313,9 @@ pub(crate) fn nodes_in_between(node1: &u32, node2: &u32, nodes: Vec<&u32>) -> us
 
 mod tests {
     use crate::graph::node::{node_distance, nodes_in_between, Node, NodeType};
-    use crate::graph::{Edge, EventProbs};
+    use crate::graph::paths::Cds;
+    use crate::graph::transcript::Transcript;
+    use crate::graph::{transcript, Edge, EventProbs};
     use crate::translation::amino_acids::AminoAcid;
     use bio::bio_types::strand::Strand;
     use itertools::Itertools;
@@ -844,6 +848,12 @@ mod tests {
             pos: 42,
             index: 0,
         };
-        assert_eq!(var_node.hgvs_notation(), "43C>A");
+        let transcript = Transcript {
+            feature: "ENST00000367770.8".to_string(),
+            target: "chr1".to_string(),
+            strand: Strand::Forward,
+            coding_sequences: vec![Cds::new(0, 100, 2), Cds::new(200, 300, 1)],
+        };
+        assert_eq!(var_node.hgvs_notation(&transcript), "43C>A");
     }
 }
