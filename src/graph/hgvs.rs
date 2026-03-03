@@ -8,12 +8,7 @@ pub(crate) fn hgvsc(
     reference_allele: &str,
     alternative_allele: &str,
 ) -> Option<String> {
-    let forward_pos = transcript.position_in_transcript(position as usize).ok()? + 1; // 1-based
-    let cdna_pos = if transcript.strand == Strand::Reverse {
-        transcript.length() - forward_pos + 1
-    } else {
-        forward_pos
-    };
+    let cdna_pos = transcript.position_in_transcript(position as usize).ok()? + 1; // 1-based, strand-aware
 
     let (ref_allele, alt_allele) = if transcript.strand == Strand::Reverse {
         (
@@ -56,7 +51,6 @@ mod tests {
         }
     }
 
-    // Plus strand
     #[test]
     fn snv_forward() {
         assert_eq!(
@@ -69,6 +63,7 @@ mod tests {
             Some("15C>G".into())
         );
     }
+
     #[test]
     fn snv_first_base_forward() {
         assert_eq!(
@@ -81,6 +76,7 @@ mod tests {
             Some("1A>T".into())
         );
     }
+
     #[test]
     fn del_single_forward() {
         assert_eq!(
@@ -93,6 +89,7 @@ mod tests {
             Some("6del".into())
         );
     }
+
     #[test]
     fn del_multi_forward() {
         assert_eq!(
@@ -105,6 +102,7 @@ mod tests {
             Some("6_8del".into())
         );
     }
+
     #[test]
     fn ins_forward() {
         assert_eq!(
@@ -128,10 +126,8 @@ mod tests {
         assert_eq!(hgvsc(&t, 204, "G", "A"), Some("15G>A".into()));
     }
 
-    // Minus strand
     #[test]
     fn snv_reverse_allele_flip() {
-        // offset from 3' end: 200-114=86 => cDNA 87; C>G => G>C
         assert_eq!(
             hgvsc(
                 &transcript(vec![Cds::new(100, 200, 0)], Strand::Reverse),
@@ -142,9 +138,9 @@ mod tests {
             Some("87G>C".into())
         );
     }
+
     #[test]
     fn snv_last_base_reverse() {
-        // pos 200 = cDNA 1 on minus; A>T => T>A
         assert_eq!(
             hgvsc(
                 &transcript(vec![Cds::new(100, 200, 0)], Strand::Reverse),
@@ -155,9 +151,9 @@ mod tests {
             Some("1T>A".into())
         );
     }
+
     #[test]
     fn ins_reverse() {
-        // ATG rev_comp => CAT
         assert_eq!(
             hgvsc(
                 &transcript(vec![Cds::new(100, 200, 0)], Strand::Reverse),
@@ -169,7 +165,6 @@ mod tests {
         );
     }
 
-    // Edge cases
     #[test]
     fn outside_cds() {
         assert_eq!(
@@ -182,6 +177,7 @@ mod tests {
             None
         );
     }
+
     #[test]
     fn empty_alleles() {
         assert_eq!(
@@ -227,5 +223,28 @@ mod tests {
             ),
             Some("6delinsTT".into())
         );
+    }
+
+    #[test]
+    fn snv_reverse_multi_exon() {
+        let t = transcript(
+            vec![
+                Cds::new(102229289, 102229366, 0),
+                Cds::new(102229457, 102229657, 0),
+                Cds::new(102231707, 102231821, 1),
+                Cds::new(102232535, 102232708, 1),
+                Cds::new(102233688, 102233789, 1),
+                Cds::new(102250812, 102250990, 0),
+                Cds::new(102251756, 102251804, 1),
+                Cds::new(102251917, 102251995, 2),
+                Cds::new(102263546, 102263616, 1),
+                Cds::new(102265823, 102265912, 1),
+                Cds::new(102283478, 102283592, 2),
+                Cds::new(102304962, 102304968, 0),
+            ],
+            Strand::Reverse,
+        );
+        assert_eq!(hgvsc(&t, 102229356, "T", "C"), Some("1193A>G".into()));
+        assert_eq!(hgvsc(&t, 102263549, "G", "A"), Some("280C>T".into()));
     }
 }

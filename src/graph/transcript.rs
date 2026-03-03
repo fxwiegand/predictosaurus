@@ -87,12 +87,19 @@ impl Transcript {
         self.cds().map(|c| c.length()).sum()
     }
 
-    // Returns the position of the variant in relation to the overall length of transcript
+    /// Returns the 0-based position of the variant from the transcript start,
+    /// where "start" means the 5' end of the coding sequence — i.e. the highest
+    /// genomic coordinate for reverse-strand transcripts.
     pub(crate) fn position_in_transcript(&self, pos: usize) -> Result<usize> {
         let mut offset = 0;
         for cds in self.cds() {
             if ((cds.start as usize)..=(cds.end as usize)).contains(&pos) {
-                return Ok(offset + (pos - cds.start as usize));
+                let cds_offset = if self.strand == Strand::Reverse {
+                    cds.end as usize - pos
+                } else {
+                    pos - cds.start as usize
+                };
+                return Ok(offset + cds_offset);
             }
             offset += cds.length();
         }
