@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.2](https://github.com/fxwiegand/predictosaurus/compare/v0.9.1...v0.9.2) (2026-03-03)
+
+
+### Bug Fixes
+
+* Make position_in_transcript strand-aware ([#209](https://github.com/fxwiegand/predictosaurus/issues/209)) ([6562c3b](https://github.com/fxwiegand/predictosaurus/commit/6562c3b78fc82157d5b788bf04dba009da1105e9))
+
 ## [0.9.1](https://github.com/fxwiegand/predictosaurus/compare/v0.9.0...v0.9.1) (2026-03-02)
 
 
