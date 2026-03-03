@@ -30,13 +30,19 @@ impl EffectScore {
         realign: bool,
     ) -> Result<Self> {
         let altered_protein = Protein::from_haplotype(reference, transcript, haplotype)?;
+        let mut variants: Vec<_> = haplotype
+            .iter()
+            .filter(|n| n.node_type.is_variant())
+            .collect();
+        if transcript.strand == Strand::Reverse {
+            variants.reverse();
+        }
         let haplotype = format!(
             "c.[{}]",
-            haplotype
+            variants
                 .iter()
-                .filter(|n| n.node_type.is_variant())
                 .map(|n| n.hgvs_notation(transcript))
-                .collect::<Vec<String>>()
+                .collect::<Vec<_>>()
                 .join(";")
         );
         Ok(Self {
