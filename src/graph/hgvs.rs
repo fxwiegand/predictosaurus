@@ -39,8 +39,9 @@ pub(crate) fn hgvsc(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{graph::transcript::Transcript, Cds};
+    use crate::{graph::transcript::Transcript, transcripts, Cds};
     use bio::bio_types::strand::Strand;
+    use std::path::PathBuf;
 
     fn transcript(cdss: Vec<Cds>, strand: Strand) -> Transcript {
         Transcript {
@@ -227,24 +228,11 @@ mod tests {
 
     #[test]
     fn snv_reverse_multi_exon() {
-        let t = transcript(
-            vec![
-                Cds::new(102229289, 102229366, 0),
-                Cds::new(102229457, 102229657, 0),
-                Cds::new(102231707, 102231821, 1),
-                Cds::new(102232535, 102232708, 1),
-                Cds::new(102233688, 102233789, 1),
-                Cds::new(102250812, 102250990, 0),
-                Cds::new(102251756, 102251804, 1),
-                Cds::new(102251917, 102251995, 2),
-                Cds::new(102263546, 102263616, 1),
-                Cds::new(102265823, 102265912, 1),
-                Cds::new(102283478, 102283592, 2),
-                Cds::new(102304962, 102304968, 0),
-            ],
-            Strand::Reverse,
-        );
-        assert_eq!(hgvsc(&t, 102229356, "T", "C"), Some("1193A>G".into()));
-        assert_eq!(hgvsc(&t, 102263549, "G", "A"), Some("280C>T".into()));
+        let gff_file = PathBuf::from("tests/resources/ENSP00000355304.gff3");
+        let graph = PathBuf::from("tests/resources/graph.duckdb");
+        let transcripts = transcripts(&gff_file, &graph, 100000).unwrap();
+        let t = &transcripts[0];
+        assert_eq!(hgvsc(&t, 102229355, "T", "C"), Some("1193A>G".into()));
+        assert_eq!(hgvsc(&t, 102263548, "G", "A"), Some("280C>T".into()));
     }
 }
