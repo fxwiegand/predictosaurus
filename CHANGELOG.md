@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.3](https://github.com/fxwiegand/predictosaurus/compare/v0.9.2...v0.9.3) (2026-03-04)
+
+
+### Bug Fixes
+
+* Properly treat CDS/GFF end as inclusive ([#211](https://github.com/fxwiegand/predictosaurus/issues/211)) ([b4bed5d](https://github.com/fxwiegand/predictosaurus/commit/b4bed5ddd6133d4e8aa66348a37352c3fe186517))
+
 ## [0.9.2](https://github.com/fxwiegand/predictosaurus/compare/v0.9.1...v0.9.2) (2026-03-03)
 
 
