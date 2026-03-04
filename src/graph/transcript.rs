@@ -586,7 +586,7 @@ pub(crate) fn transcripts(
         })?;
         let target = record.seqname().to_string();
         let start = *record.start() - 1;
-        let end = *record.end();
+        let end = *record.end() - 1;
         let length = end - start + 1;
         if length > max_cds_length {
             skip.insert(ensp.to_string());
@@ -1052,5 +1052,13 @@ chr1\tsource\tCDS\t400\t500\t.\t-\t0\tID=ENSP00000493377
             Some((300, 399))
         );
         assert_eq!(transcript.cds_for_position(250), None);
+    }
+
+    #[test]
+    fn test_transcript_reader() {
+        let gff_file = PathBuf::from("tests/resources/ENSP00000355304.gff3");
+        let graph = PathBuf::from("tests/resources/graph.duckdb");
+        let transcripts = transcripts(&gff_file, &graph, 100000).unwrap();
+        assert_eq!(transcripts.len(), 1)
     }
 }

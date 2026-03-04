@@ -53,7 +53,7 @@ impl Protein {
         let cds_seq: Vec<u8> = transcript
             .cds()
             .flat_map(|cds| {
-                let region = &target_ref[cds.start as usize..cds.end as usize];
+                let region = &target_ref[cds.start as usize..=cds.end as usize];
                 match transcript.strand {
                     Strand::Reverse => reverse_complement(region),
                     _ => region.to_vec(),
@@ -75,11 +75,11 @@ impl Protein {
         let cds_seq: Vec<u8> = transcript
             .cds()
             .flat_map(|cds| {
-                let mut region = target_ref[cds.start as usize..cds.end as usize].to_vec();
+                let mut region = target_ref[cds.start as usize..=cds.end as usize].to_vec();
                 let mut offset: isize = 0;
 
                 for node in haplotype.iter().filter(|n| {
-                    n.pos >= cds.start as i64 && n.pos < cds.end as i64 && n.node_type.is_variant()
+                    n.pos >= cds.start as i64 && n.pos <= cds.end as i64 && n.node_type.is_variant()
                 }) {
                     let pos = ((node.pos - cds.start as i64) as isize + offset) as usize;
                     // Check if variant exceeds the boundaries of CDS, if so only use the proportion of the variant within the CDS
@@ -565,8 +565,8 @@ mod tests {
             sequence: vec![
                 AminoAcid::Lysine,
                 AminoAcid::Phenylalanine,
-                AminoAcid::Phenylalanine,
-                AminoAcid::Lysine,
+                AminoAcid::Isoleucine,
+                AminoAcid::Stop,
             ],
         };
         assert_eq!(protein.unwrap(), expected_protein);
@@ -578,7 +578,7 @@ mod tests {
         reference.insert("chr1".to_string(), b"AAACCC".to_vec());
         let cds = vec![Cds {
             start: 0,
-            end: 6,
+            end: 5,
             phase: 0,
         }];
 
