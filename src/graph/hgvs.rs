@@ -39,7 +39,7 @@ pub(crate) fn hgvsc(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{graph::transcript::Transcript, Cds, transcripts};
+    use crate::{graph::transcript::Transcript, transcripts, Cds};
     use bio::bio_types::strand::Strand;
     use std::path::PathBuf;
 
@@ -232,7 +232,6 @@ mod tests {
         let graph = PathBuf::from("tests/resources/graph.duckdb");
         let transcripts = transcripts(&gff_file, &graph, 100000).unwrap();
         let t = &transcripts[0];
-        dbg!(&t);
         assert_eq!(hgvsc(&t, 102229355, "T", "C"), Some("1193A>G".into()));
         assert_eq!(hgvsc(&t, 102263548, "G", "A"), Some("280C>T".into()));
     }
