@@ -346,6 +346,23 @@ impl VariantGraph {
     pub(crate) fn is_empty(&self) -> bool {
         self.graph.node_count() == 0
     }
+
+    pub(crate) fn edge_reads(&self, path: &[NodeIndex]) -> Vec<HashMap<String, u32>> {
+        path.windows(2)
+            .map(|w| {
+                self.graph
+                    .find_edge(w[0], w[1])
+                    .map(|e| {
+                        self.graph
+                            .edge_weight(e)
+                            .expect("Edge exists in graph but has no weight — graph is malformed")
+                            .supporting_reads
+                            .clone()
+                    })
+                    .expect("Consecutive nodes in a valid path must share an edge")
+            })
+            .collect()
+    }
 }
 
 fn shift_phase(phase: u8, frameshift: u8) -> u8 {

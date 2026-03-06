@@ -176,7 +176,7 @@ pub(crate) fn variants_on_graph(path: &PathBuf) -> Result<HashMap<String, BTreeS
 pub(crate) fn create_scores(output_path: &Path) -> Result<()> {
     let db = Connection::open(output_path)?;
     db.execute(
-        "CREATE TABLE scores (transcript String, score FLOAT, likelihoods String, haplotype String)",
+        "CREATE TABLE scores (transcript String, score FLOAT, likelihoods String, haplotype String, supporting_reads String)",
         [],
     )?;
     db.close().unwrap();
@@ -185,19 +185,20 @@ pub(crate) fn create_scores(output_path: &Path) -> Result<()> {
 
 pub(crate) fn write_scores(
     path: &Path,
-    scores: Vec<(EffectScore, HaplotypeFrequency)>,
+    scores: Vec<(EffectScore, HaplotypeFrequency, Vec<HashMap<String, u32>>)>,
     transcript: Transcript,
 ) -> Result<()> {
     let mut db = Connection::open(path)?;
     let transaction = db.transaction()?;
-    let mut stmt = transaction.prepare("INSERT INTO scores VALUES (?, ?, ?, ?)")?;
+    let mut stmt = transaction.prepare("INSERT INTO scores VALUES (?, ?, ?, ?, ?)")?;
     let transcript_name = transcript.name();
-    for (score, likelihoods) in scores {
+    for (score, likelihoods, supporting_reads) in scores {
         stmt.execute(params![
             transcript_name.as_str(),
             score.score(),
             json5::to_string(&likelihoods)?,
-            score.haplotype
+            score.haplotype,
+            json5::to_string(&supporting_reads)?,
         ])?;
     }
     transaction.commit()?;
@@ -207,20 +208,24 @@ pub(crate) fn write_scores(
 
 pub(crate) fn read_scores(
     path: &Path,
-) -> Result<HashMap<String, Vec<(f64, HaplotypeFrequency, String)>>> {
+) -> Result<HashMap<String, Vec<(f64, HaplotypeFrequency, String, Vec<HashMap<String, u32>>)>>> {
     let db = Connection::open(path)?;
     let mut scores = HashMap::new();
-    let mut stmt = db.prepare("SELECT transcript, score, likelihoods, haplotype FROM scores")?;
+    let mut stmt = db.prepare(
+        "SELECT transcript, score, likelihoods, haplotype, supporting_reads FROM scores",
+    )?;
     let mut rows = stmt.query([])?;
     while let Some(row) = rows.next()? {
         let transcript = row.get(0)?;
         let score = row.get(1)?;
         let likelihoods: String = row.get(2)?;
         let haplotype: String = row.get(3)?;
+        let supporting_reads: String = row.get(4)?;
         scores.entry(transcript).or_insert(Vec::new()).push((
             score,
             json5::from_str(&likelihoods)?,
             haplotype,
+            json5::from_str(&supporting_reads)?,
         ));
     }
     db.close().unwrap();
@@ -627,7 +632,8 @@ mod tests {
             haplotype: "c.[100A>G;105C>T]".to_string(),
         };
         let likelihoods = HashMap::from([("A".to_string(), 0.1), ("C".to_string(), 0.2)]);
-        let scores = vec![(effect_score, likelihoods)];
+        let supporting_reads = vec![HashMap::from([("A".to_string(), 10), ("C".to_string(), 5)])];
+        let scores = vec![(effect_score, likelihoods, supporting_reads)];
         write_scores(output_path.as_path(), scores, transcript).unwrap();
         let scores = read_scores(output_path.as_path()).unwrap();
         assert_eq!(scores.len(), 1);
@@ -649,6 +655,13 @@ mod tests {
                 - 0.2)
                 .abs()
                 < 1e-6
+        );
+        assert_eq!(
+            scores.get("chr1:some feature").unwrap()[0].3,
+            vec![HashMap::from([
+                ("A".to_string(), 10u32),
+                ("C".to_string(), 5u32)
+            ])]
         );
     }
 }

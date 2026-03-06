@@ -145,8 +145,9 @@ impl Transcript {
         &self,
         graph: &PathBuf,
         haplotype_metric: HaplotypeMetric,
-    ) -> Result<Vec<Vec<Node>>> {
-        let mut haplotypes = Vec::new();
+    ) -> Result<Vec<(Vec<Node>, Vec<HashMap<String, u32>>)>> {
+        let mut haplotypes: Vec<(Vec<Node>, Vec<HashMap<String, u32>>)> = Vec::new();
+
         for cds in self.cds() {
             if let Ok(graph) = feature_graph(
                 graph.to_owned(),
@@ -159,7 +160,7 @@ impl Transcript {
                     graph.graph.node_count()
                 );
 
-                let paths = if graph.graph.node_count() > 10 {
+                let raw_paths = if graph.graph.node_count() > 10 {
                     info!(
                         "Using beam search for transcript {} with {} nodes",
                         self.name(),
@@ -181,16 +182,18 @@ impl Transcript {
                         }
                     }
                 } else {
-                    // Use traditional exhaustive enumeration for smaller graphs
                     self.paths(&graph)?
                 };
 
-                let paths = paths
+                let paths: Vec<(Vec<Node>, Vec<HashMap<String, u32>>)> = raw_paths
                     .iter()
                     .map(|p| {
-                        p.0.iter()
-                            .map(|v| graph.graph.node_weight(*v).unwrap().to_owned())
-                            .collect_vec()
+                        let nodes =
+                            p.0.iter()
+                                .map(|v| graph.graph.node_weight(*v).unwrap().to_owned())
+                                .collect_vec();
+                        let edge_reads = graph.edge_reads(&p.0);
+                        (nodes, edge_reads)
                     })
                     .collect_vec();
 
@@ -201,26 +204,40 @@ impl Transcript {
                 } else {
                     let mut extended = Vec::new();
 
-                    for (existing_path, new_path) in
+                    for ((existing_nodes, existing_edges), (new_nodes, new_edges)) in
                         haplotypes.iter().cartesian_product(paths.iter())
                     {
-                        let mut combined = existing_path.clone();
-                        combined.extend(new_path.iter().cloned());
-                        extended.push(combined);
+                        let mut combined_nodes = existing_nodes.clone();
+                        combined_nodes.extend(new_nodes.iter().cloned());
+
+                        // Junction edge between CDSs: no read support spans this boundary,
+                        // so we insert zeros for all samples (derived from the last node of
+                        // the left path, which always carries the full sample set via `vaf`).
+                        let junction: HashMap<String, u32> = existing_nodes
+                            .last()
+                            .map(|node| node.vaf.keys().map(|s| (s.clone(), 0u32)).collect())
+                            .unwrap_or_default();
+
+                        let mut combined_edges = existing_edges.clone();
+                        combined_edges.push(junction);
+                        combined_edges.extend(new_edges.iter().cloned());
+
+                        extended.push((combined_nodes, combined_edges));
                     }
 
                     if extended.len() > 100 {
-                        let mut scored: Vec<(Vec<Node>, f32)> = extended
-                            .into_iter()
-                            .map(|h| {
-                                let score = haplotype_metric
-                                    .calculate(&h)
-                                    .values()
-                                    .cloned()
-                                    .fold(f32::NEG_INFINITY, f32::max);
-                                (h, score)
-                            })
-                            .collect();
+                        let mut scored: Vec<((Vec<Node>, Vec<HashMap<String, u32>>), f32)> =
+                            extended
+                                .into_iter()
+                                .map(|(h, e)| {
+                                    let score = haplotype_metric
+                                        .calculate(&h)
+                                        .values()
+                                        .cloned()
+                                        .fold(f32::NEG_INFINITY, f32::max);
+                                    ((h, e), score)
+                                })
+                                .collect();
                         scored.sort_by(|a, b| {
                             b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)
                         });
@@ -241,11 +258,11 @@ impl Transcript {
         reference: &HashMap<String, Vec<u8>>,
         haplotype_metric: HaplotypeMetric,
         distance_metric: DistanceMetric,
-    ) -> Result<Vec<(EffectScore, HaplotypeFrequency)>> {
+    ) -> Result<Vec<(EffectScore, HaplotypeFrequency, Vec<HashMap<String, u32>>)>> {
         let haplotypes = self.haplotypes(graph, haplotype_metric)?;
         let mut scores = Vec::with_capacity(haplotypes.len());
         let original_protein = Protein::from_transcript(reference, self)?;
-        for haplotype in haplotypes {
+        for (haplotype, supporting_reads) in haplotypes {
             let realign = haplotype.iter().map(|node| node.frameshift()).sum::<i64>() != 0;
             let effect_score = EffectScore::from_haplotype(
                 reference,
@@ -256,7 +273,7 @@ impl Transcript {
                 realign,
             )?;
             let frequency = haplotype_metric.calculate(&haplotype);
-            scores.push((effect_score, frequency));
+            scores.push((effect_score, frequency, supporting_reads));
         }
         Ok(scores)
     }

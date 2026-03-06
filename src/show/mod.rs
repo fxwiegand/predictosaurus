@@ -75,7 +75,7 @@ pub(crate) fn render_html_paths(
 }
 
 /// Writes given per-haplotype scores into a single TSV file with the columns:
-/// `transcript`, `score`, and one column per sample . Each row corresponds to one (score, per-sample) pair for a given transcript.
+/// `transcript`, `score`, and two columns per sample containing the frequency and supporting read information. Each row corresponds to one (score, per-sample) pair for a given transcript.
 ///
 /// # Arguments
 ///
@@ -83,7 +83,7 @@ pub(crate) fn render_html_paths(
 /// * `scores` - A reference to a `HashMap` that holds the scores, likelihoods, and haplotypes for each transcript.
 pub(crate) fn render_scores(
     output_path: &PathBuf,
-    scores: &HashMap<String, Vec<(f64, HaplotypeFrequency, String)>>,
+    scores: &HashMap<String, Vec<(f64, HaplotypeFrequency, String, Vec<HashMap<String, u32>>)>>,
 ) -> Result<()> {
     let mut wtr = WriterBuilder::new()
         .delimiter(b'\t')
@@ -94,17 +94,22 @@ pub(crate) fn render_scores(
         .flat_map(|scores| {
             scores
                 .iter()
-                .flat_map(|(_, sample_scores, _)| sample_scores.keys().cloned())
+                .flat_map(|(_, sample_scores, _, _)| sample_scores.keys().cloned())
         })
         .unique()
         .collect();
 
-    let mut headers = vec!["transcript", "score", "haplotype"];
-    headers.extend(samples.iter().map(|s| s.as_str()));
+    let mut headers = vec![
+        "transcript".to_string(),
+        "score".to_string(),
+        "haplotype".to_string(),
+    ];
+    headers.extend(samples.iter().map(|s| format!("{}:frequency", s)));
+    headers.extend(samples.iter().map(|s| format!("{}:supporting_reads", s)));
     wtr.write_record(headers)?;
 
     for (transcript, hap_scores) in scores {
-        for (score_val, sample_scores, haplotype) in hap_scores {
+        for (score_val, sample_scores, haplotype, supporting_reads) in hap_scores {
             let mut row = vec![
                 transcript.to_string(),
                 score_val.to_string(),
@@ -119,6 +124,14 @@ pub(crate) fn render_scores(
                     )
                 })?;
                 row.push(val.to_string());
+            }
+            for sample in &samples {
+                let reads = supporting_reads
+                    .iter()
+                    .filter_map(|m| m.get(sample))
+                    .cloned()
+                    .join(";");
+                row.push(reads);
             }
             wtr.write_record(row)?;
         }
@@ -200,17 +213,23 @@ mod tests {
     fn test_render_scores() {
         let temp_dir = tempfile::tempdir().unwrap();
         let output_path = temp_dir.keep().join("scores.tsv");
-        let scores = HashMap::from([
-            (
-                "transcript1".to_string(),
-                vec![(0.8, HashMap::new(), "c.[100A>G;105C>T]".to_string())],
-            ),
-            (
-                "transcript2".to_string(),
-                vec![(0.6, HashMap::new(), "c.[100A>G;105C>T]".to_string())],
-            ),
-        ]);
+        let scores = HashMap::from([(
+            "chr1:some feature".to_string(),
+            vec![(
+                0.04f64,
+                HashMap::from([("A".to_string(), 0.1f32), ("C".to_string(), 0.2f32)]),
+                "c.[100A>G;105C>T]".to_string(),
+                vec![HashMap::from([
+                    ("A".to_string(), 10u32),
+                    ("C".to_string(), 5u32),
+                ])],
+            )],
+        )]);
         render_scores(&output_path, &scores).unwrap();
+        let content = std::fs::read_to_string(&output_path).unwrap();
         assert!(output_path.exists());
+        assert!(content.contains("transcript"));
+        assert!(content.contains("chr1:some feature"));
+        assert!(content.contains("10"));
     }
 }
