@@ -346,6 +346,23 @@ impl VariantGraph {
     pub(crate) fn is_empty(&self) -> bool {
         self.graph.node_count() == 0
     }
+
+    pub(crate) fn edge_reads(&self, path: &[NodeIndex]) -> Vec<HashMap<String, u32>> {
+        path.windows(2)
+            .map(|w| {
+                let edge = self
+                    .graph
+                    .find_edge(w[0], w[1])
+                    .or_else(|| self.graph.find_edge(w[1], w[0]))
+                    .expect("Consecutive nodes in a valid path must share an edge.");
+                self.graph
+                    .edge_weight(edge)
+                    .expect("Edge exists in graph but has no weight — graph is malformed.")
+                    .supporting_reads
+                    .clone()
+            })
+            .collect()
+    }
 }
 
 fn shift_phase(phase: u8, frameshift: u8) -> u8 {
@@ -1032,5 +1049,69 @@ mod tests {
             graph.graph.node_count(),
             deserialized_graph.graph.node_count()
         );
+    }
+
+    fn setup_graph_with_edges() -> VariantGraph {
+        let mut graph = Graph::<Node, Edge, Directed>::new();
+        let node0 = graph.add_node(Node::new(
+            NodeType::Reference,
+            1,
+            "C".to_string(),
+            "A".to_string(),
+        ));
+        let node1 = graph.add_node(Node::new(
+            NodeType::Variant,
+            1,
+            "C".to_string(),
+            "A".to_string(),
+        ));
+        let node2 = graph.add_node(Node::new(
+            NodeType::Variant,
+            2,
+            "T".to_string(),
+            "T".to_string(),
+        ));
+        let node3 = graph.add_node(Node::new(
+            NodeType::Variant,
+            3,
+            "T".to_string(),
+            "G".to_string(),
+        ));
+        graph.add_edge(
+            node1,
+            node2,
+            Edge {
+                supporting_reads: HashMap::from([("s1".to_string(), 3u32)]),
+            },
+        );
+        graph.add_edge(
+            node2,
+            node3,
+            Edge {
+                supporting_reads: HashMap::from([("s1".to_string(), 5u32)]),
+            },
+        );
+        VariantGraph {
+            graph,
+            start: 0,
+            end: 3,
+            target: "test".to_string(),
+        }
+    }
+
+    #[test]
+    fn edge_reads_returns_reads_for_forward_path() {
+        let g = setup_graph_with_edges();
+        let idx = g.graph.node_indices().skip(1).collect_vec();
+        assert_eq!(g.edge_reads(&idx).len(), 2);
+    }
+
+    #[test]
+    fn edge_reads_returns_reads_for_reverse_path() {
+        let g = setup_graph_with_edges();
+        let idx = g.graph.node_indices().skip(1).rev().collect_vec();
+        let reads = g.edge_reads(&idx);
+        assert_eq!(reads.len(), 2);
+        assert_eq!(reads[0].get("s1"), Some(&5));
     }
 }
