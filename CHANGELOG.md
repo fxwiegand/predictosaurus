@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/fxwiegand/predictosaurus/compare/v0.9.3...v0.10.0) (2026-03-06)
+
+
+### Features
+
+* Write supporting read information per haplotype ([#214](https://github.com/fxwiegand/predictosaurus/issues/214)) ([9b95451](https://github.com/fxwiegand/predictosaurus/commit/9b95451ddfa873097b26751531122f92f5681980))
+
 ## [0.9.3](https://github.com/fxwiegand/predictosaurus/compare/v0.9.2...v0.9.3) (2026-03-04)
 
 
