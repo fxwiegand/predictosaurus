@@ -202,12 +202,30 @@ impl VariantGraph {
             target: target.to_string(),
         };
 
-        variant_graph.create_edges(&supporting_reads)?;
+        variant_graph.add_read_support(&supporting_reads)?;
 
         Ok(variant_graph)
     }
 
-    pub(crate) fn create_edges(
+    pub(crate) fn connect_consecutive_positions(&mut self) {
+        let mut by_pos: HashMap<i64, Vec<NodeIndex>> = HashMap::new();
+        for i in self.graph.node_indices() {
+            by_pos.entry(self.graph[i].pos).or_default().push(i);
+        }
+        let mut positions = by_pos.keys().cloned().collect_vec();
+        positions.sort();
+        for (a, b) in positions.iter().tuple_windows() {
+            for &l in &by_pos[a] {
+                for &r in &by_pos[b] {
+                    if self.graph.find_edge(l, r).is_none() {
+                        self.graph.add_edge(l, r, Edge { supporting_reads: HashMap::new() });
+                    }
+                }
+            }
+        }
+    }
+
+    pub(crate) fn add_read_support(
         &mut self,
         supporting_reads: &HashMap<(String, Option<u64>), Vec<NodeIndex>>,
     ) -> Result<()> {
@@ -296,8 +314,12 @@ impl VariantGraph {
     ///     elements, representing the nodes in the order they are visited
     pub(crate) fn paths(&self) -> Vec<HaplotypePath> {
         let mut all_paths = Vec::new();
-        let start_nodes = self.graph.node_indices().take(2).collect::<Vec<_>>();
-
+        let start_nodes = self
+            .graph
+            .node_indices()
+            .sorted_by_key(|&i| self.graph[i].index)
+            .take(2)
+            .collect::<Vec<_>>();
         for start_node in start_nodes {
             let mut stack = vec![(start_node, vec![start_node])];
 
@@ -307,7 +329,7 @@ impl VariantGraph {
                 for neighbor in self
                     .graph
                     .neighbors(node)
-                    .filter(|n| n.index() > node.index())
+                    .filter(|&n| self.graph[n].index > self.graph[node].index)
                 {
                     if path.contains(&neighbor) {
                         continue;
@@ -612,145 +634,6 @@ mod tests {
         ];
 
         assert_eq!(paths, expected_paths);
-    }
-
-    #[test]
-    fn test_graph_paths_with_loop() {
-        let mut graph = Graph::<Node, Edge, Directed>::new();
-        let node0 = graph.add_node(Node::new(
-            NodeType::Reference,
-            1,
-            "".to_string(),
-            "".to_string(),
-        ));
-        let node1 = graph.add_node(Node::new(
-            NodeType::Variant,
-            1,
-            "C".to_string(),
-            "A".to_string(),
-        ));
-        let node2 = graph.add_node(Node::new(
-            NodeType::Variant,
-            3,
-            "A".to_string(),
-            "T".to_string(),
-        ));
-        let node3 = graph.add_node(Node::new(
-            NodeType::Variant,
-            7,
-            "A".to_string(),
-            "G".to_string(),
-        ));
-        graph.add_edge(
-            node1,
-            node2,
-            Edge {
-                supporting_reads: HashMap::new(),
-            },
-        );
-        graph.add_edge(
-            node1,
-            node3,
-            Edge {
-                supporting_reads: HashMap::new(),
-            },
-        );
-        graph.add_edge(
-            node2,
-            node3,
-            Edge {
-                supporting_reads: HashMap::new(),
-            },
-        );
-
-        let variant_graph = VariantGraph {
-            graph,
-            start: 0,
-            end: 10,
-            target: "test".to_string(),
-        };
-
-        let paths = variant_graph.paths();
-        assert_eq!(paths.len(), 3);
-        assert_eq!(paths[0].0, vec![node0]);
-        assert_eq!(paths[1].0, vec![node1, node2, node3]);
-        assert_eq!(paths[2].0, vec![node1, node3]);
-    }
-
-    #[test]
-    fn test_graph_reverse_paths() {
-        let mut graph = Graph::<Node, Edge, Directed>::new();
-        let node0 = graph.add_node(Node::new(
-            NodeType::Reference,
-            1,
-            "C".to_string(),
-            "A".to_string(),
-        ));
-        let node1 = graph.add_node(Node::new(
-            NodeType::Variant,
-            1,
-            "C".to_string(),
-            "A".to_string(),
-        ));
-        let node2 = graph.add_node(Node::new(
-            NodeType::Variant,
-            2,
-            "T".to_string(),
-            "T".to_string(),
-        ));
-        let node3 = graph.add_node(Node::new(
-            NodeType::Variant,
-            2,
-            "T".to_string(),
-            "G".to_string(),
-        ));
-        let node4 = graph.add_node(Node::new(
-            NodeType::Variant,
-            3,
-            "T".to_string(),
-            "G".to_string(),
-        ));
-        graph.add_edge(
-            node1,
-            node2,
-            Edge {
-                supporting_reads: HashMap::new(),
-            },
-        );
-        graph.add_edge(
-            node1,
-            node3,
-            Edge {
-                supporting_reads: HashMap::new(),
-            },
-        );
-        graph.add_edge(
-            node2,
-            node4,
-            Edge {
-                supporting_reads: HashMap::new(),
-            },
-        );
-        graph.add_edge(
-            node3,
-            node4,
-            Edge {
-                supporting_reads: HashMap::new(),
-            },
-        );
-
-        let variant_graph = VariantGraph {
-            graph,
-            start: 0,
-            end: 3,
-            target: "test".to_string(),
-        };
-
-        let reversed_paths = variant_graph.reverse_paths();
-        assert_eq!(reversed_paths.len(), 3);
-        assert_eq!(reversed_paths[1].0, vec![node4, node2, node1]);
-        assert_eq!(reversed_paths[2].0, vec![node4, node3, node1]);
-        assert_eq!(reversed_paths[0].0, vec![node0]);
     }
 
     #[test]

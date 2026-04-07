@@ -188,10 +188,10 @@ impl Transcript {
                 let paths: Vec<(Vec<Node>, Vec<HashMap<String, u32>>)> = raw_paths
                     .iter()
                     .map(|p| {
-                        let nodes =
-                            p.0.iter()
-                                .map(|v| graph.graph.node_weight(*v).unwrap().to_owned())
-                                .collect_vec();
+                        let nodes = p.0
+                            .iter()
+                            .map(|v| graph.graph.node_weight(*v).unwrap().to_owned())
+                            .collect_vec();
                         let edge_reads = graph.edge_reads(&p.0);
                         (nodes, edge_reads)
                     })
@@ -1006,7 +1006,7 @@ chr1\tsource\tCDS\t400\t500\t.\t-\t0\tID=ENSP00000493377
         )]);
         let weights = transcript.weights(&graph_path, &reference).unwrap();
         assert_eq!(weights.len(), 4);
-        assert_eq!(weights[0].len(), 3);
+        assert_eq!(weights[0].len(), 4);
     }
 
     #[test]
