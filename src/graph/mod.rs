@@ -202,6 +202,7 @@ impl VariantGraph {
             target: target.to_string(),
         };
 
+        variant_graph.connect_consecutive_positions();
         variant_graph.add_read_support(&supporting_reads)?;
 
         Ok(variant_graph)
