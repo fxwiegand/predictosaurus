@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/fxwiegand/predictosaurus/compare/v0.10.0...v0.10.1) (2026-04-07)
+
+
+### Bug Fixes
+
+* Fix and refactor graph edge creation and path traversal ([#220](https://github.com/fxwiegand/predictosaurus/issues/220)) ([85ebd92](https://github.com/fxwiegand/predictosaurus/commit/85ebd92a23c45af0b3206b236d3768a6069694de))
+
 ## [0.10.0](https://github.com/fxwiegand/predictosaurus/compare/v0.10.0...v0.10.0) (2026-03-06)
 
 
