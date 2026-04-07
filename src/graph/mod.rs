@@ -218,7 +218,13 @@ impl VariantGraph {
             for &l in &by_pos[a] {
                 for &r in &by_pos[b] {
                     if self.graph.find_edge(l, r).is_none() {
-                        self.graph.add_edge(l, r, Edge { supporting_reads: HashMap::new() });
+                        self.graph.add_edge(
+                            l,
+                            r,
+                            Edge {
+                                supporting_reads: HashMap::new(),
+                            },
+                        );
                     }
                 }
             }

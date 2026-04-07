@@ -188,10 +188,10 @@ impl Transcript {
                 let paths: Vec<(Vec<Node>, Vec<HashMap<String, u32>>)> = raw_paths
                     .iter()
                     .map(|p| {
-                        let nodes = p.0
-                            .iter()
-                            .map(|v| graph.graph.node_weight(*v).unwrap().to_owned())
-                            .collect_vec();
+                        let nodes =
+                            p.0.iter()
+                                .map(|v| graph.graph.node_weight(*v).unwrap().to_owned())
+                                .collect_vec();
                         let edge_reads = graph.edge_reads(&p.0);
                         (nodes, edge_reads)
                     })
