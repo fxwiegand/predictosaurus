@@ -1006,7 +1006,7 @@ chr1\tsource\tCDS\t400\t500\t.\t-\t0\tID=ENSP00000493377
         )]);
         let weights = transcript.weights(&graph_path, &reference).unwrap();
         assert_eq!(weights.len(), 4);
-        assert_eq!(weights[0].len(), 3);
+        assert_eq!(weights[0].len(), 4);
     }
 
     #[test]
