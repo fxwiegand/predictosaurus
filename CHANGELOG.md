@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.2](https://github.com/fxwiegand/predictosaurus/compare/v0.10.1...v0.10.2) (2026-04-09)
+
+
+### Bug Fixes
+
+* Fix supporting reads output properly and revert [#222](https://github.com/fxwiegand/predictosaurus/issues/222) ([#224](https://github.com/fxwiegand/predictosaurus/issues/224)) ([920af54](https://github.com/fxwiegand/predictosaurus/commit/920af547e974e60e4c454e459cad21ccef10fa7d))
+* Initialize supporting reads for all samples ([#222](https://github.com/fxwiegand/predictosaurus/issues/222)) ([1b96a0a](https://github.com/fxwiegand/predictosaurus/commit/1b96a0a437d27691b7e4f0335e8d432e2d75599d))
+
 ## [0.10.1](https://github.com/fxwiegand/predictosaurus/compare/v0.10.0...v0.10.1) (2026-04-07)
 
 
