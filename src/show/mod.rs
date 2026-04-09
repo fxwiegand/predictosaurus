@@ -128,7 +128,7 @@ pub(crate) fn render_scores(
             for sample in &samples {
                 let reads = supporting_reads
                     .iter()
-                    .filter_map(|m| m.get(sample))
+                    .map(|m| m.get(sample).unwrap_or(&0))
                     .cloned()
                     .join(";");
                 row.push(reads);

@@ -202,13 +202,13 @@ impl VariantGraph {
             target: target.to_string(),
         };
 
-        variant_graph.connect_consecutive_positions(samples.as_slice());
+        variant_graph.connect_consecutive_positions();
         variant_graph.add_read_support(&supporting_reads)?;
 
         Ok(variant_graph)
     }
 
-    pub(crate) fn connect_consecutive_positions(&mut self, samples: &[String]) {
+    pub(crate) fn connect_consecutive_positions(&mut self) {
         let mut by_pos: HashMap<i64, Vec<NodeIndex>> = HashMap::new();
         for i in self.graph.node_indices() {
             by_pos.entry(self.graph[i].pos).or_default().push(i);
@@ -219,15 +219,11 @@ impl VariantGraph {
             for &l in &by_pos[a] {
                 for &r in &by_pos[b] {
                     if self.graph.find_edge(l, r).is_none() {
-                        let mut sr = HashMap::new();
-                        for s in samples {
-                            sr.insert(s.to_string(), 0);
-                        }
                         self.graph.add_edge(
                             l,
                             r,
                             Edge {
-                                supporting_reads: sr,
+                                supporting_reads: HashMap::new(),
                             },
                         );
                     }
