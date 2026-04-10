@@ -94,10 +94,16 @@ impl Command {
                 info!("Reading reference genome from {reference:?}");
                 let reference_genome = utils::fasta::read_reference(reference);
                 let write_lock = Arc::new(Mutex::new(()));
-                transcripts(features, graph, *max_cds_length)?
-                    .into_par_iter()
-                    .try_for_each(|transcript| -> anyhow::Result<()> {
-                        info!("Processing transcript {}", transcript.name());
+                let transcripts = transcripts(features, graph, *max_cds_length)?;
+                let total = transcripts.len();
+                transcripts.into_par_iter().enumerate().try_for_each(
+                    |(i, transcript)| -> anyhow::Result<()> {
+                        info!(
+                            "Processing transcript {} ({}/{})",
+                            transcript.name(),
+                            i + 1,
+                            total
+                        );
                         let scores = transcript.scores(
                             graph,
                             &reference_genome,
@@ -112,7 +118,8 @@ impl Command {
                         let _lock = write_lock.lock().unwrap();
                         write_scores(output, scores, transcript)?;
                         Ok(())
-                    })?;
+                    },
+                )?;
             }
             Command::Peptides {
                 features,
