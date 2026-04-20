@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.4](https://github.com/fxwiegand/predictosaurus/compare/v0.10.3...v0.10.4) (2026-04-20)
+
+
+### Bug Fixes
+
+* Fix index for multiple variants at single genomic position ([#229](https://github.com/fxwiegand/predictosaurus/issues/229)) ([843a255](https://github.com/fxwiegand/predictosaurus/commit/843a25517cdcd2d6022c954badac4c37c23c6740))
+
 ## [0.10.3](https://github.com/fxwiegand/predictosaurus/compare/v0.10.2...v0.10.3) (2026-04-20)
 
 
