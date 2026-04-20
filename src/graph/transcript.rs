@@ -249,6 +249,27 @@ impl Transcript {
                 }
             }
         }
+        let max_edges = haplotypes
+            .iter()
+            .map(|(_, edges)| edges.len())
+            .max()
+            .unwrap_or(0);
+        let max_reads_per_edge: Vec<u32> = (0..max_edges)
+            .map(|i| {
+                haplotypes
+                    .iter()
+                    .filter_map(|(_, edges)| edges.get(i))
+                    .map(|e| e.values().sum::<u32>())
+                    .max()
+                    .unwrap_or(0)
+            })
+            .collect();
+        haplotypes.retain(|(_, edges)| {
+            edges.iter().enumerate().all(|(i, edge)| {
+                let total: u32 = edge.values().sum();
+                total > 0 || max_reads_per_edge[i] == 0
+            })
+        });
         Ok(haplotypes)
     }
 
