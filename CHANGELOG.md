@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.3](https://github.com/fxwiegand/predictosaurus/compare/v0.10.2...v0.10.3) (2026-04-20)
+
+
+### Bug Fixes
+
+* Filter haplotypes lacking supported edges ([#227](https://github.com/fxwiegand/predictosaurus/issues/227)) ([4fec1dd](https://github.com/fxwiegand/predictosaurus/commit/4fec1dd519a772b73dea4eebff8557bc977ecd99))
+
 ## [0.10.2](https://github.com/fxwiegand/predictosaurus/compare/v0.10.1...v0.10.2) (2026-04-09)
 
 
