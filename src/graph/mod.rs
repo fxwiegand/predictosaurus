@@ -93,6 +93,12 @@ impl VariantGraph {
         for calls_record in calls_reader.records() {
             let mut calls_record = calls_record?;
             let position = calls_record.pos();
+            if last_position == -1 {
+                start = position; // Set start position
+            }
+            if last_position != position {
+                index += 1;
+            }
             let mut observations_records = observations_records
                 .iter_mut()
                 .map(|(sample, records)| {
@@ -162,7 +168,6 @@ impl VariantGraph {
                     index,
                 );
                 ref_node_index = Some(variant_graph.add_node(ref_node));
-                index += 1;
             }
 
             for (sample, observations) in observations {
@@ -188,9 +193,6 @@ impl VariantGraph {
                         }
                     }
                 }
-            }
-            if last_position == -1 {
-                start = position; // Set start position
             }
             last_position = position;
         }
