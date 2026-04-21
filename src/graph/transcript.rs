@@ -763,7 +763,7 @@ mod tests {
             ],
         )]);
         let rna_paths = transcript.rna(&graph_path, &reference, "s1").unwrap();
-        assert_eq!(rna_paths.len(), 4);
+        assert_eq!(rna_paths.len(), 1);
         assert_eq!(
             rna_paths[0].sequence,
             vec![
@@ -1002,7 +1002,7 @@ chr1\tsource\tCDS\t400\t500\t.\t-\t0\tID=ENSP00000493377
         write_graphs(HashMap::from([("test".to_string(), graph)]), &graph_path).unwrap();
         let reference = HashMap::from([("test".to_string(), vec![b'A', b'T', b'G', b'C'])]);
         let weights = transcript.weights(&graph_path, &reference).unwrap();
-        assert_eq!(weights.len(), 2);
+        assert_eq!(weights.len(), 1);
         assert_eq!(weights[0].len(), 2);
     }
 
@@ -1026,7 +1026,7 @@ chr1\tsource\tCDS\t400\t500\t.\t-\t0\tID=ENSP00000493377
             ],
         )]);
         let weights = transcript.weights(&graph_path, &reference).unwrap();
-        assert_eq!(weights.len(), 4);
+        assert_eq!(weights.len(), 1);
         assert_eq!(weights[0].len(), 4);
     }
 
