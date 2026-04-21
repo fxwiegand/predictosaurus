@@ -311,15 +311,15 @@ impl VariantGraph {
         Ok(())
     }
 
-    /// Finds all paths starting from the first two nodes in the graph.
+    /// Finds all paths starting from all nodes with the lowest graph index.
     ///
-    /// This method performs a depth-first search (DFS) starting from the first two nodes
-    /// in the graph. It collects all possible paths, including those that reach leaf nodes
+    /// This method performs a depth-first search (DFS) starting from from every node whose graph index is the minimum index in the graph.
+    /// It collects all possible paths, including those that reach leaf nodes
     /// (nodes with no outgoing edges). The paths are represented as vectors of `NodeIndex`.
     ///
     /// Returns:
     ///     A vector of vectors, where each inner vector represents a path through the graph
-    ///     starting from one of the initial nodes. Each path is a sequence of `NodeIndex`
+    ///     starting from one of the lowest-index start nodes. Each path is a sequence of `NodeIndex`
     ///     elements, representing the nodes in the order they are visited
     pub(crate) fn paths(&self) -> Vec<HaplotypePath> {
         let mut all_paths = Vec::new();
