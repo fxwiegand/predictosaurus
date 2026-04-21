@@ -323,11 +323,16 @@ impl VariantGraph {
     ///     elements, representing the nodes in the order they are visited
     pub(crate) fn paths(&self) -> Vec<HaplotypePath> {
         let mut all_paths = Vec::new();
+        let min_index = self
+            .graph
+            .node_indices()
+            .map(|i| self.graph[i].index)
+            .min()
+            .unwrap();
         let start_nodes = self
             .graph
             .node_indices()
-            .sorted_by_key(|&i| self.graph[i].index)
-            .take(2)
+            .filter(|&i| self.graph[i].index == min_index)
             .collect::<Vec<_>>();
         for start_node in start_nodes {
             let mut stack = vec![(start_node, vec![start_node])];
