@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.5](https://github.com/fxwiegand/predictosaurus/compare/v0.10.4...v0.10.5) (2026-04-21)
+
+
+### Bug Fixes
+
+* Consider all possible start nodes for path enumeration ([#234](https://github.com/fxwiegand/predictosaurus/issues/234)) ([d19f0b0](https://github.com/fxwiegand/predictosaurus/commit/d19f0b0aaedb8d04dd2bf7c4099e05f42483f964))
+
 ## [0.10.4](https://github.com/fxwiegand/predictosaurus/compare/v0.10.3...v0.10.4) (2026-04-20)
 
 
