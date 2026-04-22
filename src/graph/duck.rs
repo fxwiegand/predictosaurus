@@ -1,3 +1,4 @@
+use crate::annotation::Annotation;
 use crate::graph::node::{Node, NodeType};
 use crate::graph::paths::{Cds, Weight};
 use crate::graph::score::EffectScore;
@@ -185,20 +186,26 @@ pub(crate) fn create_scores(output_path: &Path) -> Result<()> {
 
 pub(crate) fn write_scores(
     path: &Path,
-    scores: Vec<(EffectScore, HaplotypeFrequency, Vec<HashMap<String, u32>>)>,
+    scores: Vec<(
+        EffectScore,
+        HaplotypeFrequency,
+        Vec<HashMap<String, u32>>,
+        Annotation,
+    )>,
     transcript: Transcript,
 ) -> Result<()> {
     let mut db = Connection::open(path)?;
     let transaction = db.transaction()?;
-    let mut stmt = transaction.prepare("INSERT INTO scores VALUES (?, ?, ?, ?, ?)")?;
+    let mut stmt = transaction.prepare("INSERT INTO scores VALUES (?, ?, ?, ?, ?, ?)")?;
     let transcript_name = transcript.name();
-    for (score, likelihoods, supporting_reads) in scores {
+    for (score, likelihoods, supporting_reads, annotation) in scores {
         stmt.execute(params![
             transcript_name.as_str(),
             score.score(),
             json5::to_string(&likelihoods)?,
             score.haplotype,
             json5::to_string(&supporting_reads)?,
+            json5::to_string(&annotation)?,
         ])?;
     }
     transaction.commit()?;
@@ -208,11 +215,22 @@ pub(crate) fn write_scores(
 
 pub(crate) fn read_scores(
     path: &Path,
-) -> Result<HashMap<String, Vec<(f64, HaplotypeFrequency, String, Vec<HashMap<String, u32>>)>>> {
+) -> Result<
+    HashMap<
+        String,
+        Vec<(
+            f64,
+            HaplotypeFrequency,
+            String,
+            Vec<HashMap<String, u32>>,
+            Annotation,
+        )>,
+    >,
+> {
     let db = Connection::open(path)?;
     let mut scores = HashMap::new();
     let mut stmt = db.prepare(
-        "SELECT transcript, score, likelihoods, haplotype, supporting_reads FROM scores",
+        "SELECT transcript, score, likelihoods, haplotype, supporting_reads, annotation FROM scores",
     )?;
     let mut rows = stmt.query([])?;
     while let Some(row) = rows.next()? {
@@ -221,11 +239,13 @@ pub(crate) fn read_scores(
         let likelihoods: String = row.get(2)?;
         let haplotype: String = row.get(3)?;
         let supporting_reads: String = row.get(4)?;
+        let annotation: String = row.get(5)?;
         scores.entry(transcript).or_insert(Vec::new()).push((
             score,
             json5::from_str(&likelihoods)?,
             haplotype,
             json5::from_str(&supporting_reads)?,
+            json5::from_str(&annotation)?,
         ));
     }
     db.close().unwrap();

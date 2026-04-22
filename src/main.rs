@@ -23,6 +23,7 @@ use rayon::ThreadPoolBuilder;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+mod annotation;
 mod cli;
 mod graph;
 mod impact;
@@ -89,6 +90,7 @@ impl Command {
                 haplotype_metric,
                 output,
                 max_cds_length,
+                genome_build,
             } => {
                 create_scores(output)?;
                 info!("Reading reference genome from {reference:?}");

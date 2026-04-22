@@ -1,3 +1,4 @@
+use crate::annotation::Annotation;
 use crate::cli::Interval;
 use crate::graph::duck::{feature_graph, variants_on_graph};
 use crate::graph::node::{Node, NodeType};
@@ -279,7 +280,14 @@ impl Transcript {
         reference: &HashMap<String, Vec<u8>>,
         haplotype_metric: HaplotypeMetric,
         distance_metric: DistanceMetric,
-    ) -> Result<Vec<(EffectScore, HaplotypeFrequency, Vec<HashMap<String, u32>>)>> {
+    ) -> Result<
+        Vec<(
+            EffectScore,
+            HaplotypeFrequency,
+            Vec<HashMap<String, u32>>,
+            Annotation,
+        )>,
+    > {
         let haplotypes = self.haplotypes(graph, haplotype_metric)?;
         let mut scores = Vec::with_capacity(haplotypes.len());
         let original_protein = Protein::from_transcript(reference, self)?;
@@ -294,7 +302,8 @@ impl Transcript {
                 realign,
             )?;
             let frequency = haplotype_metric.calculate(&haplotype);
-            scores.push((effect_score, frequency, supporting_reads));
+            let annotation = Annotation::from_haplotype(&haplotype, self)?;
+            scores.push((effect_score, frequency, supporting_reads, annotation));
         }
         Ok(scores)
     }
