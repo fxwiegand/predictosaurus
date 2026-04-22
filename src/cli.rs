@@ -77,7 +77,7 @@ pub(crate) enum Command {
         #[clap(long, default_value = "5000")]
         max_cds_length: u64,
 
-        /// Genome build to use for fetching GeneBe annotations. Must be one of `Hg38`, `Hg19` or `T2t.
+        /// Genome build to use for fetching GeneBe annotations. Must be one of `Hg38`, `Hg19` or `T2t`.
         #[clap(long, default_value = "Hg38")]
         genome_build: genebears::Genome,
     },
