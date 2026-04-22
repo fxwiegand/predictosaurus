@@ -16,7 +16,11 @@ pub(crate) struct Annotation {
 }
 
 impl Annotation {
-    pub(crate) fn from_haplotype(haplotype: &[Node], transcript: &Transcript, genome_build: Genome) -> Result<Self> {
+    pub(crate) fn from_haplotype(
+        haplotype: &[Node],
+        transcript: &Transcript,
+        genome_build: Genome,
+    ) -> Result<Self> {
         let mut variants: Vec<_> = haplotype
             .iter()
             .filter(|n| n.node_type.is_variant())

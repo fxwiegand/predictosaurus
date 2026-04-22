@@ -254,7 +254,8 @@ mod tests {
                 vec![HashMap::from([
                     ("A".to_string(), 10u32),
                     ("C".to_string(), 5u32),
-                ])],annotion
+                ])],
+                annotion,
             )],
         )]);
         render_scores(&output_path, &scores).unwrap();
