@@ -198,7 +198,7 @@ pub(crate) fn write_scores(
     let transaction = db.transaction()?;
     let mut stmt = transaction.prepare("INSERT INTO scores VALUES (?, ?, ?, ?, ?, ?)")?;
     let transcript_name = transcript.name();
-for (score, frequencies, supporting_reads, annotation) in scores {
+    for (score, frequencies, supporting_reads, annotation) in scores {
         stmt.execute(params![
             transcript_name.as_str(),
             score.score(),
