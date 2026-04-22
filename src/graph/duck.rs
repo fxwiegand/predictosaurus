@@ -177,7 +177,7 @@ pub(crate) fn variants_on_graph(path: &PathBuf) -> Result<HashMap<String, BTreeS
 pub(crate) fn create_scores(output_path: &Path) -> Result<()> {
     let db = Connection::open(output_path)?;
     db.execute(
-        "CREATE TABLE scores (transcript String, score FLOAT, frequencies String, haplotype String, supporting_reads String)",
+        "CREATE TABLE scores (transcript String, score FLOAT, frequencies String, haplotype String, supporting_reads String, annotation String)",
         [],
     )?;
     db.close().unwrap();
@@ -653,7 +653,13 @@ mod tests {
         };
         let frequencies = HashMap::from([("A".to_string(), 0.1), ("C".to_string(), 0.2)]);
         let supporting_reads = vec![HashMap::from([("A".to_string(), 10), ("C".to_string(), 5)])];
-        let scores = vec![(effect_score, frequencies, supporting_reads)];
+        let annotion = Annotation {
+            revel_score: Some(0.8),
+            acmg_score: Some(0.9),
+            spliceai_score: Some(0.7),
+            alphamissense_score: Some(0.6),
+        };
+        let scores = vec![(effect_score, frequencies, supporting_reads, annotion)];
         write_scores(output_path.as_path(), scores, transcript).unwrap();
         let scores = read_scores(output_path.as_path()).unwrap();
         assert_eq!(scores.len(), 1);

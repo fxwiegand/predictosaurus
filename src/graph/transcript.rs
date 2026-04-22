@@ -12,9 +12,11 @@ use crate::translation::amino_acids::{AminoAcid, Protein};
 use crate::translation::distance::DistanceMetric;
 use crate::utils::fasta::reverse_complement;
 use anyhow::{bail, Result};
+use bio::bio_types::genome;
 use bio::bio_types::strand::Strand;
 use bio::io::gff::{self, Phase};
 use bio::stats::LogProb;
+use genebears::Genome;
 use itertools::Itertools;
 use log::{info, warn};
 use petgraph::adj::NodeIndex;
@@ -280,6 +282,7 @@ impl Transcript {
         reference: &HashMap<String, Vec<u8>>,
         haplotype_metric: HaplotypeMetric,
         distance_metric: DistanceMetric,
+        genome_build: Genome,
     ) -> Result<
         Vec<(
             EffectScore,
@@ -302,7 +305,7 @@ impl Transcript {
                 realign,
             )?;
             let frequency = haplotype_metric.calculate(&haplotype);
-            let annotation = Annotation::from_haplotype(&haplotype, self)?;
+            let annotation = Annotation::from_haplotype(&haplotype, self, genome_build)?;
             scores.push((effect_score, frequency, supporting_reads, annotation));
         }
         Ok(scores)

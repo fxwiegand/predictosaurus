@@ -16,7 +16,7 @@ pub(crate) struct Annotation {
 }
 
 impl Annotation {
-    pub(crate) fn from_haplotype(haplotype: &[Node], transcript: &Transcript) -> Result<Self> {
+    pub(crate) fn from_haplotype(haplotype: &[Node], transcript: &Transcript, genome_build: Genome) -> Result<Self> {
         let mut variants: Vec<_> = haplotype
             .iter()
             .filter(|n| n.node_type.is_variant())
@@ -48,7 +48,7 @@ impl Annotation {
         let client = GeneBears::new(ClientConfig::default())?;
         let results = tokio::runtime::Runtime::new()?.block_on(client.annotate_variants(
             &variants,
-            Genome::Hg38,
+            genome_build,
             AnnotateOptions::default(),
         ))?;
 

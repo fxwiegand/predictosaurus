@@ -239,6 +239,12 @@ mod tests {
     fn test_render_scores() {
         let temp_dir = tempfile::tempdir().unwrap();
         let output_path = temp_dir.keep().join("scores.tsv");
+        let annotion = Annotation {
+            revel_score: Some(0.8),
+            acmg_score: Some(0.9),
+            spliceai_score: Some(0.7),
+            alphamissense_score: Some(0.6),
+        };
         let scores = HashMap::from([(
             "chr1:some feature".to_string(),
             vec![(
@@ -248,7 +254,7 @@ mod tests {
                 vec![HashMap::from([
                     ("A".to_string(), 10u32),
                     ("C".to_string(), 5u32),
-                ])],
+                ])],annotion
             )],
         )]);
         render_scores(&output_path, &scores).unwrap();

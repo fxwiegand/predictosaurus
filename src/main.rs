@@ -111,6 +111,7 @@ impl Command {
                             &reference_genome,
                             *haplotype_metric,
                             *distance_metric,
+                            *genome_build,
                         )?;
                         info!(
                             "Writing scores for {} different haplotypes for transcript {}",
