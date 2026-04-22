@@ -76,7 +76,10 @@ pub(crate) fn render_html_paths(
 }
 
 /// Writes given per-haplotype scores into a single TSV file with the columns:
-/// `transcript`, `score`, and two columns per sample containing the frequency and supporting read information. Each row corresponds to one (score, per-sample) pair for a given transcript.
+/// `transcript`, `score`, `haplotype`, annotation score columns (`revel_score`,
+/// `acmg_score`, `spliceai_score`, `alphamissense_score`) and two columns
+/// per sample containing the frequency and supporting read information. Each row
+/// corresponds to one (score, per-sample) pair for a given transcript.
 ///
 /// # Arguments
 ///
