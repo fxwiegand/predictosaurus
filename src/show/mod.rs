@@ -1,3 +1,4 @@
+use crate::annotation::Annotation;
 use crate::graph::paths::{Cds, Weight};
 use crate::graph::score::HaplotypeFrequency;
 use anyhow::anyhow;
@@ -75,7 +76,10 @@ pub(crate) fn render_html_paths(
 }
 
 /// Writes given per-haplotype scores into a single TSV file with the columns:
-/// `transcript`, `score`, and two columns per sample containing the frequency and supporting read information. Each row corresponds to one (score, per-sample) pair for a given transcript.
+/// `transcript`, `score`, `haplotype`, annotation score columns (`revel_score`,
+/// `acmg_score`, `spliceai_score`, `alphamissense_score`) and two columns
+/// per sample containing the frequency and supporting read information. Each row
+/// corresponds to one (score, per-sample) pair for a given transcript.
 ///
 /// # Arguments
 ///
@@ -83,7 +87,16 @@ pub(crate) fn render_html_paths(
 /// * `scores` - A reference to a `HashMap` that holds the scores, likelihoods, and haplotypes for each transcript.
 pub(crate) fn render_scores(
     output_path: &PathBuf,
-    scores: &HashMap<String, Vec<(f64, HaplotypeFrequency, String, Vec<HashMap<String, u32>>)>>,
+    scores: &HashMap<
+        String,
+        Vec<(
+            f64,
+            HaplotypeFrequency,
+            String,
+            Vec<HashMap<String, u32>>,
+            Annotation,
+        )>,
+    >,
 ) -> Result<()> {
     let mut wtr = WriterBuilder::new()
         .delimiter(b'\t')
@@ -94,7 +107,7 @@ pub(crate) fn render_scores(
         .flat_map(|scores| {
             scores
                 .iter()
-                .flat_map(|(_, sample_scores, _, _)| sample_scores.keys().cloned())
+                .flat_map(|(_, sample_scores, _, _, _)| sample_scores.keys().cloned())
         })
         .unique()
         .collect();
@@ -103,17 +116,33 @@ pub(crate) fn render_scores(
         "transcript".to_string(),
         "score".to_string(),
         "haplotype".to_string(),
+        "revel_score".to_string(),
+        "acmg_score".to_string(),
+        "spliceai_score".to_string(),
+        "alphamissense_score".to_string(),
     ];
     headers.extend(samples.iter().map(|s| format!("{}:frequency", s)));
     headers.extend(samples.iter().map(|s| format!("{}:supporting_reads", s)));
     wtr.write_record(headers)?;
 
     for (transcript, hap_scores) in scores {
-        for (score_val, sample_scores, haplotype, supporting_reads) in hap_scores {
+        for (score_val, sample_scores, haplotype, supporting_reads, annotation) in hap_scores {
             let mut row = vec![
                 transcript.to_string(),
                 score_val.to_string(),
                 haplotype.to_string(),
+                annotation
+                    .revel_score
+                    .map_or("".to_string(), |s| s.to_string()),
+                annotation
+                    .acmg_score
+                    .map_or("".to_string(), |s| s.to_string()),
+                annotation
+                    .spliceai_score
+                    .map_or("".to_string(), |s| s.to_string()),
+                annotation
+                    .alphamissense_score
+                    .map_or("".to_string(), |s| s.to_string()),
             ];
             for sample in &samples {
                 let val = sample_scores.get(sample).ok_or_else(|| {
@@ -213,6 +242,12 @@ mod tests {
     fn test_render_scores() {
         let temp_dir = tempfile::tempdir().unwrap();
         let output_path = temp_dir.keep().join("scores.tsv");
+        let annotion = Annotation {
+            revel_score: Some(0.8),
+            acmg_score: Some(0.9),
+            spliceai_score: Some(0.7),
+            alphamissense_score: Some(0.6),
+        };
         let scores = HashMap::from([(
             "chr1:some feature".to_string(),
             vec![(
@@ -223,6 +258,7 @@ mod tests {
                     ("A".to_string(), 10u32),
                     ("C".to_string(), 5u32),
                 ])],
+                annotion,
             )],
         )]);
         render_scores(&output_path, &scores).unwrap();
