@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.1](https://github.com/fxwiegand/predictosaurus/compare/v0.11.0...v0.11.1) (2026-04-23)
+
+
+### Bug Fixes
+
+* Use genebears with native-tls ([#240](https://github.com/fxwiegand/predictosaurus/issues/240)) ([f2d77f0](https://github.com/fxwiegand/predictosaurus/commit/f2d77f0866bc862559dee25b4dc620920e391c49))
+
 ## [0.11.0](https://github.com/fxwiegand/predictosaurus/compare/v0.10.5...v0.11.0) (2026-04-23)
 
 
