@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.0](https://github.com/fxwiegand/predictosaurus/compare/v0.10.5...v0.11.0) (2026-04-23)
+
+
+### Features
+
+* Fetch, store and render variant annotations ([#237](https://github.com/fxwiegand/predictosaurus/issues/237)) ([e83356d](https://github.com/fxwiegand/predictosaurus/commit/e83356d10b2ba3b6477013fb2038d3f90d39a6b4))
+
+
+### Bug Fixes
+
+* Avoid false ref support in multi-allelic sites ([#239](https://github.com/fxwiegand/predictosaurus/issues/239)) ([517a9dd](https://github.com/fxwiegand/predictosaurus/commit/517a9ddc46c06de1ecc16a6bab65b556dc137092))
+
 ## [0.10.5](https://github.com/fxwiegand/predictosaurus/compare/v0.10.4...v0.10.5) (2026-04-21)
 
 
