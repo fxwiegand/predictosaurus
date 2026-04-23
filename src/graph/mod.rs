@@ -204,6 +204,23 @@ impl VariantGraph {
             target: target.to_string(),
         };
 
+        // For each (sample, fragment_id), if this fragment supports
+        // any variant node at position P, remove its ref node entries at position P.
+        // This fixes false ref support from normalized multi-allelic sites where a
+        // fragment supporting alt allele B is incorrectly recorded as ref support
+        // when processing alt allele A at the same position.
+        for nodes in supporting_reads.values_mut() {
+            let variant_positions: HashSet<i64> = nodes
+                .iter()
+                .filter(|&&n| variant_graph.graph[n].node_type == NodeType::Variant)
+                .map(|&n| variant_graph.graph[n].pos)
+                .collect();
+            nodes.retain(|&n| {
+                variant_graph.graph[n].node_type != NodeType::Reference
+                    || !variant_positions.contains(&variant_graph.graph[n].pos)
+            });
+        }
+
         variant_graph.connect_consecutive_positions();
         variant_graph.add_read_support(&supporting_reads)?;
 
