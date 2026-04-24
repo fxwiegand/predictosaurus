@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.2](https://github.com/fxwiegand/predictosaurus/compare/v0.11.1...v0.11.2) (2026-04-24)
+
+
+### Bug Fixes
+
+* Fix default value for --genome-build parameter ([#242](https://github.com/fxwiegand/predictosaurus/issues/242)) ([1f9e18b](https://github.com/fxwiegand/predictosaurus/commit/1f9e18b2d496d095391f722f7a702cef194dc53a))
+
 ## [0.11.1](https://github.com/fxwiegand/predictosaurus/compare/v0.11.0...v0.11.1) (2026-04-23)
 
 
