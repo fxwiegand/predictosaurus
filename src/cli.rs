@@ -77,8 +77,8 @@ pub(crate) enum Command {
         #[clap(long, default_value = "5000")]
         max_cds_length: u64,
 
-        /// Genome build to use for fetching GeneBe annotations. Must be one of `Hg38`, `Hg19` or `T2t`.
-        #[clap(long, default_value = "Hg38")]
+        /// Genome build to use for fetching GeneBe annotations. Must be one of `hg38`, `hg19` or `t2t`.
+        #[clap(long, default_value = "hg38")]
         genome_build: genebears::Genome,
     },
     /// Output all distinct peptides from the given features to a fastq file per given CDS in the feature file

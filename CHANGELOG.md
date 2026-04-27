@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.11.2](https://github.com/fxwiegand/predictosaurus/compare/v0.11.1...v0.11.2) (2026-04-24)
+
+
+### Bug Fixes
+
+* Fix default value for --genome-build parameter ([#242](https://github.com/fxwiegand/predictosaurus/issues/242)) ([1f9e18b](https://github.com/fxwiegand/predictosaurus/commit/1f9e18b2d496d095391f722f7a702cef194dc53a))
+
+## [0.11.1](https://github.com/fxwiegand/predictosaurus/compare/v0.11.0...v0.11.1) (2026-04-23)
+
+
+### Bug Fixes
+
+* Use genebears with native-tls ([#240](https://github.com/fxwiegand/predictosaurus/issues/240)) ([f2d77f0](https://github.com/fxwiegand/predictosaurus/commit/f2d77f0866bc862559dee25b4dc620920e391c49))
+
+## [0.11.0](https://github.com/fxwiegand/predictosaurus/compare/v0.10.5...v0.11.0) (2026-04-23)
+
+
+### Features
+
+* Fetch, store and render variant annotations ([#237](https://github.com/fxwiegand/predictosaurus/issues/237)) ([e83356d](https://github.com/fxwiegand/predictosaurus/commit/e83356d10b2ba3b6477013fb2038d3f90d39a6b4))
+
+
+### Bug Fixes
+
+* Avoid false ref support in multi-allelic sites ([#239](https://github.com/fxwiegand/predictosaurus/issues/239)) ([517a9dd](https://github.com/fxwiegand/predictosaurus/commit/517a9ddc46c06de1ecc16a6bab65b556dc137092))
+
 ## [0.10.5](https://github.com/fxwiegand/predictosaurus/compare/v0.10.4...v0.10.5) (2026-04-21)
 
 
