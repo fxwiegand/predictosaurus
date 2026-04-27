@@ -1,7 +1,10 @@
 use anyhow::Result;
 use bio::bio_types::strand::Strand;
-use genebears::{AnnotateOptions, ClientConfig, GeneBears, Genome, Variant};
+use genebears::{
+    AnnotateOptions, AnnotatedVariant, ClientConfig, GeneBearError, GeneBears, Genome, Variant,
+};
 use itertools::Itertools;
+use log::warn;
 use serde::{Deserialize, Serialize};
 
 use crate::graph::node::Node;
@@ -50,11 +53,25 @@ impl Annotation {
             })
             .collect_vec();
         let client = GeneBears::new(ClientConfig::default())?;
-        let results = tokio::runtime::Runtime::new()?.block_on(client.annotate_variants(
+        let rt = tokio::runtime::Runtime::new()?;
+
+        let results = rt.block_on(client.annotate_variants(
             &variants,
             genome_build,
             AnnotateOptions::default(),
-        ))?;
+        ));
+
+        let results = match results {
+            Ok(r) => r,
+            Err(GeneBearError::ApiServerError { message, .. }) => {
+                warn!(
+                    "GeneBe failed to annotate variants for {}: {}. Scores will be absent.",
+                    transcript.target, message
+                );
+                vec![]
+            }
+            Err(e) => return Err(anyhow::Error::from(e)),
+        };
 
         Ok(Self {
             revel_score: max_score(results.iter().map(|r| r.revel_score)),
