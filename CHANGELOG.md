@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.3](https://github.com/fxwiegand/predictosaurus/compare/v0.11.2...v0.11.3) (2026-04-27)
+
+
+### Bug Fixes
+
+* Skip failed annotations ([#244](https://github.com/fxwiegand/predictosaurus/issues/244)) ([ad30411](https://github.com/fxwiegand/predictosaurus/commit/ad304116ff5c154d19dd1d40bbaad5fb633ea8ff))
+
 ## [0.11.2](https://github.com/fxwiegand/predictosaurus/compare/v0.11.1...v0.11.2) (2026-04-24)
 
 
