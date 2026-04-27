@@ -55,26 +55,23 @@ impl Annotation {
         let client = GeneBears::new(ClientConfig::default())?;
         let rt = tokio::runtime::Runtime::new()?;
 
-        let results: Vec<AnnotatedVariant> = variants
-            .iter()
-            .filter_map(|variant| {
-                match rt.block_on(client.annotate_variant(
-                    variant,
-                    genome_build,
-                    AnnotateOptions::default(),
-                )) {
-                    Ok(ann) => Some(Ok(ann)),
-                    Err(GeneBearError::ApiServerError { message, .. }) => {
-                        warn!(
-                            "GeneBe Error trying to annotate variant {}{}>{}: {}",
-                            variant.pos, variant.ref_allele, variant.alt_allele, message
-                        );
-                        None
-                    }
-                    Err(e) => Some(Err(anyhow::Error::from(e))),
-                }
-            })
-            .collect::<Result<Vec<_>>>()?;
+        let results = rt.block_on(client.annotate_variants(
+            &variants,
+            genome_build,
+            AnnotateOptions::default(),
+        ));
+
+        let results = match results {
+            Ok(r) => r,
+            Err(GeneBearError::ApiServerError { message, .. }) => {
+                warn!(
+                    "GeneBe failed to annotate variants for {}: {}. Scores will be absent.",
+                    transcript.target, message
+                );
+                vec![]
+            }
+            Err(e) => return Err(anyhow::Error::from(e)),
+        };
 
         Ok(Self {
             revel_score: max_score(results.iter().map(|r| r.revel_score)),
