@@ -17,7 +17,8 @@ pub struct EffectScore {
     pub altered_protein: Protein,
     pub distance_metric: DistanceMetric,
     pub realign: bool,
-    pub haplotype: String,
+    pub hgvsc: String,
+    pub hgvsg: String,
 }
 
 impl EffectScore {
@@ -34,10 +35,23 @@ impl EffectScore {
             .iter()
             .filter(|n| n.node_type.is_variant())
             .collect();
+        let hgvsg = format!(
+            "g.[{}]",
+            variants
+                .iter()
+                .map(|n| format!(
+                    "{}{}>{}",
+                    n.pos + 1,
+                    n.reference_allele,
+                    n.alternative_allele
+                ))
+                .collect::<Vec<_>>()
+                .join(";")
+        );
         if transcript.strand == Strand::Reverse {
             variants.reverse();
         }
-        let haplotype = format!(
+        let hgvsc = format!(
             "c.[{}]",
             variants
                 .iter()
@@ -50,7 +64,8 @@ impl EffectScore {
             altered_protein,
             distance_metric,
             realign,
-            haplotype,
+            hgvsc,
+            hgvsg,
         })
     }
 
@@ -323,7 +338,8 @@ mod tests {
             altered_protein: p2,
             distance_metric: DistanceMetric::Epstein,
             realign: false,
-            haplotype: "c.[100A>G;105C>T]".to_string(),
+            hgvsc: "c.[100A>G;105C>T]".to_string(),
+            hgvsg: "g.[100A>G;105C>T]".to_string(),
         };
         assert!(score.score().abs() < 1e-6);
     }
@@ -337,7 +353,8 @@ mod tests {
             altered_protein: p2,
             distance_metric: DistanceMetric::Epstein,
             realign: false,
-            haplotype: "c.[100A>G;105C>T]".to_string(),
+            hgvsc: "c.[100A>G;105C>T]".to_string(),
+            hgvsg: "g.[100A>G;105C>T]".to_string(),
         };
         // Distance between Leucine and Valine is 0.03 / 2 since len = 2
         assert!((score.score() - 0.015).abs() < 1e-6)
@@ -360,7 +377,8 @@ mod tests {
             altered_protein: p2,
             distance_metric: DistanceMetric::Epstein,
             realign: false,
-            haplotype: "c.[100A>G;105C>T]".to_string(),
+            hgvsc: "c.[100A>G;105C>T]".to_string(),
+            hgvsg: "g.[100A>G;105C>T]".to_string(),
         };
         assert!((score.score() - (2.0 / 3.0)).abs() < 1e-6)
     }
@@ -378,7 +396,8 @@ mod tests {
             altered_protein: p2,
             distance_metric: DistanceMetric::Epstein,
             realign: true,
-            haplotype: "c.[100A>G;105C>T]".to_string(),
+            hgvsc: "c.[100A>G;105C>T]".to_string(),
+            hgvsg: "g.[100A>G;105C>T]".to_string(),
         };
         assert!((score.score() - 0.5).abs() < 1e-6)
     }
@@ -405,7 +424,8 @@ mod tests {
             altered_protein: p2,
             distance_metric: DistanceMetric::Epstein,
             realign: true,
-            haplotype: "c.[100A>G;105C>T]".to_string(),
+            hgvsc: "c.[100A>G;105C>T]".to_string(),
+            hgvsg: "g.[100A>G;105C>T]".to_string(),
         };
         assert!((score.score() - 0.2).abs() < 1e-6)
     }
