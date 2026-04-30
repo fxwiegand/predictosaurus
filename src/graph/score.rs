@@ -35,17 +35,6 @@ impl EffectScore {
             .iter()
             .filter(|n| n.node_type.is_variant())
             .collect();
-        if transcript.strand == Strand::Reverse {
-            variants.reverse();
-        }
-        let hgvsc = format!(
-            "c.[{}]",
-            variants
-                .iter()
-                .map(|n| n.hgvs_notation(transcript))
-                .collect::<Vec<_>>()
-                .join(";")
-        );
         let hgvsg = format!(
             "g.[{}]",
             variants
@@ -56,6 +45,17 @@ impl EffectScore {
                     n.reference_allele,
                     n.alternative_allele
                 ))
+                .collect::<Vec<_>>()
+                .join(";")
+        );
+        if transcript.strand == Strand::Reverse {
+            variants.reverse();
+        }
+        let hgvsc = format!(
+            "c.[{}]",
+            variants
+                .iter()
+                .map(|n| n.hgvs_notation(transcript))
                 .collect::<Vec<_>>()
                 .join(";")
         );
