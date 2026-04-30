@@ -129,6 +129,10 @@ pub(crate) enum Command {
         #[clap(short, long)]
         input: PathBuf,
 
+        /// Format of the haplotype notation to use in the output. Must be one of `hgvsg` or `hgvsc`.
+        #[clap(short, long, default_value = "hgvsg")]
+        notation: HgvsNotation,
+
         /// Path to the output TSV file containing the predicted scores per transcript.
         #[clap(short, long)]
         output: PathBuf,
@@ -188,6 +192,13 @@ pub(crate) enum Format {
     Html,
     Tsv,
     Vega,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum, Default)]
+pub enum HgvsNotation {
+    #[default]
+    Hgvsg,
+    Hgvsc,
 }
 
 #[derive(Debug, Clone)]
