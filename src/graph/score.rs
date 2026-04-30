@@ -50,7 +50,12 @@ impl EffectScore {
             "g.[{}]",
             variants
                 .iter()
-                .map(|n| format!("{}{}>{}", n.pos + 1, n.reference_allele, n.alternative_allele))
+                .map(|n| format!(
+                    "{}{}>{}",
+                    n.pos + 1,
+                    n.reference_allele,
+                    n.alternative_allele
+                ))
                 .collect::<Vec<_>>()
                 .join(";")
         );

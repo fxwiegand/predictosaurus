@@ -217,7 +217,7 @@ pub(crate) fn write_scores(
 
 pub(crate) fn read_scores(
     path: &Path,
-    notation: HgvsNotation
+    notation: HgvsNotation,
 ) -> Result<
     HashMap<
         String,
@@ -245,12 +245,8 @@ pub(crate) fn read_scores(
         let supporting_reads: String = row.get(5)?;
         let annotation: String = row.get(6)?;
         let haplotype = match notation {
-            HgvsNotation::Hgvsc => {
-                hgvsc
-            }
-            HgvsNotation::Hgvsg => {
-                hgvsg
-            }
+            HgvsNotation::Hgvsc => hgvsc,
+            HgvsNotation::Hgvsg => hgvsg,
         };
         scores.entry(transcript).or_insert(Vec::new()).push((
             score,

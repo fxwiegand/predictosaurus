@@ -157,7 +157,11 @@ impl Command {
                 info!("Writing peptides to {output:?}");
                 write_peptides(peptides, output)?;
             }
-            Command::Plot { input, notation, output } => {
+            Command::Plot {
+                input,
+                notation,
+                output,
+            } => {
                 if let Some(parent) = output.parent() {
                     create_output_dir(parent)?;
                 }
