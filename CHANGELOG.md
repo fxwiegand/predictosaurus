@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/fxwiegand/predictosaurus/compare/v0.11.3...v0.12.0) (2026-04-30)
+
+
+### Features
+
+* Add HGVS notation option and store both forms ([#247](https://github.com/fxwiegand/predictosaurus/issues/247)) ([b0d21c8](https://github.com/fxwiegand/predictosaurus/commit/b0d21c8885610d27e97c1940bdbbc912d3a273f7))
+
 ## [0.11.3](https://github.com/fxwiegand/predictosaurus/compare/v0.11.2...v0.11.3) (2026-04-27)
 
 
