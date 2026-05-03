@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/fxwiegand/predictosaurus/compare/v0.12.0...v0.12.1) (2026-05-03)
+
+
+### Performance Improvements
+
+* Refactor read support handling and skip variants as early as ([#249](https://github.com/fxwiegand/predictosaurus/issues/249)) ([3d4264c](https://github.com/fxwiegand/predictosaurus/commit/3d4264c108715ef8158229a7a17e2775cb75ab85))
+
 ## [0.12.0](https://github.com/fxwiegand/predictosaurus/compare/v0.11.3...v0.12.0) (2026-04-30)
 
 
