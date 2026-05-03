@@ -18,7 +18,7 @@ use bio::stats::bayesian::bayes_factors::evidence::KassRaftery;
 use bio::stats::bayesian::BayesFactor;
 use bio::stats::{LogProb, PHREDProb, Prob};
 use itertools::Itertools;
-use log::warn;
+use log::{info, warn};
 use petgraph::dot::{Config, Dot};
 use petgraph::graph::NodeIndex;
 use petgraph::{Directed, Graph};
@@ -90,6 +90,8 @@ impl VariantGraph {
         let mut last_position = -1;
         let mut start = 0;
 
+        info!("Adding nodes for target {target}.");
+
         for calls_record in calls_reader.records() {
             let mut calls_record = calls_record?;
             let position = calls_record.pos();
@@ -113,6 +115,11 @@ impl VariantGraph {
                     (sample, record)
                 })
                 .collect::<HashMap<_, _>>();
+
+            if header.rid2name(calls_record.rid().unwrap()).unwrap() != target.as_bytes() {
+                continue;
+            }
+
             let _variants = collect_variants(&mut calls_record, false, None, None, None)?;
             let observations = observations_records
                 .iter_mut()
@@ -121,10 +128,6 @@ impl VariantGraph {
                     (sample, observations.pileup.read_observations().clone())
                 })
                 .collect::<HashMap<_, _>>();
-
-            if header.rid2name(calls_record.rid().unwrap()).unwrap() != target.as_bytes() {
-                continue;
-            }
 
             let _fragment_ids: HashSet<_> = observations
                 .iter()
@@ -220,8 +223,9 @@ impl VariantGraph {
                     || !variant_positions.contains(&variant_graph.graph[n].pos)
             });
         }
-
+        info!("Finished adding nodes for target {target}.");
         variant_graph.connect_consecutive_positions();
+        info!("Adding read support for target {target}.");
         variant_graph.add_read_support(&supporting_reads)?;
 
         Ok(variant_graph)
@@ -256,25 +260,40 @@ impl VariantGraph {
         supporting_reads: &HashMap<(String, Option<u64>), Vec<NodeIndex>>,
     ) -> Result<()> {
         for ((sample, _), nodes) in supporting_reads {
-            let weights = self.graph.clone();
-            for node_tuple in nodes.iter().sorted().dedup().combinations(2).filter(|v| {
-                node_distance(
-                    &weights.node_weight(*v[0]).unwrap().index,
-                    &weights.node_weight(*v[1]).unwrap().index,
-                ) == 1
-            }) {
-                let edge = self.graph.find_edge(*node_tuple[0], *node_tuple[1]);
+            let mut sorted_nodes: Vec<_> = nodes.iter().copied().collect();
+            sorted_nodes.sort_unstable();
+            sorted_nodes.dedup();
+
+            let adjacent_pairs: Vec<_> = sorted_nodes
+                .iter()
+                .combinations(2)
+                .filter(|v| {
+                    node_distance(
+                        &self.graph.node_weight(*v[0]).unwrap().index,
+                        &self.graph.node_weight(*v[1]).unwrap().index,
+                    ) == 1
+                })
+                .map(|v| (*v[0], *v[1]))
+                .collect();
+
+            for (a, b) in adjacent_pairs {
+                let edge = self.graph.find_edge(a, b);
                 if let Some(edge) = edge {
-                    let edge = self.graph.edge_weight_mut(edge).unwrap();
-                    edge.supporting_reads
+                    self.graph
+                        .edge_weight_mut(edge)
+                        .unwrap()
+                        .supporting_reads
                         .entry(sample.to_string())
                         .and_modify(|v| *v += 1)
                         .or_insert(1);
                 } else {
-                    let edge = Edge {
-                        supporting_reads: HashMap::from([(sample.to_string(), 1)]),
-                    };
-                    self.graph.add_edge(*node_tuple[0], *node_tuple[1], edge);
+                    self.graph.add_edge(
+                        a,
+                        b,
+                        Edge {
+                            supporting_reads: HashMap::from([(sample.to_string(), 1)]),
+                        },
+                    );
                 }
             }
         }
