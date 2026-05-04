@@ -250,7 +250,7 @@ impl VariantGraph {
         variant_graph.connect_consecutive_positions(&possible_node_pairs);
 
         info!("Adding read support for target {target}.");
-        variant_graph.add_read_support(&supporting_reads, possible_node_pairs)?;
+        variant_graph.add_read_support(&supporting_reads, &possible_node_pairs)?;
 
         Ok(variant_graph)
     }
@@ -275,15 +275,17 @@ impl VariantGraph {
     pub(crate) fn add_read_support(
         &mut self,
         supporting_reads: &HashMap<(String, Option<u64>), Vec<NodeIndex>>,
-        possible_node_pairs: HashSet<(NodeIndex, NodeIndex)>,
+        possible_node_pairs: &HashSet<(NodeIndex, NodeIndex)>,
     ) -> Result<()> {
         for ((sample, _), nodes) in supporting_reads {
-            for (a, b) in nodes
-                .iter()
-                .copied()
-                .tuple_combinations()
-                .filter(|(a, b)| possible_node_pairs.contains(&(*a, *b)))
-            {
+            for (a, b) in nodes.iter().copied().tuple_combinations() {
+                let (a, b) = if possible_node_pairs.contains(&(a, b)) {
+                    (a, b)
+                } else if possible_node_pairs.contains(&(b, a)) {
+                    (b, a)
+                } else {
+                    continue;
+                };
                 let edge = self.graph.find_edge(a, b);
                 if let Some(edge) = edge {
                     self.graph
