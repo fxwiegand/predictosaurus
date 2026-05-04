@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.2](https://github.com/fxwiegand/predictosaurus/compare/v0.12.1...v0.12.2) (2026-05-04)
+
+
+### Performance Improvements
+
+* Pre-calculate possible node pairs in graph for edge generation ([#251](https://github.com/fxwiegand/predictosaurus/issues/251)) ([2c34149](https://github.com/fxwiegand/predictosaurus/commit/2c341498ade769e83597f1402766da0e8589689f))
+
 ## [0.12.1](https://github.com/fxwiegand/predictosaurus/compare/v0.12.0...v0.12.1) (2026-05-03)
 
 
