@@ -48,6 +48,7 @@ impl VariantGraph {
     ) -> Result<VariantGraph> {
         let mut calls_reader = Reader::from_path(calls_file)?;
         let header = calls_reader.header().clone();
+        let mut nodes_by_index = HashMap::new();
         let mut observation_readers: HashMap<_, _> = observation_files
             .iter()
             .map(|o| (o.sample.to_string(), Reader::from_path(&o.path).unwrap()))
@@ -160,6 +161,11 @@ impl VariantGraph {
                 continue;
             }
             let var_node_index = variant_graph.add_node(var_node);
+            nodes_by_index
+                .entry(index)
+                .or_insert(Vec::new())
+                .push(var_node_index);
+
             let mut ref_node_index = None;
             if last_position != position {
                 let ref_node = Node::from_records(
@@ -171,6 +177,10 @@ impl VariantGraph {
                     index,
                 );
                 ref_node_index = Some(variant_graph.add_node(ref_node));
+                nodes_by_index
+                    .entry(index)
+                    .or_insert(Vec::new())
+                    .push(ref_node_index.unwrap());
             }
 
             for (sample, observations) in observations {
@@ -223,34 +233,41 @@ impl VariantGraph {
                     || !variant_positions.contains(&variant_graph.graph[n].pos)
             });
         }
+
+        let mut possible_node_pairs: HashSet<(NodeIndex, NodeIndex)> = HashSet::new();
+        let mut sorted_indices: Vec<_> = nodes_by_index.keys().collect();
+        sorted_indices.sort_unstable();
+
+        for (idx_a, idx_b) in sorted_indices.iter().tuple_windows() {
+            for &node_a in &nodes_by_index[idx_a] {
+                for &node_b in &nodes_by_index[idx_b] {
+                    possible_node_pairs.insert((node_a, node_b));
+                }
+            }
+        }
+
         info!("Finished adding nodes for target {target}.");
-        variant_graph.connect_consecutive_positions();
+        variant_graph.connect_consecutive_positions(&possible_node_pairs);
+
         info!("Adding read support for target {target}.");
-        variant_graph.add_read_support(&supporting_reads)?;
+        variant_graph.add_read_support(&supporting_reads, &possible_node_pairs)?;
 
         Ok(variant_graph)
     }
 
-    pub(crate) fn connect_consecutive_positions(&mut self) {
-        let mut by_pos: HashMap<i64, Vec<NodeIndex>> = HashMap::new();
-        for i in self.graph.node_indices() {
-            by_pos.entry(self.graph[i].pos).or_default().push(i);
-        }
-        let mut positions = by_pos.keys().cloned().collect_vec();
-        positions.sort();
-        for (a, b) in positions.iter().tuple_windows() {
-            for &l in &by_pos[a] {
-                for &r in &by_pos[b] {
-                    if self.graph.find_edge(l, r).is_none() {
-                        self.graph.add_edge(
-                            l,
-                            r,
-                            Edge {
-                                supporting_reads: HashMap::new(),
-                            },
-                        );
-                    }
-                }
+    pub(crate) fn connect_consecutive_positions(
+        &mut self,
+        possible_node_pairs: &HashSet<(NodeIndex, NodeIndex)>,
+    ) {
+        for &(l, r) in possible_node_pairs {
+            if self.graph.find_edge(l, r).is_none() {
+                self.graph.add_edge(
+                    l,
+                    r,
+                    Edge {
+                        supporting_reads: HashMap::new(),
+                    },
+                );
             }
         }
     }
@@ -258,25 +275,17 @@ impl VariantGraph {
     pub(crate) fn add_read_support(
         &mut self,
         supporting_reads: &HashMap<(String, Option<u64>), Vec<NodeIndex>>,
+        possible_node_pairs: &HashSet<(NodeIndex, NodeIndex)>,
     ) -> Result<()> {
         for ((sample, _), nodes) in supporting_reads {
-            let mut sorted_nodes: Vec<_> = nodes.iter().copied().collect();
-            sorted_nodes.sort_unstable();
-            sorted_nodes.dedup();
-
-            let adjacent_pairs: Vec<_> = sorted_nodes
-                .iter()
-                .combinations(2)
-                .filter(|v| {
-                    node_distance(
-                        &self.graph.node_weight(*v[0]).unwrap().index,
-                        &self.graph.node_weight(*v[1]).unwrap().index,
-                    ) == 1
-                })
-                .map(|v| (*v[0], *v[1]))
-                .collect();
-
-            for (a, b) in adjacent_pairs {
+            for (a, b) in nodes.iter().copied().tuple_combinations() {
+                let (a, b) = if possible_node_pairs.contains(&(a, b)) {
+                    (a, b)
+                } else if possible_node_pairs.contains(&(b, a)) {
+                    (b, a)
+                } else {
+                    continue;
+                };
                 let edge = self.graph.find_edge(a, b);
                 if let Some(edge) = edge {
                     self.graph
