@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.3](https://github.com/fxwiegand/predictosaurus/compare/v0.12.2...v0.12.3) (2026-05-11)
+
+
+### Bug Fixes
+
+* Stop combining CDS paths naively and remove beam search ([#253](https://github.com/fxwiegand/predictosaurus/issues/253)) ([f673507](https://github.com/fxwiegand/predictosaurus/commit/f6735073f3d7d1b793d52ff671b4dc6c5db57fb6))
+
 ## [0.12.2](https://github.com/fxwiegand/predictosaurus/compare/v0.12.1...v0.12.2) (2026-05-04)
 
 
