@@ -159,10 +159,18 @@ impl Transcript {
             Err(_) => return Ok(vec![]),
         };
 
+        let cds_intervals: Vec<(u64, u64)> = self.cds().map(|c| (c.start, c.end)).collect();
+        let in_cds = |pos: i64| {
+            cds_intervals
+                .iter()
+                .any(|(s, e)| pos >= *s as i64 && pos <= *e as i64)
+        };
+
         let variant_count = graph
             .graph
             .node_indices()
             .filter(|&i| graph.graph[i].node_type.is_variant())
+            .filter(|&i| in_cds(graph.graph[i].pos))
             .count();
 
         if variant_count > max_variant_nodes {
@@ -180,13 +188,6 @@ impl Transcript {
             self.name(),
             variant_count
         );
-
-        let cds_intervals: Vec<(u64, u64)> = self.cds().map(|c| (c.start, c.end)).collect();
-        let in_cds = |pos: i64| {
-            cds_intervals
-                .iter()
-                .any(|(s, e)| pos >= *s as i64 && pos <= *e as i64)
-        };
 
         let raw_paths = match self.strand {
             Strand::Forward => graph.paths(),
