@@ -149,7 +149,12 @@ impl Transcript {
         graph: &PathBuf,
         max_variant_nodes: usize,
     ) -> Result<Vec<(Vec<Node>, Vec<HashMap<String, u32>>)>> {
-        let graph = match feature_graph(graph.to_owned(), self.target.clone(), self.start()?, self.end()?) {
+        let graph = match feature_graph(
+            graph.to_owned(),
+            self.target.clone(),
+            self.start()?,
+            self.end()?,
+        ) {
             Ok(g) => g,
             Err(_) => return Ok(vec![]),
         };
@@ -192,11 +197,10 @@ impl Transcript {
         let haplotypes: Vec<(Vec<Node>, Vec<HashMap<String, u32>>)> = raw_paths
             .iter()
             .map(|p| {
-                let nodes: Vec<Node> = p
-                    .0
-                    .iter()
-                    .map(|v| graph.graph.node_weight(*v).unwrap().to_owned())
-                    .collect();
+                let nodes: Vec<Node> =
+                    p.0.iter()
+                        .map(|v| graph.graph.node_weight(*v).unwrap().to_owned())
+                        .collect();
                 let edge_reads = graph.edge_reads(&p.0);
 
                 let mut filtered_nodes: Vec<Node> = Vec::new();
@@ -236,11 +240,7 @@ impl Transcript {
             })
             .collect();
 
-        let max_edges = haplotypes
-            .iter()
-            .map(|(_, e)| e.len())
-            .max()
-            .unwrap_or(0);
+        let max_edges = haplotypes.iter().map(|(_, e)| e.len()).max().unwrap_or(0);
 
         let max_reads_per_edge: Vec<u32> = (0..max_edges)
             .map(|i| {
@@ -269,7 +269,7 @@ impl Transcript {
         graph: &PathBuf,
         reference: &HashMap<String, Vec<u8>>,
         haplotype_metric: HaplotypeMetric,
-max_variant_nodes: usize,
+        max_variant_nodes: usize,
         distance_metric: DistanceMetric,
         genome_build: Genome,
     ) -> Result<
@@ -605,10 +605,7 @@ impl RnaPath {
     }
 }
 
-pub(crate) fn transcripts(
-    gff_file: &PathBuf,
-    graph: &PathBuf,
-) -> Result<Vec<Transcript>> {
+pub(crate) fn transcripts(gff_file: &PathBuf, graph: &PathBuf) -> Result<Vec<Transcript>> {
     let variants = variants_on_graph(graph)?;
     let mut feature_reader = gff::Reader::from_file(gff_file, gff::GffType::GFF3)?;
     let mut transcripts = HashMap::new();
