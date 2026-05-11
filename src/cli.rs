@@ -73,9 +73,9 @@ pub(crate) enum Command {
         #[clap(short, long)]
         output: PathBuf,
 
-        /// Maximum CDS length to consider for processing. Transcripts containing longer CDSs will be ignored with a warning.
-        #[clap(long, default_value = "5000")]
-        max_cds_length: u64,
+        /// Maximum variants per transcript to consider for processing. Transcripts containing more variants will be ignored with a warning.
+        #[clap(long, default_value = "18")]
+        max_variants_per_transcript: usize,
 
         /// Genome build to use for fetching GeneBe annotations. Must be one of `hg38`, `hg19` or `t2t`.
         #[clap(long, default_value = "hg38")]

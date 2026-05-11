@@ -230,7 +230,7 @@ mod tests {
     fn snv_reverse_multi_exon() {
         let gff_file = PathBuf::from("tests/resources/ENSP00000355304.gff3");
         let graph = PathBuf::from("tests/resources/graph.duckdb");
-        let transcripts = transcripts(&gff_file, &graph, 100000).unwrap();
+        let transcripts = transcripts(&gff_file, &graph).unwrap();
         let t = &transcripts[0];
         assert_eq!(hgvsc(&t, 102229355, "T", "C"), Some("1193A>G".into()));
         assert_eq!(hgvsc(&t, 102263548, "G", "A"), Some("280C>T".into()));
