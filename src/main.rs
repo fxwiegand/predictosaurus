@@ -89,14 +89,14 @@ impl Command {
                 distance_metric,
                 haplotype_metric,
                 output,
-                max_cds_length,
+                max_variants_per_transcript,
                 genome_build,
             } => {
                 create_scores(output)?;
                 info!("Reading reference genome from {reference:?}");
                 let reference_genome = utils::fasta::read_reference(reference);
                 let write_lock = Arc::new(Mutex::new(()));
-                let transcripts = transcripts(features, graph, *max_cds_length)?;
+                let transcripts = transcripts(features, graph)?;
                 let total = transcripts.len();
                 transcripts.into_par_iter().enumerate().try_for_each(
                     |(i, transcript)| -> anyhow::Result<()> {
@@ -110,6 +110,7 @@ impl Command {
                             graph,
                             &reference_genome,
                             *haplotype_metric,
+                            *max_variants_per_transcript,
                             *distance_metric,
                             *genome_build,
                         )?;
@@ -140,7 +141,7 @@ impl Command {
                 info!("Reading reference genome from {reference:?}");
                 let reference_genome = utils::fasta::read_reference(reference);
                 let mut peptides = Vec::new();
-                for transcript in transcripts(features, graph, *max_cds_length)? {
+                for transcript in transcripts(features, graph)? {
                     info!("Processing transcript {}", transcript.name());
                     let transcript_peptides = transcript.peptides(
                         graph,

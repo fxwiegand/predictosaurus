@@ -1,4 +1,3 @@
-pub(crate) mod beam_search;
 pub(crate) mod duck;
 pub(crate) mod hgvs;
 pub(crate) mod node;

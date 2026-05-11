@@ -147,116 +147,101 @@ impl Transcript {
     fn haplotypes(
         &self,
         graph: &PathBuf,
-        haplotype_metric: HaplotypeMetric,
+        max_variant_nodes: usize,
     ) -> Result<Vec<(Vec<Node>, Vec<HashMap<String, u32>>)>> {
-        let mut haplotypes: Vec<(Vec<Node>, Vec<HashMap<String, u32>>)> = Vec::new();
+        let graph = match feature_graph(graph.to_owned(), self.target.clone(), self.start()?, self.end()?) {
+            Ok(g) => g,
+            Err(_) => return Ok(vec![]),
+        };
 
-        for cds in self.cds() {
-            if let Ok(graph) = feature_graph(
-                graph.to_owned(),
-                self.target.to_string(),
-                cds.start,
-                cds.end,
-            ) {
-                info!(
-                    "Calculating paths for {cds:?}. Graph has {} nodes",
-                    graph.graph.node_count()
-                );
+        let variant_count = graph
+            .graph
+            .node_indices()
+            .filter(|&i| graph.graph[i].node_type.is_variant())
+            .count();
 
-                let raw_paths = if graph.graph.node_count() > 10 {
-                    info!(
-                        "Using beam search for transcript {} with {} nodes",
-                        self.name(),
-                        graph.graph.node_count()
-                    );
-                    use crate::graph::beam_search::BeamSearchConfig;
-                    let config = BeamSearchConfig {
-                        beam_width: 10,
-                        haplotype_metric,
-                    };
-                    match self.strand {
-                        Strand::Forward => graph.beam_search_paths(config),
-                        Strand::Reverse => graph.beam_search_reverse_paths(config),
-                        Strand::Unknown => {
-                            return Err(anyhow::anyhow!(
-                                "Strand is unknown for transcript {}",
-                                self.name()
-                            ))
-                        }
-                    }
-                } else {
-                    self.paths(&graph)?
-                };
-
-                let paths: Vec<(Vec<Node>, Vec<HashMap<String, u32>>)> = raw_paths
-                    .iter()
-                    .map(|p| {
-                        let nodes =
-                            p.0.iter()
-                                .map(|v| graph.graph.node_weight(*v).unwrap().to_owned())
-                                .collect_vec();
-                        let edge_reads = graph.edge_reads(&p.0);
-                        (nodes, edge_reads)
-                    })
-                    .collect_vec();
-
-                if haplotypes.is_empty() {
-                    haplotypes = paths;
-                } else if paths.is_empty() {
-                    continue;
-                } else {
-                    let mut extended = Vec::new();
-
-                    for ((existing_nodes, existing_edges), (new_nodes, new_edges)) in
-                        haplotypes.iter().cartesian_product(paths.iter())
-                    {
-                        let mut combined_nodes = existing_nodes.clone();
-                        combined_nodes.extend(new_nodes.iter().cloned());
-
-                        // Junction edge between CDSs: no read support spans this boundary,
-                        // so we insert zeros for all samples (derived from the last node of
-                        // the left path, which always carries the full sample set via `vaf`).
-                        let junction: HashMap<String, u32> = existing_nodes
-                            .last()
-                            .map(|node| node.vaf.keys().map(|s| (s.clone(), 0u32)).collect())
-                            .unwrap_or_default();
-
-                        let mut combined_edges = existing_edges.clone();
-                        combined_edges.push(junction);
-                        combined_edges.extend(new_edges.iter().cloned());
-
-                        extended.push((combined_nodes, combined_edges));
-                    }
-
-                    if extended.len() > 100 {
-                        let mut scored: Vec<((Vec<Node>, Vec<HashMap<String, u32>>), f32)> =
-                            extended
-                                .into_iter()
-                                .map(|(h, e)| {
-                                    let score = haplotype_metric
-                                        .calculate(&h)
-                                        .values()
-                                        .cloned()
-                                        .fold(f32::NEG_INFINITY, f32::max);
-                                    ((h, e), score)
-                                })
-                                .collect();
-                        scored.sort_by(|a, b| {
-                            b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)
-                        });
-                        scored.truncate(100);
-                        extended = scored.into_iter().map(|(h, _)| h).collect();
-                    }
-
-                    haplotypes = extended;
-                }
-            }
+        if variant_count > max_variant_nodes {
+            warn!(
+                "Skipping transcript {} with {} variant nodes (max: {})",
+                self.name(),
+                variant_count,
+                max_variant_nodes
+            );
+            return Ok(vec![]);
         }
+
+        info!(
+            "Calculating paths for transcript {} with {} variant nodes",
+            self.name(),
+            variant_count
+        );
+
+        let cds_intervals: Vec<(u64, u64)> = self.cds().map(|c| (c.start, c.end)).collect();
+        let in_cds = |pos: i64| {
+            cds_intervals
+                .iter()
+                .any(|(s, e)| pos >= *s as i64 && pos <= *e as i64)
+        };
+
+        let raw_paths = match self.strand {
+            Strand::Forward => graph.paths(),
+            Strand::Reverse => graph.reverse_paths(),
+            Strand::Unknown => bail!("Strand is unknown for transcript {}", self.name()),
+        };
+
+        let haplotypes: Vec<(Vec<Node>, Vec<HashMap<String, u32>>)> = raw_paths
+            .iter()
+            .map(|p| {
+                let nodes: Vec<Node> = p
+                    .0
+                    .iter()
+                    .map(|v| graph.graph.node_weight(*v).unwrap().to_owned())
+                    .collect();
+                let edge_reads = graph.edge_reads(&p.0);
+
+                let mut filtered_nodes: Vec<Node> = Vec::new();
+                let mut filtered_edges: Vec<HashMap<String, u32>> = Vec::new();
+                let mut last_cds_idx: Option<usize> = None;
+
+                for (i, node) in nodes.iter().enumerate() {
+                    if !in_cds(node.pos) {
+                        continue;
+                    }
+                    if let Some(prev_idx) = last_cds_idx {
+                        let span = &edge_reads[prev_idx..i];
+                        let merged = if span.is_empty() {
+                            HashMap::new()
+                        } else {
+                            let samples: std::collections::HashSet<&String> =
+                                span.iter().flat_map(|e| e.keys()).collect();
+                            samples
+                                .into_iter()
+                                .map(|s| {
+                                    let min = span
+                                        .iter()
+                                        .map(|e| *e.get(s).unwrap_or(&0))
+                                        .min()
+                                        .unwrap_or(0);
+                                    (s.clone(), min)
+                                })
+                                .collect()
+                        };
+                        filtered_edges.push(merged);
+                    }
+                    filtered_nodes.push(node.clone());
+                    last_cds_idx = Some(i);
+                }
+
+                (filtered_nodes, filtered_edges)
+            })
+            .collect();
+
         let max_edges = haplotypes
             .iter()
-            .map(|(_, edges)| edges.len())
+            .map(|(_, e)| e.len())
             .max()
             .unwrap_or(0);
+
         let max_reads_per_edge: Vec<u32> = (0..max_edges)
             .map(|i| {
                 haplotypes
@@ -267,13 +252,16 @@ impl Transcript {
                     .unwrap_or(0)
             })
             .collect();
-        haplotypes.retain(|(_, edges)| {
-            edges.iter().enumerate().all(|(i, edge)| {
-                let total: u32 = edge.values().sum();
-                total > 0 || max_reads_per_edge[i] == 0
+
+        Ok(haplotypes
+            .into_iter()
+            .filter(|(_, edges)| {
+                edges.iter().enumerate().all(|(i, edge)| {
+                    let total: u32 = edge.values().sum();
+                    total > 0 || max_reads_per_edge[i] == 0
+                })
             })
-        });
-        Ok(haplotypes)
+            .collect())
     }
 
     pub(crate) fn scores(
@@ -281,6 +269,7 @@ impl Transcript {
         graph: &PathBuf,
         reference: &HashMap<String, Vec<u8>>,
         haplotype_metric: HaplotypeMetric,
+max_variant_nodes: usize,
         distance_metric: DistanceMetric,
         genome_build: Genome,
     ) -> Result<
@@ -291,7 +280,7 @@ impl Transcript {
             Annotation,
         )>,
     > {
-        let haplotypes = self.haplotypes(graph, haplotype_metric)?;
+        let haplotypes = self.haplotypes(graph, max_variant_nodes)?;
         let mut scores = Vec::with_capacity(haplotypes.len());
         let original_protein = Protein::from_transcript(reference, self)?;
         for (haplotype, supporting_reads) in haplotypes {
@@ -619,13 +608,11 @@ impl RnaPath {
 pub(crate) fn transcripts(
     gff_file: &PathBuf,
     graph: &PathBuf,
-    max_cds_length: u64,
 ) -> Result<Vec<Transcript>> {
     let variants = variants_on_graph(graph)?;
     let mut feature_reader = gff::Reader::from_file(gff_file, gff::GffType::GFF3)?;
     let mut transcripts = HashMap::new();
     let mut variant_coverage = HashMap::new();
-    let mut skip: HashSet<String> = HashSet::new();
     for record in feature_reader
         .records()
         .filter_map(Result::ok)
@@ -638,13 +625,6 @@ pub(crate) fn transcripts(
         let start = *record.start() - 1;
         let end = *record.end() - 1;
         let length = end - start + 1;
-        if length > max_cds_length {
-            skip.insert(ensp.to_string());
-            warn!(
-                "Skipping CDS {} in sequence {} due to high length {}",
-                ensp, target, length
-            );
-        }
         let phase = record.phase().clone().try_into().unwrap();
         let strand = record.strand().ok_or_else(|| {
             anyhow::anyhow!("No strand found for CDS in sequence {}", record.seqname())
@@ -663,7 +643,6 @@ pub(crate) fn transcripts(
     }
     Ok(transcripts
         .into_values()
-        .filter(|t| !skip.contains(&t.feature))
         .filter(|t| matches!(variant_coverage.get(&t.feature), Some(true)))
         .collect())
 }
@@ -847,7 +826,7 @@ chr1\tsource\tCDS\t400\t500\t.\t-\t0\tID=ENSP00000493377
         )
         .unwrap();
 
-        let transcripts = transcripts(&gff_path, &graph_path, 5000).unwrap();
+        let transcripts = transcripts(&gff_path, &graph_path).unwrap();
         assert_eq!(transcripts.len(), 1);
 
         let transcript1 = transcripts
@@ -1108,7 +1087,7 @@ chr1\tsource\tCDS\t400\t500\t.\t-\t0\tID=ENSP00000493377
     fn test_transcript_reader() {
         let gff_file = PathBuf::from("tests/resources/ENSP00000355304.gff3");
         let graph = PathBuf::from("tests/resources/graph.duckdb");
-        let transcripts = transcripts(&gff_file, &graph, 100000).unwrap();
+        let transcripts = transcripts(&gff_file, &graph).unwrap();
         assert_eq!(transcripts.len(), 1)
     }
 }
