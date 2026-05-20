@@ -257,7 +257,10 @@ impl VariantGraph {
         Ok(variant_graph)
     }
 
-    pub(crate) fn prune_edges_without_evidence(&mut self, nodes_by_index: &HashMap<u32, Vec<NodeIndex>>) -> Result<()> {
+    pub(crate) fn prune_edges_without_evidence(
+        &mut self,
+        nodes_by_index: &HashMap<u32, Vec<NodeIndex>>,
+    ) -> Result<()> {
         let sorted_positions: Vec<_> = nodes_by_index.keys().sorted().collect();
         for (&idx_a, &idx_b) in sorted_positions.iter().tuple_windows() {
             // Check all edges between nodes at idx_a and idx_b
