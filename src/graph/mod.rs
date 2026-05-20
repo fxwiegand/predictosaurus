@@ -251,7 +251,46 @@ impl VariantGraph {
         info!("Adding read support for target {target}.");
         variant_graph.add_read_support(&supporting_reads, &possible_node_pairs)?;
 
+        info!("Removing edges without evidence for target {target}.");
+        variant_graph.prune_edges_without_evidence(&nodes_by_index);
+
         Ok(variant_graph)
+    }
+
+    pub(crate) fn prune_edges_without_evidence(&mut self, nodes_by_index: &HashMap<u32, Vec<NodeIndex>>) -> Result<()> {
+        let sorted_positions: Vec<_> = nodes_by_index.keys().sorted().collect();
+        for (&idx_a, &idx_b) in sorted_positions.iter().tuple_windows() {
+            // Check all edges between nodes at idx_a and idx_b
+            // Remove all edges without read support if and only if there is at least one edge with read support between any nodes at idx_a and idx_b
+            let mut has_evidence = false;
+            for &node_a in &nodes_by_index[idx_a] {
+                for &node_b in &nodes_by_index[idx_b] {
+                    if let Some(edge) = self.graph.find_edge(node_a, node_b) {
+                        let edge_weight = self.graph.edge_weight(edge).unwrap();
+                        if edge_weight.supporting_reads.values().sum::<u32>() > 0 {
+                            has_evidence = true;
+                            break;
+                        }
+                    }
+                }
+                if has_evidence {
+                    break;
+                }
+            }
+            if has_evidence {
+                for &node_a in &nodes_by_index[idx_a] {
+                    for &node_b in &nodes_by_index[idx_b] {
+                        if let Some(edge) = self.graph.find_edge(node_a, node_b) {
+                            let edge_weight = self.graph.edge_weight(edge).unwrap();
+                            if edge_weight.supporting_reads.values().sum::<u32>() == 0 {
+                                self.graph.remove_edge(edge);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 
     pub(crate) fn connect_consecutive_positions(
