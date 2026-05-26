@@ -469,6 +469,13 @@ impl VariantGraph {
             None => return vec![],
         };
 
+        let max_index = self
+            .graph
+            .node_indices()
+            .map(|i| self.graph[i].index)
+            .max()
+            .unwrap_or(0);
+
         let start_nodes: Vec<NodeIndex> = self
             .graph
             .node_indices()
@@ -550,6 +557,10 @@ impl VariantGraph {
         complete
             .into_iter()
             .map(|(path, _, _)| HaplotypePath(path))
+            .filter(|path| {
+                let last_node = *path.0.last().unwrap();
+                self.graph[last_node].index == max_index
+            })
             .unique()
             .collect()
     }
