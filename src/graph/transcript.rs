@@ -147,7 +147,7 @@ impl Transcript {
     fn haplotypes(
         &self,
         graph: &PathBuf,
-        max_variant_nodes: usize,
+        max_haplotypes: usize,
     ) -> Result<Vec<(Vec<Node>, Vec<HashMap<String, u32>>)>> {
         let graph = match feature_graph(
             graph.to_owned(),
@@ -173,16 +173,6 @@ impl Transcript {
             .filter(|&i| in_cds(graph.graph[i].pos))
             .count();
 
-        if variant_count > max_variant_nodes {
-            warn!(
-                "Skipping transcript {} with {} variant nodes (max: {})",
-                self.name(),
-                variant_count,
-                max_variant_nodes
-            );
-            return Ok(vec![]);
-        }
-
         info!(
             "Calculating paths for transcript {} with {} variant nodes",
             self.name(),
@@ -190,12 +180,12 @@ impl Transcript {
         );
 
         let raw_paths = match self.strand {
-            Strand::Forward => graph.paths(),
-            Strand::Reverse => graph.reverse_paths(),
+            Strand::Forward => graph.top_k_paths(max_haplotypes),
+            Strand::Reverse => graph.reverse_top_k_paths(max_haplotypes),
             Strand::Unknown => bail!("Strand is unknown for transcript {}", self.name()),
         };
 
-        let haplotypes: Vec<(Vec<Node>, Vec<HashMap<String, u32>>)> = raw_paths
+        Ok(raw_paths
             .iter()
             .map(|p| {
                 let nodes: Vec<Node> =
@@ -239,29 +229,6 @@ impl Transcript {
 
                 (filtered_nodes, filtered_edges)
             })
-            .collect();
-
-        let max_edges = haplotypes.iter().map(|(_, e)| e.len()).max().unwrap_or(0);
-
-        let max_reads_per_edge: Vec<u32> = (0..max_edges)
-            .map(|i| {
-                haplotypes
-                    .iter()
-                    .filter_map(|(_, edges)| edges.get(i))
-                    .map(|e| e.values().sum::<u32>())
-                    .max()
-                    .unwrap_or(0)
-            })
-            .collect();
-
-        Ok(haplotypes
-            .into_iter()
-            .filter(|(_, edges)| {
-                edges.iter().enumerate().all(|(i, edge)| {
-                    let total: u32 = edge.values().sum();
-                    total > 0 || max_reads_per_edge[i] == 0
-                })
-            })
             .collect())
     }
 
@@ -270,7 +237,7 @@ impl Transcript {
         graph: &PathBuf,
         reference: &HashMap<String, Vec<u8>>,
         haplotype_metric: HaplotypeMetric,
-        max_variant_nodes: usize,
+        max_haplotypes: usize,
         distance_metric: DistanceMetric,
         genome_build: Genome,
     ) -> Result<
@@ -281,7 +248,7 @@ impl Transcript {
             Annotation,
         )>,
     > {
-        let haplotypes = self.haplotypes(graph, max_variant_nodes)?;
+        let haplotypes = self.haplotypes(graph, max_haplotypes)?;
         let mut scores = Vec::with_capacity(haplotypes.len());
         let original_protein = Protein::from_transcript(reference, self)?;
         for (haplotype, supporting_reads) in haplotypes {

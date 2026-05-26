@@ -89,7 +89,7 @@ impl Command {
                 distance_metric,
                 haplotype_metric,
                 output,
-                max_variants_per_transcript,
+                max_haplotypes_per_transcript,
                 genome_build,
             } => {
                 create_scores(output)?;
@@ -110,7 +110,7 @@ impl Command {
                             graph,
                             &reference_genome,
                             *haplotype_metric,
-                            *max_variants_per_transcript,
+                            *max_haplotypes_per_transcript,
                             *distance_metric,
                             *genome_build,
                         )?;

@@ -251,7 +251,49 @@ impl VariantGraph {
         info!("Adding read support for target {target}.");
         variant_graph.add_read_support(&supporting_reads, &possible_node_pairs)?;
 
+        info!("Removing edges without evidence for target {target}.");
+        variant_graph.prune_edges_without_evidence(&nodes_by_index)?;
+
         Ok(variant_graph)
+    }
+
+    pub(crate) fn prune_edges_without_evidence(
+        &mut self,
+        nodes_by_index: &HashMap<u32, Vec<NodeIndex>>,
+    ) -> Result<()> {
+        let sorted_positions: Vec<_> = nodes_by_index.keys().sorted().collect();
+        for (&idx_a, &idx_b) in sorted_positions.iter().tuple_windows() {
+            // Check all edges between nodes at idx_a and idx_b
+            // Remove all edges without read support if and only if there is at least one edge with read support between any nodes at idx_a and idx_b
+            let mut has_evidence = false;
+            for &node_a in &nodes_by_index[idx_a] {
+                for &node_b in &nodes_by_index[idx_b] {
+                    if let Some(edge) = self.graph.find_edge(node_a, node_b) {
+                        let edge_weight = self.graph.edge_weight(edge).unwrap();
+                        if edge_weight.supporting_reads.values().sum::<u32>() > 0 {
+                            has_evidence = true;
+                            break;
+                        }
+                    }
+                }
+                if has_evidence {
+                    break;
+                }
+            }
+            if has_evidence {
+                for &node_a in &nodes_by_index[idx_a] {
+                    for &node_b in &nodes_by_index[idx_b] {
+                        if let Some(edge) = self.graph.find_edge(node_a, node_b) {
+                            let edge_weight = self.graph.edge_weight(edge).unwrap();
+                            if edge_weight.supporting_reads.values().sum::<u32>() == 0 {
+                                self.graph.remove_edge(edge);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 
     pub(crate) fn connect_consecutive_positions(
@@ -416,6 +458,115 @@ impl VariantGraph {
 
     pub(crate) fn reverse_paths(&self) -> Vec<HaplotypePath> {
         self.paths()
+            .iter()
+            .map(|path| HaplotypePath(path.0.iter().rev().cloned().collect()))
+            .collect()
+    }
+
+    pub(crate) fn top_k_paths(&self, k: usize) -> Vec<HaplotypePath> {
+        let min_index = match self.graph.node_indices().map(|i| self.graph[i].index).min() {
+            Some(m) => m,
+            None => return vec![],
+        };
+
+        let max_index = self
+            .graph
+            .node_indices()
+            .map(|i| self.graph[i].index)
+            .max()
+            .unwrap_or(0);
+
+        let start_nodes: Vec<NodeIndex> = self
+            .graph
+            .node_indices()
+            .filter(|&i| self.graph[i].index == min_index)
+            .collect();
+
+        // (path, no_zero_edges, min_nonzero_reads)
+        type ScoredPath = (Vec<NodeIndex>, bool, u32);
+
+        let score = |path: &[NodeIndex]| -> (bool, u32) {
+            let mut min_nz = u32::MAX;
+            let mut has_zero = false;
+            for w in path.windows(2) {
+                if let Some(e) = self
+                    .graph
+                    .find_edge(w[0], w[1])
+                    .or_else(|| self.graph.find_edge(w[1], w[0]))
+                {
+                    let total: u32 = self
+                        .graph
+                        .edge_weight(e)
+                        .unwrap()
+                        .supporting_reads
+                        .values()
+                        .sum();
+                    if total == 0 {
+                        has_zero = true;
+                    } else {
+                        min_nz = min_nz.min(total);
+                    }
+                }
+            }
+            let min_nz = if min_nz == u32::MAX { 0 } else { min_nz };
+            (!has_zero, min_nz)
+        };
+
+        let mut beam: Vec<ScoredPath> = start_nodes
+            .iter()
+            .map(|&n| (vec![n], true, u32::MAX))
+            .collect();
+
+        let mut complete: Vec<ScoredPath> = Vec::new();
+
+        while !beam.is_empty() {
+            let mut next_beam: Vec<ScoredPath> = Vec::new();
+
+            for (path, _, _) in beam {
+                let current = *path.last().unwrap();
+                let neighbors: Vec<NodeIndex> = self
+                    .graph
+                    .neighbors(current)
+                    .filter(|&n| self.graph[n].index > self.graph[current].index)
+                    .filter(|&n| !path.contains(&n))
+                    .collect();
+
+                if neighbors.is_empty() {
+                    if self.graph[current].pos != -1 {
+                        let (no_zero, min_nz) = score(&path);
+                        complete.push((path, no_zero, min_nz));
+                    }
+                } else {
+                    for neighbor in neighbors {
+                        let mut new_path = path.clone();
+                        new_path.push(neighbor);
+                        let (no_zero, min_nz) = score(&new_path);
+                        next_beam.push((new_path, no_zero, min_nz));
+                    }
+                }
+            }
+
+            // Keep only top-k in beam
+            next_beam.sort_by(|a, b| b.1.cmp(&a.1).then(b.2.cmp(&a.2)));
+            next_beam.truncate(k);
+            beam = next_beam;
+        }
+
+        complete.sort_by(|a, b| b.1.cmp(&a.1).then(b.2.cmp(&a.2)));
+        complete.retain(|(path, _, _)| {
+            let last_node = *path.last().unwrap();
+            self.graph[last_node].index == max_index
+        });
+        complete.truncate(k);
+        complete
+            .into_iter()
+            .map(|(path, _, _)| HaplotypePath(path))
+            .unique()
+            .collect()
+    }
+
+    pub(crate) fn reverse_top_k_paths(&self, k: usize) -> Vec<HaplotypePath> {
+        self.top_k_paths(k)
             .iter()
             .map(|path| HaplotypePath(path.0.iter().rev().cloned().collect()))
             .collect()
@@ -662,7 +813,7 @@ mod tests {
             },
         );
         let paths = variant_graph.paths();
-        assert_eq!(paths.len(), 16);
+        assert_eq!(paths.len(), 4);
     }
 
     #[test]
