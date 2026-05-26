@@ -553,14 +553,14 @@ impl VariantGraph {
         }
 
         complete.sort_by(|a, b| b.1.cmp(&a.1).then(b.2.cmp(&a.2)));
+        complete.retain(|(path, _, _)| {
+            let last_node = *path.last().unwrap();
+            self.graph[last_node].index == max_index
+        });
         complete.truncate(k);
         complete
             .into_iter()
             .map(|(path, _, _)| HaplotypePath(path))
-            .filter(|path| {
-                let last_node = *path.0.last().unwrap();
-                self.graph[last_node].index == max_index
-            })
             .unique()
             .collect()
     }
