@@ -252,7 +252,7 @@ impl VariantGraph {
         variant_graph.add_read_support(&supporting_reads, &possible_node_pairs)?;
 
         info!("Removing edges without evidence for target {target}.");
-        variant_graph.prune_edges_without_evidence(&nodes_by_index);
+        variant_graph.prune_edges_without_evidence(&nodes_by_index)?;
 
         Ok(variant_graph)
     }
