@@ -73,9 +73,10 @@ pub(crate) enum Command {
         #[clap(short, long)]
         output: PathBuf,
 
-        /// Maximum variants per transcript to consider for processing. Transcripts containing more variants will be ignored with a warning.
-        #[clap(long, default_value = "18")]
-        max_variants_per_transcript: usize,
+        /// Maximum number of haplotypes to consider per transcript. Haplotypes are ranked by their minimum read support across all edges (excluding zero-support edges, which indicate uncertain phasing).
+        /// Only the top-k haplotypes are retained. Lower values reduce runtime and memory usage at the cost of potentially missing low-confidence haplotypes.
+        #[clap(long, default_value = "50")]
+        max_haplotypes_per_transcript: usize,
 
         /// Genome build to use for fetching GeneBe annotations. Must be one of `hg38`, `hg19` or `t2t`.
         #[clap(long, default_value = "hg38")]
