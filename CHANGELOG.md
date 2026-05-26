@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.4](https://github.com/fxwiegand/predictosaurus/compare/v0.12.3...v0.12.4) (2026-05-26)
+
+
+### Bug Fixes
+
+* Prune edges without evidence early ([#258](https://github.com/fxwiegand/predictosaurus/issues/258)) ([d51bfbd](https://github.com/fxwiegand/predictosaurus/commit/d51bfbdded9a4a114b4e7ce07bd017a1e2252636))
+
 ## [0.12.3](https://github.com/fxwiegand/predictosaurus/compare/v0.12.2...v0.12.3) (2026-05-11)
 
 
