@@ -16,6 +16,7 @@ use bio::io::gff::GffType;
 use bio::stats::{LogProb, Prob};
 use clap::Parser;
 use env_logger::Env;
+use genebears::{ClientConfig, GeneBearError, GeneBears};
 use itertools::Itertools;
 use log::{debug, info};
 use rayon::prelude::*;
@@ -97,6 +98,11 @@ impl Command {
                 info!("Reading reference genome from {reference:?}");
                 let reference_genome = utils::fasta::read_reference(reference);
                 let write_lock = Arc::new(Mutex::new(()));
+                let mut config = ClientConfig::default();
+                if let Some(cache) = genebe_cache {
+                    config = config.with_cache(cache);
+                }
+                let client = Arc::new(Mutex::new(GeneBears::new(config)?));
                 let transcripts = transcripts(features, graph)?;
                 let total = transcripts.len();
                 transcripts.into_par_iter().enumerate().try_for_each(
@@ -114,7 +120,7 @@ impl Command {
                             *max_haplotypes_per_transcript,
                             *distance_metric,
                             *genome_build,
-                            genebe_cache,
+                            &client,
                         )?;
                         info!(
                             "Writing scores for {} different haplotypes for transcript {}",
