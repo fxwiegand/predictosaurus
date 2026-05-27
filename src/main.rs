@@ -98,11 +98,10 @@ impl Command {
                 info!("Reading reference genome from {reference:?}");
                 let reference_genome = utils::fasta::read_reference(reference);
                 let write_lock = Arc::new(Mutex::new(()));
-                let config = if let Some(cache) = genebe_cache {
-                    ClientConfig::default().with_cache(cache)
-                } else {
-                    ClientConfig::default()
-                };
+                let mut config = ClientConfig::default();
+                if let Some(cache) = genebe_cache {
+                    config = config.with_cache(cache);
+                }
                 let client = Arc::new(Mutex::new(GeneBears::new(config)?));
                 let transcripts = transcripts(features, graph)?;
                 let total = transcripts.len();
