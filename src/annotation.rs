@@ -7,6 +7,7 @@ use itertools::Itertools;
 use log::warn;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 use crate::graph::node::Node;
 use crate::graph::transcript::Transcript;
@@ -24,7 +25,7 @@ impl Annotation {
         haplotype: &[Node],
         transcript: &Transcript,
         genome_build: Genome,
-        genebe_cache: &Option<PathBuf>,
+        genebe_client: &Arc<Mutex<GeneBears>>,
     ) -> Result<Self> {
         let mut variants: Vec<_> = haplotype
             .iter()
@@ -54,19 +55,17 @@ impl Annotation {
                 )
             })
             .collect_vec();
-        let config = if let Some(cache) = genebe_cache {
-            ClientConfig::default().with_cache(cache)
-        } else {
-            ClientConfig::default()
-        };
-        let client = GeneBears::new(config)?;
         let rt = tokio::runtime::Runtime::new()?;
 
-        let results = rt.block_on(client.annotate_variants(
-            &variants,
-            genome_build,
-            AnnotateOptions::default(),
-        ));
+        let results = {
+            let client = genebe_client.lock().unwrap();
+            let rt = tokio::runtime::Runtime::new()?;
+            rt.block_on(client.annotate_variants(
+                &variants,
+                genome_build,
+                AnnotateOptions::default(),
+            ))
+        };
 
         let results = match results {
             Ok(r) => r,

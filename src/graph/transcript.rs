@@ -16,6 +16,7 @@ use bio::bio_types::genome;
 use bio::bio_types::strand::Strand;
 use bio::io::gff::{self, Phase};
 use bio::stats::LogProb;
+use genebears::GeneBears;
 use genebears::Genome;
 use itertools::Itertools;
 use log::{info, warn};
@@ -24,6 +25,7 @@ use rust_htslib::bgzf::CompressionLevel::Default;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 use super::node;
 
@@ -240,7 +242,7 @@ impl Transcript {
         max_haplotypes: usize,
         distance_metric: DistanceMetric,
         genome_build: Genome,
-        genebe_cache: &Option<PathBuf>,
+        genebe_client: &Arc<Mutex<GeneBears>>,
     ) -> Result<
         Vec<(
             EffectScore,
@@ -264,7 +266,7 @@ impl Transcript {
             )?;
             let frequency = haplotype_metric.calculate(&haplotype);
             let annotation =
-                Annotation::from_haplotype(&haplotype, self, genome_build, genebe_cache)?;
+                Annotation::from_haplotype(&haplotype, self, genome_build, genebe_client)?;
             scores.push((effect_score, frequency, supporting_reads, annotation));
         }
         Ok(scores)
