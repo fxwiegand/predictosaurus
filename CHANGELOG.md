@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.6](https://github.com/fxwiegand/predictosaurus/compare/v0.12.5...v0.12.6) (2026-05-27)
+
+
+### Bug Fixes
+
+* Use shared GeneBears client with lock ([#261](https://github.com/fxwiegand/predictosaurus/issues/261)) ([183ff2b](https://github.com/fxwiegand/predictosaurus/commit/183ff2b52af0457e25cd2852a79f39eb2fa76156))
+
 ## [0.12.5](https://github.com/fxwiegand/predictosaurus/compare/v0.12.4...v0.12.5) (2026-05-27)
 
 
