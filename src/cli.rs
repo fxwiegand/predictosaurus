@@ -78,6 +78,11 @@ pub(crate) enum Command {
         #[clap(long, default_value = "50")]
         max_haplotypes_per_transcript: usize,
 
+        /// Optional path to a cache file for GeneBe annotations. If not provided, annotations will be fetched from the GeneBe API and cached in memory during runtime.
+        /// Providing a cache file allows reusing annotations across multiple runs and can speed up processing as well as reduce load on the GeneBe API which comes with limits.
+        #[clap(long)]
+        genebe_cache: Option<PathBuf>,
+
         /// Genome build to use for fetching GeneBe annotations. Must be one of `hg38`, `hg19` or `t2t`.
         #[clap(long, default_value = "hg38")]
         genome_build: genebears::Genome,

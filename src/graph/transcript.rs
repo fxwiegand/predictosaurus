@@ -240,6 +240,7 @@ impl Transcript {
         max_haplotypes: usize,
         distance_metric: DistanceMetric,
         genome_build: Genome,
+        genebe_cache: &Option<PathBuf>,
     ) -> Result<
         Vec<(
             EffectScore,
@@ -262,7 +263,8 @@ impl Transcript {
                 realign,
             )?;
             let frequency = haplotype_metric.calculate(&haplotype);
-            let annotation = Annotation::from_haplotype(&haplotype, self, genome_build)?;
+            let annotation =
+                Annotation::from_haplotype(&haplotype, self, genome_build, genebe_cache)?;
             scores.push((effect_score, frequency, supporting_reads, annotation));
         }
         Ok(scores)

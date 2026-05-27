@@ -6,6 +6,7 @@ use genebears::{
 use itertools::Itertools;
 use log::warn;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 use crate::graph::node::Node;
 use crate::graph::transcript::Transcript;
@@ -23,6 +24,7 @@ impl Annotation {
         haplotype: &[Node],
         transcript: &Transcript,
         genome_build: Genome,
+        genebe_cache: &Option<PathBuf>,
     ) -> Result<Self> {
         let mut variants: Vec<_> = haplotype
             .iter()
@@ -52,7 +54,12 @@ impl Annotation {
                 )
             })
             .collect_vec();
-        let client = GeneBears::new(ClientConfig::default())?;
+        let config = if let Some(cache) = genebe_cache {
+            ClientConfig::default().with_cache(cache)
+        } else {
+            ClientConfig::default()
+        };
+        let client = GeneBears::new(config)?;
         let rt = tokio::runtime::Runtime::new()?;
 
         let results = rt.block_on(client.annotate_variants(

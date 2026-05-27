@@ -90,6 +90,7 @@ impl Command {
                 haplotype_metric,
                 output,
                 max_haplotypes_per_transcript,
+                genebe_cache,
                 genome_build,
             } => {
                 create_scores(output)?;
@@ -113,6 +114,7 @@ impl Command {
                             *max_haplotypes_per_transcript,
                             *distance_metric,
                             *genome_build,
+                            genebe_cache,
                         )?;
                         info!(
                             "Writing scores for {} different haplotypes for transcript {}",
