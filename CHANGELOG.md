@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.5](https://github.com/fxwiegand/predictosaurus/compare/v0.12.4...v0.12.5) (2026-05-27)
+
+
+### Bug Fixes
+
+* Add optional GeneBe cache support ([faa9648](https://github.com/fxwiegand/predictosaurus/commit/faa9648a0866f44796f3d9ec9a537317d0f35abe))
+
 ## [0.12.4](https://github.com/fxwiegand/predictosaurus/compare/v0.12.3...v0.12.4) (2026-05-26)
 
 
