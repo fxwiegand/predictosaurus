@@ -15,7 +15,7 @@ use std::fmt::Display;
 use std::str::FromStr;
 use varlociraptor::variants::evidence::observations::read_observation::ProcessedReadObservation;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[allow(dead_code)] // TODO: Remove this attribute when graph is properly serialized
 pub(crate) enum NodeType {
     Variant,

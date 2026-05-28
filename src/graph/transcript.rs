@@ -231,6 +231,19 @@ impl Transcript {
 
                 (filtered_nodes, filtered_edges)
             })
+            .unique_by(|(nodes, _)| {
+                nodes
+                    .iter()
+                    .map(|n| {
+                        (
+                            n.pos,
+                            n.node_type.clone(),
+                            n.reference_allele.clone(),
+                            n.alternative_allele.clone(),
+                        )
+                    })
+                    .collect_vec()
+            })
             .collect())
     }
 
