@@ -234,7 +234,14 @@ impl Transcript {
             .unique_by(|(nodes, _)| {
                 nodes
                     .iter()
-                    .map(|n| (n.pos, n.alternative_allele.clone()))
+                    .map(|n| {
+                        (
+                            n.pos,
+                            n.node_type.clone(),
+                            n.reference_allele.clone(),
+                            n.alternative_allele.clone(),
+                        )
+                    })
                     .collect_vec()
             })
             .collect())
