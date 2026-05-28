@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.7](https://github.com/fxwiegand/predictosaurus/compare/v0.12.6...v0.12.7) (2026-05-28)
+
+
+### Bug Fixes
+
+* Deduplicate haplotypes after intron removal ([#263](https://github.com/fxwiegand/predictosaurus/issues/263)) ([538bd87](https://github.com/fxwiegand/predictosaurus/commit/538bd874f222f218f0fd69f044dac7f56d53dd3f))
+
 ## [0.12.6](https://github.com/fxwiegand/predictosaurus/compare/v0.12.5...v0.12.6) (2026-05-27)
 
 
