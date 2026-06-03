@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.8](https://github.com/fxwiegand/predictosaurus/compare/v0.12.7...v0.12.8) (2026-06-03)
+
+
+### Bug Fixes
+
+* Skip nodes with star alternative allele ([#266](https://github.com/fxwiegand/predictosaurus/issues/266)) ([7611d92](https://github.com/fxwiegand/predictosaurus/commit/7611d924624d930782ec375f5e7035bf463047fa))
+
 ## [0.12.7](https://github.com/fxwiegand/predictosaurus/compare/v0.12.6...v0.12.7) (2026-05-28)
 
 
