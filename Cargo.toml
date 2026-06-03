@@ -24,7 +24,7 @@ colored = "3"
 duckdb = { version = "1.10503.1", features = ["bundled"]}
 tera = "1.20.1"
 csv = "1.4.0"
-log = "0.4.30"
+log = "0.4.31"
 rayon = "1.12.0"
 env_logger = "0.11.6"
 genebears = "0.2.2"
