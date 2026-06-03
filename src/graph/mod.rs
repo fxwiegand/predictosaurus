@@ -137,6 +137,9 @@ impl VariantGraph {
             let alleles = calls_record.alleles();
             let ref_allele = String::from_utf8(alleles[0].to_vec())?;
             let alt_allele = String::from_utf8(alleles[1].to_vec())?;
+            if alt_allele == "*" {
+                continue;
+            }
 
             let event_probs = EventProbs::from_record(&calls_record, &tags);
             if !event_probs.is_valid() {
