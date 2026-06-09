@@ -19,6 +19,7 @@ pub struct EffectScore {
     pub realign: bool,
     pub hgvsc: String,
     pub hgvsg: String,
+    pub hgvsg_full: String,
 }
 
 impl EffectScore {
@@ -48,6 +49,25 @@ impl EffectScore {
                 .collect::<Vec<_>>()
                 .join(";")
         );
+        let hgvsg_full = format!(
+            "g.[{}]",
+            haplotype
+                .iter()
+                .map(|n| {
+                    if n.node_type.is_variant() {
+                        format!(
+                            "{}{}>{}",
+                            n.pos + 1,
+                            n.reference_allele,
+                            n.alternative_allele
+                        )
+                    } else {
+                        format!("{}=", n.pos + 1)
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(";")
+        );
         if transcript.strand == Strand::Reverse {
             variants.reverse();
         }
@@ -66,6 +86,7 @@ impl EffectScore {
             realign,
             hgvsc,
             hgvsg,
+            hgvsg_full,
         })
     }
 
@@ -340,6 +361,7 @@ mod tests {
             realign: false,
             hgvsc: "c.[100A>G;105C>T]".to_string(),
             hgvsg: "g.[100A>G;105C>T]".to_string(),
+            hgvsg_full: "g.[100A>G;105C>T]".to_string(),
         };
         assert!(score.score().abs() < 1e-6);
     }
@@ -355,6 +377,7 @@ mod tests {
             realign: false,
             hgvsc: "c.[100A>G;105C>T]".to_string(),
             hgvsg: "g.[100A>G;105C>T]".to_string(),
+            hgvsg_full: "g.[100A>G;105C>T]".to_string(),
         };
         // Distance between Leucine and Valine is 0.03 / 2 since len = 2
         assert!((score.score() - 0.015).abs() < 1e-6)
@@ -379,6 +402,7 @@ mod tests {
             realign: false,
             hgvsc: "c.[100A>G;105C>T]".to_string(),
             hgvsg: "g.[100A>G;105C>T]".to_string(),
+            hgvsg_full: "g.[100A>G;105C>T]".to_string(),
         };
         assert!((score.score() - (2.0 / 3.0)).abs() < 1e-6)
     }
@@ -398,6 +422,7 @@ mod tests {
             realign: true,
             hgvsc: "c.[100A>G;105C>T]".to_string(),
             hgvsg: "g.[100A>G;105C>T]".to_string(),
+            hgvsg_full: "g.[100A>G;105C>T]".to_string(),
         };
         assert!((score.score() - 0.5).abs() < 1e-6)
     }
@@ -426,6 +451,7 @@ mod tests {
             realign: true,
             hgvsc: "c.[100A>G;105C>T]".to_string(),
             hgvsg: "g.[100A>G;105C>T]".to_string(),
+            hgvsg_full: "g.[100A>G;105C>T]".to_string(),
         };
         assert!((score.score() - 0.2).abs() < 1e-6)
     }
