@@ -178,7 +178,7 @@ pub(crate) fn variants_on_graph(path: &PathBuf) -> Result<HashMap<String, BTreeS
 pub(crate) fn create_scores(output_path: &Path) -> Result<()> {
     let db = Connection::open(output_path)?;
     db.execute(
-        "CREATE TABLE scores (transcript String, score FLOAT, frequencies String, hgvsc String, hgvsg String, supporting_reads String, annotation String)",
+        "CREATE TABLE scores (transcript String, score FLOAT, frequencies String, hgvsc String, hgvsg String, hgvsg_full String, supporting_reads String, annotation String)",
         [],
     )?;
     db.close().unwrap();
@@ -197,7 +197,7 @@ pub(crate) fn write_scores(
 ) -> Result<()> {
     let mut db = Connection::open(path)?;
     let transaction = db.transaction()?;
-    let mut stmt = transaction.prepare("INSERT INTO scores VALUES (?, ?, ?, ?, ?, ?, ?)")?;
+    let mut stmt = transaction.prepare("INSERT INTO scores VALUES (?, ?, ?, ?, ?, ?, ?, ?)")?;
     let transcript_name = transcript.name();
     for (score, frequencies, supporting_reads, annotation) in scores {
         stmt.execute(params![
@@ -206,6 +206,7 @@ pub(crate) fn write_scores(
             json5::to_string(&frequencies)?,
             score.hgvsc,
             score.hgvsg,
+            score.hgvsg_full,
             json5::to_string(&supporting_reads)?,
             json5::to_string(&annotation)?,
         ])?;
@@ -233,7 +234,7 @@ pub(crate) fn read_scores(
     let db = Connection::open(path)?;
     let mut scores = HashMap::new();
     let mut stmt = db.prepare(
-        "SELECT transcript, score, frequencies, hgvsc, hgvsg, supporting_reads, annotation FROM scores",
+        "SELECT transcript, score, frequencies, hgvsc, hgvsg, hgvsg_full, supporting_reads, annotation FROM scores",
     )?;
     let mut rows = stmt.query([])?;
     while let Some(row) = rows.next()? {
@@ -242,11 +243,13 @@ pub(crate) fn read_scores(
         let frequencies: String = row.get(2)?;
         let hgvsc: String = row.get(3)?;
         let hgvsg: String = row.get(4)?;
-        let supporting_reads: String = row.get(5)?;
-        let annotation: String = row.get(6)?;
+        let hgvsg_full: String = row.get(5)?;
+        let supporting_reads: String = row.get(6)?;
+        let annotation: String = row.get(7)?;
         let haplotype = match notation {
             HgvsNotation::Hgvsc => hgvsc,
             HgvsNotation::Hgvsg => hgvsg,
+            HgvsNotation::HgvsgFull => hgvsg_full,
         };
         scores.entry(transcript).or_insert(Vec::new()).push((
             score,
@@ -659,6 +662,7 @@ mod tests {
             realign: false,
             hgvsc: "c.[100A>G;105C>T]".to_string(),
             hgvsg: "g.[100A>G;105C>T]".to_string(),
+            hgvsg_full: "g.[100A>G;105C>T]".to_string(),
         };
         let frequencies = HashMap::from([("A".to_string(), 0.1), ("C".to_string(), 0.2)]);
         let supporting_reads = vec![HashMap::from([("A".to_string(), 10), ("C".to_string(), 5)])];
