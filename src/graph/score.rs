@@ -55,7 +55,8 @@ impl EffectScore {
                 .iter()
                 .map(|n| {
                     if n.node_type.is_variant() {
-                        format!("{}{}>{}",
+                        format!(
+                            "{}{}>{}",
                             n.pos + 1,
                             n.reference_allele,
                             n.alternative_allele
