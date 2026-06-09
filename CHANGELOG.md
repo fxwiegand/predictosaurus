@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0](https://github.com/fxwiegand/predictosaurus/compare/v0.12.8...v0.13.0) (2026-06-09)
+
+
+### Features
+
+* Allow writing full hgvsg notation including reference nodes ([#268](https://github.com/fxwiegand/predictosaurus/issues/268)) ([125002d](https://github.com/fxwiegand/predictosaurus/commit/125002db9a10a31d1492a708ab4c8ac9fd2e8bbc))
+
 ## [0.12.8](https://github.com/fxwiegand/predictosaurus/compare/v0.12.7...v0.12.8) (2026-06-03)
 
 
