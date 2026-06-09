@@ -135,7 +135,7 @@ pub(crate) enum Command {
         #[clap(short, long)]
         input: PathBuf,
 
-        /// Format of the haplotype notation to use in the output. Must be one of `hgvsg`, `hgvsc`, or `hgvsgfull`.
+        /// Format of the haplotype notation to use in the output. Must be one of `hgvsg`, `hgvsc`, or `hgvsg-full`.
         #[clap(short, long, default_value = "hgvsg")]
         notation: HgvsNotation,
 
