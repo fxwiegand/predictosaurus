@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.13.1](https://github.com/fxwiegand/predictosaurus/compare/v0.13.0...v0.13.1) (2026-06-14)
+
+
+### Bug Fixes
+
+* Apply full alt allele and genomic-ordered variants in haplotype protein ([#270](https://github.com/fxwiegand/predictosaurus/issues/270)) ([cf05637](https://github.com/fxwiegand/predictosaurus/commit/cf056379e5ef8546f6e60211688649ecdc2446c5))
+* Guard reference codon lookup against positions before the phase ([#271](https://github.com/fxwiegand/predictosaurus/issues/271)) ([27ca08c](https://github.com/fxwiegand/predictosaurus/commit/27ca08c4b48215a8e9676c6d0c67884fa0e0d76a))
+* Prevent negative frameshift by using rem_euclid ([#272](https://github.com/fxwiegand/predictosaurus/issues/272)) ([a93aab9](https://github.com/fxwiegand/predictosaurus/commit/a93aab9cae44aa16ab1c71a935a9a504aeb2ed58))
+
 ## [0.13.0](https://github.com/fxwiegand/predictosaurus/compare/v0.12.8...v0.13.0) (2026-06-09)
 
 
