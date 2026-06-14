@@ -78,9 +78,17 @@ impl Protein {
                 let mut region = target_ref[cds.start as usize..=cds.end as usize].to_vec();
                 let mut offset: isize = 0;
 
-                for node in haplotype.iter().filter(|n| {
-                    n.pos >= cds.start as i64 && n.pos <= cds.end as i64 && n.node_type.is_variant()
-                }) {
+                let mut nodes: Vec<&Node> = haplotype
+                    .iter()
+                    .filter(|n| {
+                        n.pos >= cds.start as i64
+                            && n.pos <= cds.end as i64
+                            && n.node_type.is_variant()
+                    })
+                    .collect();
+                nodes.sort_by_key(|n| n.pos);
+
+                for node in nodes {
                     let pos = ((node.pos - cds.start as i64) as isize + offset) as usize;
                     // Check if variant exceeds the boundaries of CDS, if so only use the proportion of the variant within the CDS
                     // This might affect splicing
@@ -89,10 +97,9 @@ impl Protein {
                         continue; // nothing left in CDS
                     }
                     let ref_len = node.reference_allele.len().min(remaining_bases);
-                    let alt_bytes: Vec<u8> =
-                        node.alternative_allele.bytes().take(ref_len).collect();
-                    region.splice(pos..pos + ref_len, alt_bytes);
-                    offset += node.frameshift() as isize;
+                    let alt_bytes = node.alternative_allele.as_bytes();
+                    region.splice(pos..pos + ref_len, alt_bytes.iter().copied());
+                    offset += alt_bytes.len() as isize - ref_len as isize;
                 }
 
                 match transcript.strand {
@@ -607,6 +614,85 @@ mod tests {
         };
 
         assert_eq!(protein.unwrap(), expected);
+    }
+
+    #[test]
+    fn from_haplotype_applies_full_insertion_allele() {
+        let mut reference = HashMap::new();
+        reference.insert("chr1".to_string(), b"AAACCC".to_vec());
+        let transcript = Transcript {
+            feature: "ENST_INS".to_string(),
+            target: "chr1".to_string(),
+            strand: Strand::Forward,
+            coding_sequences: vec![Cds {
+                start: 0,
+                end: 5,
+                phase: 0,
+            }],
+        };
+        let haplotype = vec![Node {
+            node_type: NodeType::Variant,
+            reference_allele: "A".to_string(),
+            alternative_allele: "ATT".to_string(),
+            vaf: HashMap::new(),
+            probs: EventProbs(HashMap::new()),
+            pos: 2,
+            index: 0,
+        }];
+
+        let protein = Protein::from_haplotype(&reference, &transcript, &haplotype).unwrap();
+
+        assert_eq!(
+            protein,
+            Protein {
+                sequence: vec![AminoAcid::Lysine, AminoAcid::Phenylalanine],
+            }
+        );
+    }
+
+    #[test]
+    fn from_haplotype_applies_reverse_strand_variants_in_genomic_order() {
+        let mut reference = HashMap::new();
+        reference.insert("chr1".to_string(), b"AAACCC".to_vec());
+        let transcript = Transcript {
+            feature: "ENST_REV".to_string(),
+            target: "chr1".to_string(),
+            strand: Strand::Reverse,
+            coding_sequences: vec![Cds {
+                start: 0,
+                end: 5,
+                phase: 0,
+            }],
+        };
+        let haplotype = vec![
+            Node {
+                node_type: NodeType::Variant,
+                reference_allele: "C".to_string(),
+                alternative_allele: "CG".to_string(),
+                vaf: HashMap::new(),
+                probs: EventProbs(HashMap::new()),
+                pos: 4,
+                index: 1,
+            },
+            Node {
+                node_type: NodeType::Variant,
+                reference_allele: "A".to_string(),
+                alternative_allele: "T".to_string(),
+                vaf: HashMap::new(),
+                probs: EventProbs(HashMap::new()),
+                pos: 1,
+                index: 0,
+            },
+        ];
+
+        let protein = Protein::from_haplotype(&reference, &transcript, &haplotype).unwrap();
+
+        assert_eq!(
+            protein,
+            Protein {
+                sequence: vec![AminoAcid::Alanine, AminoAcid::Valine],
+            }
+        );
     }
 
     #[test]

@@ -168,6 +168,9 @@ impl Node {
             Strand::Reverse => self.position_on_reverse_strand(reference.len()),
             Strand::Unknown => return Err(anyhow!("Strand is unknown")),
         };
+        if p - (phase as i64) < 0 {
+            return Ok(None);
+        }
         let start_pos = p as usize - ((p - phase as i64) % 3) as usize;
         if start_pos + 3 > reference.len() {
             return Ok(None);
@@ -691,6 +694,16 @@ mod tests {
             .reference_amino_acid(0, reference, Strand::Reverse)
             .unwrap();
         assert!(no_amino_acid_2.is_none());
+    }
+
+    #[test]
+    fn reference_amino_acid_returns_none_when_position_before_phase() {
+        let node = Node::new(NodeType::Reference, 0, "".to_string(), "".to_string());
+        let reference = b"ATGCGC";
+        let result = node
+            .reference_amino_acid(1, reference, Strand::Forward)
+            .unwrap();
+        assert!(result.is_none());
     }
 
     #[test]
