@@ -335,7 +335,7 @@ impl Transcript {
                     let mut new_weights = Vec::new();
 
                     for (accumulated_weights, accumulated_fs) in &weights {
-                        let phase = shift_phase(cds.phase, ((*accumulated_fs + 3) % 3) as u8);
+                        let phase = shift_phase(cds.phase, (*accumulated_fs).rem_euclid(3) as u8);
                         let cds_options = paths
                             .iter()
                             .map(|path| {

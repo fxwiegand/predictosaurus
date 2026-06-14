@@ -79,7 +79,7 @@ impl HaplotypePath {
         for node_index in self.0.iter() {
             let node = graph.graph.node_weight(*node_index).unwrap();
             let new_impact = node.impact(ref_phase, phase, reference, strand)?;
-            phase = shift_phase(phase, ((node.frameshift() + 3) % 3) as u8);
+            phase = shift_phase(phase, node.frameshift().rem_euclid(3) as u8);
             impact = max(impact, new_impact);
         }
         Ok(impact)
@@ -99,7 +99,7 @@ impl HaplotypePath {
         for node_index in self.0.iter() {
             let node = graph.graph.node_weight(*node_index).unwrap();
             let impact = node.impact(ref_phase, phase, reference, strand)?;
-            phase = shift_phase(phase, ((node.frameshift() + 3) % 3) as u8);
+            phase = shift_phase(phase, node.frameshift().rem_euclid(3) as u8);
             for (sample, vaf) in node.vaf.iter() {
                 weights.push(Weight {
                     index: node_index.index(),
@@ -146,7 +146,7 @@ impl HaplotypePath {
                 alt_amino_acid,
                 node.impact(ref_phase, phase, reference, strand)?
             ));
-            phase = shift_phase(phase, ((node.frameshift() + 3) % 3) as u8);
+            phase = shift_phase(phase, node.frameshift().rem_euclid(3) as u8);
         }
         Ok(protein)
     }
@@ -204,7 +204,7 @@ impl HaplotypePath {
 
 mod tests {
     use crate::graph::node::{Node, NodeType};
-    use crate::graph::paths::Cds;
+    use crate::graph::paths::{Cds, HaplotypePath};
     use crate::graph::{Edge, EventProbs, VariantGraph};
     use crate::impact::Impact;
     use crate::translation::dna_to_amino_acids;
@@ -370,5 +370,29 @@ mod tests {
         let mut variants = HashMap::new();
         variants.insert(target.to_string(), BTreeSet::from([10, 20]));
         assert!(cds.contains_variant(target, &variants));
+    }
+
+    #[test]
+    fn impact_handles_large_deletion_frameshift() {
+        let mut graph = Graph::<Node, Edge, Directed>::new();
+        let node = graph.add_node(Node {
+            node_type: NodeType::Variant,
+            reference_allele: "ATGCG".to_string(),
+            alternative_allele: "".to_string(),
+            vaf: HashMap::new(),
+            probs: EventProbs(HashMap::new()),
+            pos: 0,
+            index: 0,
+        });
+        let graph = VariantGraph {
+            graph,
+            start: 0,
+            end: 5,
+            target: "test".to_string(),
+        };
+        let path = HaplotypePath(vec![node]);
+        assert!(path
+            .impact(&graph, 0, b"ATGCGTACGT", Strand::Forward)
+            .is_ok());
     }
 }
