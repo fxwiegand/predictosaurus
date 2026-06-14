@@ -78,9 +78,14 @@ impl Protein {
                 let mut region = target_ref[cds.start as usize..=cds.end as usize].to_vec();
                 let mut offset: isize = 0;
 
-                let mut nodes: Vec<&Node> = haplotype.iter().filter(|n| {
-                        n.pos >= cds.start as i64 && n.pos <= cds.end as i64 && n.node_type.is_variant()
-                    }).collect();
+                let mut nodes: Vec<&Node> = haplotype
+                    .iter()
+                    .filter(|n| {
+                        n.pos >= cds.start as i64
+                            && n.pos <= cds.end as i64
+                            && n.node_type.is_variant()
+                    })
+                    .collect();
                 nodes.sort_by_key(|n| n.pos);
 
                 for node in nodes {
