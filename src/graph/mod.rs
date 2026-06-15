@@ -187,24 +187,25 @@ impl VariantGraph {
 
             for (sample, observations) in observations {
                 for observation in observations {
-                    let evidence = BayesFactor::new(observation.prob_alt(), observation.prob_ref())
-                        .evidence_kass_raftery();
-                    match evidence {
-                        KassRaftery::Strong | KassRaftery::VeryStrong => {
-                            // Read supports variant
-                            let entry = supporting_reads
+                    let supports_allele = |numerator, denominator| {
+                        matches!(
+                            BayesFactor::new(numerator, denominator).evidence_kass_raftery(),
+                            KassRaftery::Positive | KassRaftery::Strong | KassRaftery::VeryStrong
+                        )
+                    };
+                    if supports_allele(observation.prob_alt(), observation.prob_ref()) {
+                        // Read supports variant
+                        supporting_reads
+                            .entry((sample.to_string(), observation.fragment_id))
+                            .or_insert(Vec::new())
+                            .push(var_node_index);
+                    } else if supports_allele(observation.prob_ref(), observation.prob_alt()) {
+                        // Read supports reference
+                        if let Some(index) = ref_node_index {
+                            supporting_reads
                                 .entry((sample.to_string(), observation.fragment_id))
-                                .or_insert(Vec::new());
-                            entry.push(var_node_index);
-                        }
-                        KassRaftery::None | KassRaftery::Barely | KassRaftery::Positive => {
-                            // Read supports reference
-                            let entry = supporting_reads
-                                .entry((sample.to_string(), observation.fragment_id))
-                                .or_insert(Vec::new());
-                            if let Some(index) = ref_node_index {
-                                entry.push(index);
-                            }
+                                .or_insert(Vec::new())
+                                .push(index);
                         }
                     }
                 }
