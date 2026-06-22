@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.2](https://github.com/fxwiegand/predictosaurus/compare/v0.13.1...v0.13.2) (2026-06-22)
+
+
+### Bug Fixes
+
+* Classify read support with reciprocal Bayes factor ([#275](https://github.com/fxwiegand/predictosaurus/issues/275)) ([3d93672](https://github.com/fxwiegand/predictosaurus/commit/3d93672787377c0d9f999b6ef4a9cbf736fb3e8d))
+
 ## [0.13.1](https://github.com/fxwiegand/predictosaurus/compare/v0.13.0...v0.13.1) (2026-06-14)
 
 
