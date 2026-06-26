@@ -139,6 +139,10 @@ pub(crate) enum Command {
         #[clap(short, long, default_value = "hgvsg")]
         notation: HgvsNotation,
 
+        /// Output the alternative protein sequence as an additional column.
+        #[clap(long)]
+        report_protein: bool,
+
         /// Path to the output TSV file containing the predicted scores per transcript.
         #[clap(short, long)]
         output: PathBuf,

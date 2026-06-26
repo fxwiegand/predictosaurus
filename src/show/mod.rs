@@ -85,6 +85,7 @@ pub(crate) fn render_html_paths(
 ///
 /// * `output_path` - A reference to a `PathBuf` that holds the path of the output TSV file.
 /// * `scores` - A reference to a `HashMap` that holds the scores, likelihoods, and haplotypes for each transcript.
+/// * `report_protein` - Whether to include the alternative protein sequence as an additional column.
 pub(crate) fn render_scores(
     output_path: &PathBuf,
     scores: &HashMap<
@@ -95,8 +96,10 @@ pub(crate) fn render_scores(
             String,
             Vec<HashMap<String, u32>>,
             Annotation,
+            String,
         )>,
     >,
+    report_protein: bool,
 ) -> Result<()> {
     let mut wtr = WriterBuilder::new()
         .delimiter(b'\t')
@@ -107,7 +110,7 @@ pub(crate) fn render_scores(
         .flat_map(|scores| {
             scores
                 .iter()
-                .flat_map(|(_, sample_scores, _, _, _)| sample_scores.keys().cloned())
+                .flat_map(|(_, sample_scores, _, _, _, _)| sample_scores.keys().cloned())
         })
         .unique()
         .collect();
@@ -121,12 +124,17 @@ pub(crate) fn render_scores(
         "spliceai_score".to_string(),
         "alphamissense_score".to_string(),
     ];
+    if report_protein {
+        headers.push("protein".to_string());
+    }
     headers.extend(samples.iter().map(|s| format!("{}:frequency", s)));
     headers.extend(samples.iter().map(|s| format!("{}:supporting_reads", s)));
     wtr.write_record(headers)?;
 
     for (transcript, hap_scores) in scores {
-        for (score_val, sample_scores, haplotype, supporting_reads, annotation) in hap_scores {
+        for (score_val, sample_scores, haplotype, supporting_reads, annotation, protein) in
+            hap_scores
+        {
             let mut row = vec![
                 transcript.to_string(),
                 score_val.to_string(),
@@ -144,6 +152,9 @@ pub(crate) fn render_scores(
                     .alphamissense_score
                     .map_or("".to_string(), |s| s.to_string()),
             ];
+            if report_protein {
+                row.push(protein.to_string());
+            }
             for sample in &samples {
                 let val = sample_scores.get(sample).ok_or_else(|| {
                     anyhow!(
@@ -259,13 +270,16 @@ mod tests {
                     ("C".to_string(), 5u32),
                 ])],
                 annotion,
+                "FL".to_string(),
             )],
         )]);
-        render_scores(&output_path, &scores).unwrap();
+        render_scores(&output_path, &scores, true).unwrap();
         let content = std::fs::read_to_string(&output_path).unwrap();
         assert!(output_path.exists());
         assert!(content.contains("transcript"));
         assert!(content.contains("chr1:some feature"));
         assert!(content.contains("10"));
+        assert!(content.contains("protein"));
+        assert!(content.contains("FL"));
     }
 }
