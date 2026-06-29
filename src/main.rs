@@ -182,13 +182,14 @@ impl Command {
             Command::Plot {
                 input,
                 notation,
+                report_protein,
                 output,
             } => {
                 if let Some(parent) = output.parent() {
                     create_output_dir(parent)?;
                 }
                 let scores = read_scores(input, *notation)?;
-                render_scores(output, &scores)?;
+                render_scores(output, &scores, *report_protein)?;
             }
         }
         Ok(())
