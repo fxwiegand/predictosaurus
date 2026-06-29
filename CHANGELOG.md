@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.14.0](https://github.com/fxwiegand/predictosaurus/compare/v0.13.2...v0.14.0) (2026-06-29)
+
+
+### Features
+
+* Add --report-protein flag ([#280](https://github.com/fxwiegand/predictosaurus/issues/280)) ([1ef6093](https://github.com/fxwiegand/predictosaurus/commit/1ef6093925731b75a3f290e41d36719d789fa140))
+* Allow authenticated GeneBe requests via --genebe-email ([1b0be53](https://github.com/fxwiegand/predictosaurus/commit/1b0be533d917277f594cd745f084890820cfa699))
+
 ## [0.13.2](https://github.com/fxwiegand/predictosaurus/compare/v0.13.1...v0.13.2) (2026-06-22)
 
 
