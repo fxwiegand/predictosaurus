@@ -1,4 +1,4 @@
-use crate::cli::{Command, Format, Predictosaurus};
+use crate::cli::{Command, Format, GeneBeCredentials, Predictosaurus};
 use crate::graph::duck::{
     create_paths, create_scores, feature_graph, read_scores, write_graphs, write_scores,
 };
@@ -92,15 +92,28 @@ impl Command {
                 output,
                 max_haplotypes_per_transcript,
                 genebe_cache,
+                genebe_email,
+                genebe_api_key,
                 genome_build,
             } => {
                 create_scores(output)?;
                 info!("Reading reference genome from {reference:?}");
                 let reference_genome = utils::fasta::read_reference(reference);
                 let write_lock = Arc::new(Mutex::new(()));
+                let credentials = match (genebe_email, genebe_api_key) {
+                    (Some(email), Some(api_key)) => Some(GeneBeCredentials {
+                        email: email.clone(),
+                        api_key: api_key.clone(),
+                    }),
+                    _ => None,
+                };
                 let mut config = ClientConfig::default();
                 if let Some(cache) = genebe_cache {
                     config = config.with_cache(cache);
+                }
+                if let Some(credentials) = &credentials {
+                    config.email = Some(credentials.email.clone());
+                    config.api_key = Some(credentials.api_key.clone());
                 }
                 let client = Arc::new(Mutex::new(GeneBears::new(config)?));
                 let transcripts = transcripts(features, graph)?;

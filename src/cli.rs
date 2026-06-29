@@ -83,6 +83,14 @@ pub(crate) enum Command {
         #[clap(long)]
         genebe_cache: Option<PathBuf>,
 
+        /// GeneBe account email for authenticated requests. Must be given together with `--genebe-api-key` and raises the anonymous request limit.
+        #[clap(long, requires = "genebe_api_key")]
+        genebe_email: Option<String>,
+
+        /// GeneBe API key for authenticated requests. Must be given together with `--genebe-email`.
+        #[clap(long, requires = "genebe_email")]
+        genebe_api_key: Option<String>,
+
         /// Genome build to use for fetching GeneBe annotations. Must be one of `hg38`, `hg19` or `t2t`.
         #[clap(long, default_value = "hg38")]
         genome_build: genebears::Genome,
@@ -143,6 +151,14 @@ pub(crate) enum Command {
         #[clap(short, long)]
         output: PathBuf,
     },
+}
+
+/// GeneBe credentials for authenticated API requests. Only ever constructed when
+/// both email and API key are present, so its existence guarantees a complete pair.
+#[derive(Debug, Clone)]
+pub(crate) struct GeneBeCredentials {
+    pub(crate) email: String,
+    pub(crate) api_key: String,
 }
 
 #[derive(Debug, Clone)]
