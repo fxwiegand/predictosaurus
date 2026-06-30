@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.1](https://github.com/fxwiegand/predictosaurus/compare/v0.14.0...v0.14.1) (2026-06-30)
+
+
+### Bug Fixes
+
+* Report reference haplotype frequency for every sample ([4e4cc93](https://github.com/fxwiegand/predictosaurus/commit/4e4cc93834bddbeb7752c6f7d6029b991625af2b))
+
 ## [0.14.0](https://github.com/fxwiegand/predictosaurus/compare/v0.13.2...v0.14.0) (2026-06-29)
 
 
