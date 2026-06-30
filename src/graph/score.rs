@@ -195,11 +195,7 @@ pub enum HaplotypeMetric {
 pub type HaplotypeFrequency = HashMap<String, f32>;
 
 impl HaplotypeMetric {
-    pub fn calculate(&self, haplotype: &[Node]) -> HaplotypeFrequency {
-        let samples = haplotype
-            .iter()
-            .flat_map(|n| n.vaf.keys())
-            .collect::<HashSet<_>>();
+    pub fn calculate(&self, haplotype: &[Node], samples: &HashSet<String>) -> HaplotypeFrequency {
         let mut metrics = HashMap::new();
         for sample in samples {
             let vafs = haplotype
@@ -260,7 +256,7 @@ mod tests {
             },
         ];
         let metric = HaplotypeMetric::Product;
-        let result = metric.calculate(&nodes);
+        let result = metric.calculate(&nodes, &HashSet::from(["S1".to_string()]));
         assert_eq!(result.get("S1").unwrap(), &(0.5 * 0.25));
     }
 
@@ -287,7 +283,7 @@ mod tests {
             },
         ];
         let metric = HaplotypeMetric::GeometricMean;
-        let result = metric.calculate(&nodes);
+        let result = metric.calculate(&nodes, &HashSet::from(["S1".to_string()]));
         let expected = (0.5_f32 * 0.25_f32).powf(1.0 / 2.0);
         assert!((result.get("S1").unwrap() - expected).abs() < 1e-6);
     }
@@ -304,14 +300,29 @@ mod tests {
             index: 0,
         }];
         let metric = HaplotypeMetric::GeometricMean;
-        let result = metric.calculate(&nodes);
+        let result = metric.calculate(&nodes, &HashSet::from(["S1".to_string()]));
         assert_eq!(result.get("S1").unwrap(), &1.0);
         let metric = HaplotypeMetric::Product;
-        let result = metric.calculate(&nodes);
+        let result = metric.calculate(&nodes, &HashSet::from(["S1".to_string()]));
         assert_eq!(result.get("S1").unwrap(), &1.0);
         let metric = HaplotypeMetric::Minimum;
-        let result = metric.calculate(&nodes);
+        let result = metric.calculate(&nodes, &HashSet::from(["S1".to_string()]));
         assert_eq!(result.get("S1").unwrap(), &1.0);
+    }
+
+    #[test]
+    fn reference_haplotype_scores_one_for_every_sample() {
+        let haplotype: Vec<Node> = Vec::new();
+        let samples = HashSet::from(["S1".to_string(), "S2".to_string()]);
+        for metric in [
+            HaplotypeMetric::Minimum,
+            HaplotypeMetric::Product,
+            HaplotypeMetric::GeometricMean,
+        ] {
+            let result = metric.calculate(&haplotype, &samples);
+            assert_eq!(result.get("S1"), Some(&1.0));
+            assert_eq!(result.get("S2"), Some(&1.0));
+        }
     }
 
     #[test]
@@ -346,7 +357,7 @@ mod tests {
             },
         ];
         let metric = HaplotypeMetric::Minimum;
-        let result = metric.calculate(&nodes);
+        let result = metric.calculate(&nodes, &HashSet::from(["S1".to_string()]));
         assert_eq!(*result.get("S1").unwrap(), 0.25);
     }
 

@@ -150,7 +150,7 @@ impl Transcript {
         &self,
         graph: &PathBuf,
         max_haplotypes: usize,
-    ) -> Result<Vec<(Vec<Node>, Vec<HashMap<String, u32>>)>> {
+    ) -> Result<(Vec<(Vec<Node>, Vec<HashMap<String, u32>>)>, HashSet<String>)> {
         let graph = match feature_graph(
             graph.to_owned(),
             self.target.clone(),
@@ -158,8 +158,14 @@ impl Transcript {
             self.end()?,
         ) {
             Ok(g) => g,
-            Err(_) => return Ok(vec![]),
+            Err(_) => return Ok((vec![], HashSet::new())),
         };
+
+        let samples: HashSet<String> = graph
+            .graph
+            .node_indices()
+            .flat_map(|i| graph.graph[i].vaf.keys().cloned())
+            .collect();
 
         let cds_intervals: Vec<(u64, u64)> = self.cds().map(|c| (c.start, c.end)).collect();
         let in_cds = |pos: i64| {
@@ -187,7 +193,7 @@ impl Transcript {
             Strand::Unknown => bail!("Strand is unknown for transcript {}", self.name()),
         };
 
-        Ok(raw_paths
+        let haplotypes = raw_paths
             .iter()
             .map(|p| {
                 let nodes: Vec<Node> =
@@ -244,7 +250,9 @@ impl Transcript {
                     })
                     .collect_vec()
             })
-            .collect())
+            .collect();
+
+        Ok((haplotypes, samples))
     }
 
     pub(crate) fn scores(
@@ -264,7 +272,7 @@ impl Transcript {
             Annotation,
         )>,
     > {
-        let haplotypes = self.haplotypes(graph, max_haplotypes)?;
+        let (haplotypes, samples) = self.haplotypes(graph, max_haplotypes)?;
         let mut scores = Vec::with_capacity(haplotypes.len());
         let original_protein = Protein::from_transcript(reference, self)?;
         for (haplotype, supporting_reads) in haplotypes {
@@ -277,7 +285,7 @@ impl Transcript {
                 distance_metric,
                 realign,
             )?;
-            let frequency = haplotype_metric.calculate(&haplotype);
+            let frequency = haplotype_metric.calculate(&haplotype, &samples);
             let annotation =
                 Annotation::from_haplotype(&haplotype, self, genome_build, genebe_client)?;
             scores.push((effect_score, frequency, supporting_reads, annotation));
