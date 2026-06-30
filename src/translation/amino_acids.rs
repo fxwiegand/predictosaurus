@@ -219,7 +219,6 @@ impl AminoAcid {
     pub(crate) fn is_stop(&self) -> bool {
         matches!(self, AminoAcid::Stop)
     }
-
 }
 
 impl Display for AminoAcid {

@@ -596,8 +596,8 @@ pub(crate) struct Edge {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bio::stats::Prob;
     use crate::graph::node::{Node, NodeType};
+    use bio::stats::Prob;
     use petgraph::{Directed, Graph};
     use rust_htslib::bcf::{Read, Reader};
     use std::fs;

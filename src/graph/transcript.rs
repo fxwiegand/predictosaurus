@@ -24,7 +24,6 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub(crate) struct Transcript {
     pub(crate) feature: String,

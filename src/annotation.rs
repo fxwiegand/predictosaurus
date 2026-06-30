@@ -1,8 +1,6 @@
 use anyhow::Result;
 use bio::bio_types::strand::Strand;
-use genebears::{
-    AnnotateOptions, GeneBearError, GeneBears, Genome, Variant,
-};
+use genebears::{AnnotateOptions, GeneBearError, GeneBears, Genome, Variant};
 use itertools::Itertools;
 use log::warn;
 use serde::{Deserialize, Serialize};

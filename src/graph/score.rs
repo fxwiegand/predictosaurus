@@ -219,9 +219,9 @@ impl HaplotypeMetric {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::graph::node::NodeType;
     use crate::graph::EventProbs;
     use crate::translation::amino_acids::AminoAcid;
-    use crate::graph::node::NodeType;
 
     #[test]
     fn test_product_metric() {

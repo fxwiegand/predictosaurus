@@ -42,7 +42,6 @@ impl Cds {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
 
     #[test]
     fn contains_variant_returns_true_when_variant_in_range() {

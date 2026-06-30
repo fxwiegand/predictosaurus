@@ -109,7 +109,6 @@ impl Node {
         }
     }
 
-
     /// Returns the frameshift caused by the variant at this node.
     pub(crate) fn frameshift(&self) -> i64 {
         match &self.node_type {
@@ -119,7 +118,6 @@ impl Node {
             NodeType::Reference => 0,
         }
     }
-
 
     /// Returns the maximum VAF across all samples
     pub(crate) fn max_vaf(&self) -> f32 {
@@ -141,15 +139,11 @@ impl Node {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::graph::paths::Cds;
     use bio::bio_types::strand::Strand;
-    
-    
-    
 
     #[test]
     fn test_frameshift() {
