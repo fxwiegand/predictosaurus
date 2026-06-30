@@ -213,13 +213,6 @@ impl FromStr for Interval {
     }
 }
 
-#[derive(Debug, Clone, ValueEnum)]
-pub(crate) enum Format {
-    Html,
-    Tsv,
-    Vega,
-}
-
 #[derive(Debug, Clone, Copy, ValueEnum, Default)]
 pub enum HgvsNotation {
     #[default]
