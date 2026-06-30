@@ -54,7 +54,6 @@ impl Annotation {
                 )
             })
             .collect_vec();
-        let rt = tokio::runtime::Runtime::new()?;
 
         let results = {
             let client = genebe_client.lock().unwrap();

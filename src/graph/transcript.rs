@@ -83,11 +83,6 @@ impl Transcript {
         }
     }
 
-    // Returns the total length of all CDS of the transcript
-    pub(crate) fn length(&self) -> usize {
-        self.cds().map(|c| c.length()).sum()
-    }
-
     /// Returns the 0-based position of the variant from the transcript start,
     /// where "start" means the 5' end of the coding sequence — i.e. the highest
     /// genomic coordinate for reverse-strand transcripts.
@@ -111,30 +106,10 @@ impl Transcript {
         );
     }
 
-    /// Returns the CDS containing the given genomic position, or None if not found.
-    pub(crate) fn cds_for_position(&self, pos: i64) -> Option<&Cds> {
-        self.cds()
-            .find(|cds| (cds.start as i64..=cds.end as i64).contains(&pos))
-    }
-
     fn paths(&self, graph: &VariantGraph) -> Result<Vec<HaplotypePath>> {
         match self.strand {
             Strand::Forward => Ok(graph.paths()),
             Strand::Reverse => Ok(graph.reverse_paths()),
-            Strand::Unknown => Err(anyhow::anyhow!(
-                "Strand is unknown for transcript {}",
-                self.name()
-            )),
-        }
-    }
-
-    fn reference(&self, reference: &HashMap<String, Vec<u8>>) -> Result<Vec<u8>> {
-        let sequence = reference.get(&self.target).ok_or_else(|| {
-            anyhow::anyhow!("Reference sequence not found for target {}", self.target)
-        })?;
-        match self.strand {
-            Strand::Forward => Ok(sequence.to_vec()),
-            Strand::Reverse => Ok(reverse_complement(sequence)),
             Strand::Unknown => Err(anyhow::anyhow!(
                 "Strand is unknown for transcript {}",
                 self.name()
@@ -524,7 +499,6 @@ pub(crate) fn transcripts(gff_file: &PathBuf, graph: &PathBuf) -> Result<Vec<Tra
         let target = record.seqname().to_string();
         let start = *record.start() - 1;
         let end = *record.end() - 1;
-        let length = end - start + 1;
         let phase = record.phase().clone().try_into().unwrap();
         let strand = record.strand().ok_or_else(|| {
             anyhow::anyhow!("No strand found for CDS in sequence {}", record.seqname())
@@ -738,32 +712,6 @@ chr1\tsource\tCDS\t400\t500\t.\t-\t0\tID=ENSP00000493377
     }
 
     #[test]
-    fn reference_returns_correct_sequence_for_forward_strand() {
-        let transcript = Transcript::new(
-            "ENSP00000493376".to_string(),
-            "test".to_string(),
-            Strand::Forward,
-            vec![Cds::new(1, 10, 0)],
-        );
-        let reference = HashMap::from([("test".to_string(), vec![b'A', b'T', b'G', b'C'])]);
-        let result = transcript.reference(&reference).unwrap();
-        assert_eq!(result, vec![b'A', b'T', b'G', b'C']);
-    }
-
-    #[test]
-    fn reference_returns_reverse_complement_for_reverse_strand() {
-        let transcript = Transcript::new(
-            "ENSP00000493376".to_string(),
-            "test".to_string(),
-            Strand::Reverse,
-            vec![Cds::new(1, 10, 0)],
-        );
-        let reference = HashMap::from([("test".to_string(), vec![b'A', b'T', b'G', b'C'])]);
-        let result = transcript.reference(&reference).unwrap();
-        assert_eq!(result, vec![b'G', b'C', b'A', b'T']);
-    }
-
-    #[test]
     fn start_returns_min_cds_start() {
         let transcript = Transcript::new(
             "ENSP00000493376".to_string(),
@@ -823,17 +771,6 @@ chr1\tsource\tCDS\t400\t500\t.\t-\t0\tID=ENSP00000493377
         );
         let cds: Vec<&Cds> = transcript.cds().collect();
         assert!(cds.is_empty());
-    }
-
-    #[test]
-    fn test_transcript_length() {
-        let transcript = Transcript::new(
-            "ENSP00000493376".to_string(),
-            "test".to_string(),
-            Strand::Forward,
-            vec![Cds::new(10, 20, 0), Cds::new(30, 40, 0)],
-        );
-        assert_eq!(transcript.length(), 22)
     }
 
     #[test]
@@ -904,41 +841,6 @@ chr1\tsource\tCDS\t400\t500\t.\t-\t0\tID=ENSP00000493377
         assert_eq!(transcript.position_in_transcript(200).unwrap(), 5);
         assert_eq!(transcript.position_in_transcript(202).unwrap(), 7);
         assert!(transcript.position_in_transcript(150).is_err());
-    }
-
-    #[test]
-    fn test_cds_for_position_option() {
-        let transcript = Transcript {
-            feature: "Test".to_string(),
-            target: "chr1".to_string(),
-            strand: Strand::Forward,
-            coding_sequences: vec![
-                Cds {
-                    start: 100,
-                    end: 199,
-                    phase: 0,
-                },
-                Cds {
-                    start: 300,
-                    end: 399,
-                    phase: 0,
-                },
-            ],
-        };
-
-        assert_eq!(
-            transcript
-                .cds_for_position(150)
-                .map(|cds| (cds.start, cds.end)),
-            Some((100, 199))
-        );
-        assert_eq!(
-            transcript
-                .cds_for_position(350)
-                .map(|cds| (cds.start, cds.end)),
-            Some((300, 399))
-        );
-        assert_eq!(transcript.cds_for_position(250), None);
     }
 
     #[test]

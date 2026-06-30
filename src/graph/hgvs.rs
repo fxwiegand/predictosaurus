@@ -39,7 +39,7 @@ pub(crate) fn hgvsc(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{graph::transcript::Transcript, transcripts, Cds};
+    use crate::{graph::paths::Cds, graph::transcript::Transcript, transcripts};
     use bio::bio_types::strand::Strand;
     use std::path::PathBuf;
 

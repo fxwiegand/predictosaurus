@@ -265,10 +265,17 @@ pub(crate) fn read_scores(
     Ok(scores)
 }
 
+#[cfg(test)]
 mod tests {
+    
     use super::*;
     use crate::graph::node::{Node, NodeType};
     use crate::graph::Edge;
+    use crate::graph::paths::Cds;
+    use crate::translation::amino_acids::{AminoAcid, Protein};
+    use crate::translation::distance::DistanceMetric;
+    use bio::bio_types::strand::Strand;
+    use itertools::Itertools;
     
     
     

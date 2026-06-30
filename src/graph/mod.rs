@@ -17,14 +17,12 @@ use bio::stats::bayesian::BayesFactor;
 use bio::stats::{LogProb, PHREDProb};
 use itertools::Itertools;
 use log::{info, warn};
-use petgraph::dot::{Config, Dot};
 use petgraph::graph::NodeIndex;
 use petgraph::{Directed, Graph};
 use rust_htslib::bcf::{Read, Reader, Record};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use varlociraptor::calling::variants::preprocessing::read_observations;
 use varlociraptor::utils::collect_variants::collect_variants;
 
@@ -134,7 +132,6 @@ impl VariantGraph {
                 .collect();
 
             let alleles = calls_record.alleles();
-            let ref_allele = String::from_utf8(alleles[0].to_vec())?;
             let alt_allele = String::from_utf8(alleles[1].to_vec())?;
             if alt_allele == "*" {
                 continue;
@@ -353,53 +350,6 @@ impl VariantGraph {
         Ok(())
     }
 
-    pub(crate) fn subgraph(&self, start: i64, end: i64) -> VariantGraph {
-        let mut subgraph = self.graph.clone();
-        let nodes = subgraph
-            .node_indices()
-            .filter(|n| {
-                let node = subgraph.node_weight(*n).unwrap();
-                node.pos >= start && node.pos <= end
-            })
-            .collect_vec();
-        let edges = subgraph
-            .edge_indices()
-            .filter(|e| {
-                let source = subgraph.edge_endpoints(*e).unwrap().0;
-                let target = subgraph.edge_endpoints(*e).unwrap().1;
-                nodes.contains(&source) && nodes.contains(&target)
-            })
-            .collect_vec();
-        subgraph.retain_nodes(|_, n| nodes.contains(&n));
-        subgraph.retain_edges(|_, e| edges.contains(&e));
-        VariantGraph {
-            graph: subgraph,
-            start,
-            end,
-            target: self.target.clone(),
-        }
-    }
-
-    pub(crate) fn write(&self, path: &Path) -> Result<()> {
-        let file = std::fs::File::create(path)?;
-        serde_json::to_writer(file, self)?;
-        Ok(())
-    }
-
-    pub(crate) fn to_dot(&self) -> String {
-        format!(
-            "digraph {{ {:?} }}",
-            Dot::with_config(&self.graph, &[Config::GraphContentOnly])
-        )
-    }
-
-    pub(crate) fn to_file(&self, path: &Path) -> Result<()> {
-        let path = path.join("graph.dot");
-        let mut file = std::fs::File::create(path)?;
-        file.write_all(self.to_dot().as_bytes())?;
-        Ok(())
-    }
-
     /// Finds all paths starting from all nodes with the lowest graph index.
     ///
     /// This method performs a depth-first search (DFS) starting from from every node whose graph index is the minimum index in the graph.
@@ -597,15 +547,6 @@ impl VariantGraph {
     }
 }
 
-fn shift_phase(phase: u8, frameshift: u8) -> u8 {
-    match phase {
-        0 => [0, 2, 1][frameshift as usize],
-        1 => [1, 0, 2][frameshift as usize],
-        2 => [2, 1, 0][frameshift as usize],
-        _ => unreachable!(),
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct EventProbs(pub(crate) HashMap<String, LogProb>);
 
@@ -655,8 +596,8 @@ pub(crate) struct Edge {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bio::stats::Prob;
     use crate::graph::node::{Node, NodeType};
-    use bio::bio_types::strand::Strand;
     use petgraph::{Directed, Graph};
     use rust_htslib::bcf::{Read, Reader};
     use std::fs;
@@ -768,17 +709,6 @@ mod tests {
     }
 
     #[test]
-    fn subgraph_includes_nodes_within_range() {
-        let graph = setup_variant_graph_with_nodes();
-        let subgraph = graph.subgraph(1, 3);
-        assert!(subgraph.graph.node_indices().all(|n| {
-            let node = subgraph.graph.node_weight(n).unwrap();
-            node.pos >= 1 && node.pos <= 3
-        }));
-        assert_eq!(subgraph.graph.node_count(), 3)
-    }
-
-    #[test]
     fn test_graph_paths() {
         let calls_file = PathBuf::from("tests/resources/test_calls.vcf");
         let observations_file = PathBuf::from("tests/resources/test_observations.vcf");
@@ -821,37 +751,37 @@ mod tests {
 
     pub(crate) fn setup_variant_graph_with_nodes() -> VariantGraph {
         let mut graph = Graph::<Node, Edge, Directed>::new();
-        let node1 = graph.add_node(Node::new(
+        let _node1 = graph.add_node(Node::new(
             NodeType::Variant,
             1,
             "G".to_string(),
             "A".to_string(),
         ));
-        let node2 = graph.add_node(Node::new(
+        let _node2 = graph.add_node(Node::new(
             NodeType::Reference,
             2,
             "".to_string(),
             "".to_string(),
         ));
-        let node3 = graph.add_node(Node::new(
+        let _node3 = graph.add_node(Node::new(
             NodeType::Variant,
             3,
             "C".to_string(),
             "T".to_string(),
         ));
-        let node4 = graph.add_node(Node::new(
+        let _node4 = graph.add_node(Node::new(
             NodeType::Variant,
             4,
             "C".to_string(),
             "".to_string(),
         ));
-        let node5 = graph.add_node(Node::new(
+        let _node5 = graph.add_node(Node::new(
             NodeType::Variant,
             8,
             "C".to_string(),
             "A".to_string(),
         ));
-        let node6 = graph.add_node(Node::new(
+        let _node6 = graph.add_node(Node::new(
             NodeType::Variant,
             9,
             "A".to_string(),
@@ -878,52 +808,6 @@ mod tests {
     }
 
     #[test]
-    fn to_dot_generates_correct_dot_representation() {
-        let graph = setup_variant_graph_with_nodes();
-        let dot_output = graph.to_dot();
-        assert!(dot_output.contains("digraph {"));
-        assert!(dot_output.contains("}"));
-    }
-
-    #[test]
-    fn to_file_writes_dot_file_correctly() {
-        let graph = setup_variant_graph_with_nodes();
-        let temp_dir = tempfile::tempdir().unwrap();
-        let file_path = temp_dir.path().join("graph.dot");
-        graph.to_file(temp_dir.path()).unwrap();
-        let written_content = fs::read_to_string(file_path).unwrap();
-        assert!(written_content.contains("digraph {"));
-        assert!(written_content.contains("}"));
-    }
-
-    #[test]
-    fn shift_phase_no_frameshift() {
-        assert_eq!(shift_phase(0, 0), 0);
-        assert_eq!(shift_phase(1, 0), 1);
-        assert_eq!(shift_phase(2, 0), 2);
-    }
-
-    #[test]
-    fn shift_phase_with_frameshift_1() {
-        assert_eq!(shift_phase(0, 1), 2);
-        assert_eq!(shift_phase(1, 1), 0);
-        assert_eq!(shift_phase(2, 1), 1);
-    }
-
-    #[test]
-    fn shift_phase_with_frameshift_2() {
-        assert_eq!(shift_phase(0, 2), 1);
-        assert_eq!(shift_phase(1, 2), 2);
-        assert_eq!(shift_phase(2, 2), 0);
-    }
-
-    #[test]
-    #[should_panic]
-    fn shift_phase_invalid_phase() {
-        shift_phase(3, 1);
-    }
-
-    #[test]
     fn test_graph_serialization_and_deserialization() {
         let graph = setup_variant_graph_with_nodes();
         let temp_dir = tempfile::tempdir().unwrap();
@@ -940,7 +824,7 @@ mod tests {
 
     fn setup_graph_with_edges() -> VariantGraph {
         let mut graph = Graph::<Node, Edge, Directed>::new();
-        let node0 = graph.add_node(Node::new(
+        let _node0 = graph.add_node(Node::new(
             NodeType::Reference,
             1,
             "C".to_string(),

@@ -221,7 +221,7 @@ mod tests {
     use super::*;
     use crate::graph::EventProbs;
     use crate::translation::amino_acids::AminoAcid;
-    use crate::Cds;
+    use crate::graph::node::NodeType;
 
     #[test]
     fn test_product_metric() {

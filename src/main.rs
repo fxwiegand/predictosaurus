@@ -148,7 +148,7 @@ impl Command {
                 min_event_prob,
                 background_events,
                 max_background_event_prob,
-                max_cds_length,
+                max_cds_length: _max_cds_length,
             } => {
                 info!("Reading reference genome from {reference:?}");
                 let reference_genome = utils::fasta::read_reference(reference);

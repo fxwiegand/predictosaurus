@@ -2,7 +2,6 @@ use crate::graph::hgvs::hgvsc;
 use crate::graph::transcript::Transcript;
 use crate::graph::EventProbs;
 use anyhow::anyhow;
-use itertools::Itertools;
 use rust_htslib::bcf::Record;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -110,13 +109,6 @@ impl Node {
         }
     }
 
-    // Returns whether the node is a SNV
-    pub(crate) fn is_snv(&self) -> bool {
-        match &self.node_type {
-            NodeType::Variant => self.alternative_allele.len() == 1,
-            NodeType::Reference => false,
-        }
-    }
 
     /// Returns the frameshift caused by the variant at this node.
     pub(crate) fn frameshift(&self) -> i64 {
@@ -128,10 +120,6 @@ impl Node {
         }
     }
 
-    /// Returns the 0-based position of the node on the reverse strand.
-    pub(crate) fn position_on_reverse_strand(&self, reference_length: usize) -> i64 {
-        (reference_length as i64 - 1) - self.pos
-    }
 
     /// Returns the maximum VAF across all samples
     pub(crate) fn max_vaf(&self) -> f32 {
@@ -153,147 +141,15 @@ impl Node {
     }
 }
 
-pub(crate) fn node_distance(node1: &u32, node2: &u32) -> u32 {
-    node2 - node1
-}
 
-pub(crate) fn nodes_in_between(node1: &u32, node2: &u32, nodes: Vec<&u32>) -> usize {
-    nodes
-        .iter()
-        .filter(|n| n < &&node2 && &&node1 < n)
-        .filter(|n| node_distance(node1, n) != 0)
-        .filter(|n| node_distance(n, node2) != 0)
-        .count()
-}
-
+#[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::graph::paths::Cds;
+    use bio::bio_types::strand::Strand;
     
     
     
-    
-    
-    
-    
-    
-    
-    
-
-    #[test]
-    fn test_nodes_in_between() {
-        let mut graph = Graph::<Node, Edge, Directed>::new();
-        let vaf = HashMap::new();
-        let ep = EventProbs(HashMap::new());
-        let weight_1 = Node {
-            node_type: NodeType::Reference,
-            reference_allele: "".to_string(),
-            alternative_allele: "".to_string(),
-            vaf: vaf.clone(),
-            probs: ep.clone(),
-            pos: 1,
-            index: 1,
-        };
-        let node0 = graph.add_node(weight_1.clone());
-        let node1 = graph.add_node(weight_1.clone());
-        let weight_2 = Node {
-            node_type: NodeType::Reference,
-            reference_allele: "".to_string(),
-            alternative_allele: "".to_string(),
-            vaf: vaf.clone(),
-            probs: ep.clone(),
-            pos: 4,
-            index: 2,
-        };
-        let _node2 = graph.add_node(weight_2.clone());
-        let node3 = graph.add_node(weight_2.clone());
-        let weight_3 = Node {
-            node_type: NodeType::Reference,
-            reference_allele: "".to_string(),
-            alternative_allele: "".to_string(),
-            vaf: vaf.clone(),
-            probs: ep.clone(),
-            pos: 5,
-            index: 3,
-        };
-        let node4 = graph.add_node(weight_3.clone());
-        let node5 = graph.add_node(weight_3.clone());
-
-        let nodes = [node0, node1, node3, node4, node5]
-            .iter()
-            .map(|n| &graph.node_weight(*n).unwrap().index)
-            .collect_vec();
-        let nodes_in_between = nodes_in_between(
-            &graph.node_weight(node0).unwrap().index,
-            &graph.node_weight(node5).unwrap().index,
-            nodes,
-        );
-        assert_eq!(nodes_in_between, 1);
-    }
-
-    #[test]
-    fn test_node_distance() {
-        let mut graph = Graph::<Node, Edge, Directed>::new();
-        let vaf = HashMap::new();
-        let ep = EventProbs(HashMap::new());
-        let weight_1 = Node {
-            node_type: NodeType::Reference,
-            reference_allele: "".to_string(),
-            alternative_allele: "".to_string(),
-            vaf: vaf.clone(),
-            probs: ep.clone(),
-            pos: 1,
-            index: 1,
-        };
-        let node0 = graph.add_node(weight_1.clone());
-        let node1 = graph.add_node(weight_1.clone());
-        let weight_2 = Node {
-            node_type: NodeType::Reference,
-            reference_allele: "".to_string(),
-            alternative_allele: "".to_string(),
-            vaf: vaf.clone(),
-            probs: ep.clone(),
-            pos: 4,
-            index: 2,
-        };
-        let node2 = graph.add_node(weight_2.clone());
-        let node3 = graph.add_node(weight_2.clone());
-        let weight_3 = Node {
-            node_type: NodeType::Reference,
-            reference_allele: "".to_string(),
-            alternative_allele: "".to_string(),
-            vaf: vaf.clone(),
-            probs: ep.clone(),
-            pos: 5,
-            index: 3,
-        };
-        let node4 = graph.add_node(weight_3.clone());
-        let _node5 = graph.add_node(weight_3.clone());
-
-        let distance = node_distance(
-            &graph.node_weight(node0).unwrap().index,
-            &graph.node_weight(node2).unwrap().index,
-        );
-        assert_eq!(distance, 1);
-        let distance_2 = node_distance(
-            &graph.node_weight(node0).unwrap().index,
-            &graph.node_weight(node1).unwrap().index,
-        );
-        assert_eq!(distance_2, 0);
-        let distance_3 = node_distance(
-            &graph.node_weight(node1).unwrap().index,
-            &graph.node_weight(node4).unwrap().index,
-        );
-        assert_eq!(distance_3, 2);
-        let distance_4 = node_distance(
-            &graph.node_weight(node3).unwrap().index,
-            &graph.node_weight(node4).unwrap().index,
-        );
-        assert_eq!(distance_4, 1);
-        let distance_5 = node_distance(
-            &graph.node_weight(node1).unwrap().index,
-            &graph.node_weight(node3).unwrap().index,
-        );
-        assert_eq!(distance_5, 1);
-    }
 
     #[test]
     fn test_frameshift() {
@@ -306,34 +162,6 @@ mod tests {
         let node = Node::new(NodeType::Variant, 2, "A".to_string(), "".to_string());
         let frameshift = node.frameshift();
         assert_eq!(frameshift, -1);
-    }
-
-    #[test]
-    fn position_on_reverse_strand_calculates_correctly_for_position() {
-        let node = Node::new(NodeType::Reference, 5, "".to_string(), "".to_string());
-        let reference_length = 10;
-        assert_eq!(node.position_on_reverse_strand(reference_length), 4);
-    }
-
-    #[test]
-    fn position_on_reverse_strand_calculates_correctly_for_middle_position() {
-        let node = Node::new(NodeType::Reference, 4, "".to_string(), "".to_string());
-        let reference_length = 9;
-        assert_eq!(node.position_on_reverse_strand(reference_length), 4);
-    }
-
-    #[test]
-    fn position_on_reverse_strand_calculates_correctly_for_start_position() {
-        let node = Node::new(NodeType::Reference, 0, "".to_string(), "".to_string());
-        let reference_length = 10;
-        assert_eq!(node.position_on_reverse_strand(reference_length), 9);
-    }
-
-    #[test]
-    fn position_on_reverse_strand_calculates_correctly_for_end_position() {
-        let node = Node::new(NodeType::Reference, 10, "".to_string(), "".to_string());
-        let reference_length = 11;
-        assert_eq!(node.position_on_reverse_strand(reference_length), 0);
     }
 
     #[test]
@@ -402,30 +230,6 @@ mod tests {
             index: 0,
         };
         assert_eq!(var_node.max_vaf(), 0.1);
-    }
-
-    #[test]
-    fn test_node_is_snv() {
-        let snv_node = Node {
-            node_type: NodeType::Variant,
-            reference_allele: "C".to_string(),
-            alternative_allele: "A".to_string(),
-            vaf: Default::default(),
-            probs: EventProbs(Default::default()),
-            pos: 42,
-            index: 0,
-        };
-        assert!(snv_node.is_snv());
-        let indel_node = Node {
-            node_type: NodeType::Variant,
-            reference_allele: "G".to_string(),
-            alternative_allele: "CA".to_string(),
-            vaf: Default::default(),
-            probs: EventProbs(Default::default()),
-            pos: 42,
-            index: 0,
-        };
-        assert!(!indel_node.is_snv());
     }
 
     #[test]
