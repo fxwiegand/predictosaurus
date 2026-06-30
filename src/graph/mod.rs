@@ -319,7 +319,7 @@ impl VariantGraph {
         possible_node_pairs: &HashSet<(NodeIndex, NodeIndex)>,
     ) -> Result<()> {
         for ((sample, _), nodes) in supporting_reads {
-            for (a, b) in nodes.iter().copied().tuple_combinations() {
+            for [a, b] in nodes.iter().copied().array_combinations::<2>() {
                 let (a, b) = if possible_node_pairs.contains(&(a, b)) {
                     (a, b)
                 } else if possible_node_pairs.contains(&(b, a)) {
