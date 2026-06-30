@@ -1,7 +1,5 @@
 use crate::cli::{Command, GeneBeCredentials, Predictosaurus};
-use crate::graph::duck::{
-    create_scores, feature_graph, read_scores, write_graphs, write_scores,
-};
+use crate::graph::duck::{create_scores, feature_graph, read_scores, write_graphs, write_scores};
 use crate::graph::paths::Cds;
 use crate::graph::peptide::write_peptides;
 use crate::graph::transcript::transcripts;

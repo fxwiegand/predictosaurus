@@ -155,7 +155,6 @@ impl Node {
         )
         .unwrap_or_default()
     }
-
 }
 
 pub(crate) fn node_distance(node1: &u32, node2: &u32) -> u32 {
