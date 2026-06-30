@@ -1,4 +1,4 @@
-use crate::cli::{Command, Format, GeneBeCredentials, Predictosaurus};
+use crate::cli::{Command, GeneBeCredentials, Predictosaurus};
 use crate::graph::duck::{
     create_paths, create_scores, feature_graph, read_scores, write_graphs, write_scores,
 };
@@ -6,7 +6,7 @@ use crate::graph::paths::Cds;
 use crate::graph::peptide::write_peptides;
 use crate::graph::transcript::transcripts;
 use crate::graph::VariantGraph;
-use crate::show::{render_html_paths, render_scores, render_tsv_paths, render_vl_paths};
+use crate::show::render_scores;
 use crate::utils::bcf::get_targets;
 use crate::utils::create_output_dir;
 use anyhow::{Context, Result};
