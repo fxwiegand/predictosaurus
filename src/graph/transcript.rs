@@ -2,7 +2,7 @@ use crate::annotation::Annotation;
 use crate::cli::Interval;
 use crate::graph::duck::{feature_graph, variants_on_graph};
 use crate::graph::node::{Node, NodeType};
-use crate::graph::paths::{Cds, HaplotypePath, Weight};
+use crate::graph::paths::{Cds, HaplotypePath};
 use crate::graph::peptide::Peptide;
 use crate::graph::score::EffectScore;
 use crate::graph::score::HaplotypeFrequency;
@@ -291,92 +291,6 @@ impl Transcript {
             scores.push((effect_score, frequency, supporting_reads, annotation));
         }
         Ok(scores)
-    }
-
-    pub(crate) fn weights(
-        &self,
-        graph: &PathBuf,
-        reference: &HashMap<String, Vec<u8>>,
-    ) -> Result<Vec<Vec<Weight>>> {
-        let mut weights = Vec::new();
-        for cds in self.cds() {
-            if let Ok(graph) = feature_graph(
-                graph.to_owned(),
-                self.target.to_string(),
-                cds.start,
-                cds.end,
-            ) {
-                info!(
-                    "Subgraph for CDS ({}-{}) of transcript {} has {} nodes",
-                    cds.start,
-                    cds.end,
-                    self.name(),
-                    graph.graph.node_count()
-                );
-                let paths = self.paths(&graph)?;
-                info!(
-                    "Found {} paths for CDS ({}-{}) of transcript {}",
-                    paths.len(),
-                    cds.start,
-                    cds.end,
-                    self.name()
-                );
-                if paths.is_empty() {
-                    continue;
-                }
-                let reference_sequence = self.reference(reference)?;
-                if weights.is_empty() {
-                    let cds_weights = paths
-                        .iter()
-                        .map(|path| {
-                            (
-                                path.weights(&graph, cds.phase, &reference_sequence, self.strand)
-                                    .unwrap(),
-                                path.frameshift(&graph),
-                            )
-                        })
-                        .collect_vec();
-                    for w in cds_weights {
-                        weights.push(w);
-                    }
-                } else {
-                    let mut new_weights = Vec::new();
-
-                    for (accumulated_weights, accumulated_fs) in &weights {
-                        let phase = shift_phase(cds.phase, (*accumulated_fs).rem_euclid(3) as u8);
-                        let cds_options = paths
-                            .iter()
-                            .map(|path| {
-                                (
-                                    path.weights(&graph, phase, &reference_sequence, self.strand)
-                                        .unwrap(),
-                                    path.frameshift(&graph),
-                                )
-                            })
-                            .collect_vec();
-
-                        // For each option from the current CDS,
-                        // create a new combination that appends its weights
-                        // and adds its frameshift to the accumulated one.
-                        // Offset weight index by max index in accumulated weights
-                        for (mut new_weights_option, delta_fs) in cds_options {
-                            let mut combined = accumulated_weights.clone();
-                            let offset = accumulated_weights.iter().map(|w| w.index).max().unwrap();
-                            for mut w in new_weights_option {
-                                w.index += offset + 1;
-                                combined.push(w);
-                            }
-                            new_weights.push((combined, *accumulated_fs + delta_fs));
-                        }
-                    }
-
-                    // Replace the old combinations with the newly computed ones.
-                    weights = new_weights;
-                }
-            }
-        }
-        let weights = weights.into_iter().map(|(w, _)| w).collect_vec();
-        Ok(weights)
     }
 
     pub(crate) fn peptides(
@@ -967,48 +881,6 @@ chr1\tsource\tCDS\t400\t500\t.\t-\t0\tID=ENSP00000493377
             result.unwrap_err().to_string(),
             "Strand is unknown for transcript chr1:ENSP00000493376"
         );
-    }
-
-    #[test]
-    fn weights_returns_correct_weights_for_forward_strand() {
-        let transcript = Transcript::new(
-            "ENSP00000493376".to_string(),
-            "test".to_string(),
-            Strand::Forward,
-            vec![Cds::new(1, 10, 0)],
-        );
-        let graph = setup_graph();
-        let tmp = tempfile::tempdir().unwrap();
-        let graph_path = tmp.path().join("graph.duckdb");
-        write_graphs(HashMap::from([("test".to_string(), graph)]), &graph_path).unwrap();
-        let reference = HashMap::from([("test".to_string(), vec![b'A', b'T', b'G', b'C'])]);
-        let weights = transcript.weights(&graph_path, &reference).unwrap();
-        assert_eq!(weights.len(), 1);
-        assert_eq!(weights[0].len(), 2);
-    }
-
-    #[test]
-    fn weights_returns_correct_weights_for_reverse_strand() {
-        let transcript = Transcript::new(
-            "ENSP00000493376".to_string(),
-            "test".to_string(),
-            Strand::Reverse,
-            vec![Cds::new(1, 10, 0), Cds::new(12, 15, 0)],
-        );
-        let graph = setup_graph();
-        let tmp = tempfile::tempdir().unwrap();
-        let graph_path = tmp.path().join("graph.duckdb");
-        write_graphs(HashMap::from([("test".to_string(), graph)]), &graph_path).unwrap();
-        let reference = HashMap::from([(
-            "test".to_string(),
-            vec![
-                b'A', b'T', b'G', b'C', b'A', b'T', b'G', b'C', b'A', b'T', b'G', b'C', b'A', b'T',
-                b'G', b'C',
-            ],
-        )]);
-        let weights = transcript.weights(&graph_path, &reference).unwrap();
-        assert_eq!(weights.len(), 1);
-        assert_eq!(weights[0].len(), 4);
     }
 
     #[test]

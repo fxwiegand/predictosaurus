@@ -9,7 +9,6 @@ pub(crate) mod transcript;
 use crate::cli::ObservationFile;
 use crate::graph::node::{node_distance, nodes_in_between, Node, NodeType};
 use crate::graph::paths::HaplotypePath;
-use crate::impact::Impact;
 use crate::utils::bcf::extract_event_names;
 use crate::utils::NUMERICAL_EPSILON;
 use anyhow::Result;
@@ -820,37 +819,6 @@ mod tests {
         assert_eq!(paths.len(), 4);
     }
 
-    #[test]
-    fn impact_returns_none_for_ref_node_type() {
-        let node = Node::new(NodeType::Reference, 0, "".to_string(), "".to_string());
-        let impact = node.impact(0, 0, &[], Strand::Forward).unwrap();
-        assert_eq!(impact, Impact::None);
-    }
-
-    #[test]
-    fn impact_identifies_low_for_identical_ref_and_alt_amino_acids() {
-        let node = Node::new(NodeType::Variant, 2, "T".to_string(), "C".to_string());
-        let reference = b"ATA";
-        let impact = node.impact(0, 0, reference, Strand::Forward).unwrap();
-        assert_eq!(impact, Impact::Low);
-    }
-
-    #[test]
-    fn impact_identifies_moderate_for_different_ref_and_alt_amino_acids() {
-        let node = Node::new(NodeType::Variant, 3, "A".to_string(), "G".to_string());
-        let reference = b"ATTTG";
-        let impact = node.impact(2, 2, reference, Strand::Forward).unwrap();
-        assert_eq!(impact, Impact::Moderate);
-    }
-
-    #[test]
-    fn impact_identifies_high_for_early_stop() {
-        let node = Node::new(NodeType::Variant, 6, "C".to_string(), "A".to_string());
-        let reference = b"CATATAC";
-        let impact = node.impact(1, 1, reference, Strand::Forward).unwrap();
-        assert_eq!(impact, Impact::High);
-    }
-
     pub(crate) fn setup_variant_graph_with_nodes() -> VariantGraph {
         let mut graph = Graph::<Node, Edge, Directed>::new();
         let node1 = graph.add_node(Node::new(
@@ -898,135 +866,6 @@ mod tests {
     }
 
     #[test]
-    fn impact_calculates_none_for_empty_path() {
-        let graph = setup_variant_graph_with_nodes();
-        let path = HaplotypePath(vec![]);
-        let impact = path.impact(&graph, 0, b"TTG", Strand::Forward).unwrap();
-        assert_eq!(impact, Impact::None);
-    }
-
-    #[test]
-    fn impact_calculates_correctly_for_single_variant_node() {
-        let mut graph = setup_variant_graph_with_nodes();
-        let node_index = graph.graph.node_indices().next().unwrap();
-        let path = HaplotypePath(vec![node_index]);
-        let impact = path.impact(&graph, 0, b"TTC", Strand::Forward).unwrap();
-        assert_eq!(impact, Impact::Moderate);
-    }
-
-    #[test]
-    fn impact_accumulates_over_multiple_nodes() {
-        let mut graph = setup_variant_graph_with_nodes();
-        let node_indices = graph.graph.node_indices().take(3).collect::<Vec<_>>();
-        let path = HaplotypePath(node_indices.clone());
-        let impact = path.impact(&graph, 0, b"TTCAAA", Strand::Forward).unwrap();
-        assert_eq!(impact, Impact::High);
-    }
-
-    #[test]
-    fn impact_handles_phase_shift_correctly() {
-        let mut graph = setup_variant_graph_with_nodes();
-        let node_index = graph.graph.node_indices().next().unwrap();
-        let path = HaplotypePath(vec![node_index]);
-        let impact = path.impact(&graph, 1, b"ATGA", Strand::Forward).unwrap();
-        assert_eq!(impact, Impact::High);
-    }
-
-    #[test]
-    fn impact_handles_phase_shift_caused_by_frameshift() {
-        let mut graph = setup_variant_graph_with_nodes();
-        let node_indices = graph
-            .graph
-            .node_indices()
-            .skip(3)
-            .take(2)
-            .collect::<Vec<_>>();
-        let path = HaplotypePath(node_indices.clone());
-        let impact = path
-            .impact(&graph, 0, b"GGGAAATTTAAA", Strand::Forward)
-            .unwrap();
-        assert_eq!(impact, Impact::High);
-    }
-
-    #[test]
-    fn impact_handles_phase_shift_caused_by_frameshift_2() {
-        let mut graph = setup_variant_graph_with_nodes();
-        let node_indices = graph.graph.node_indices().skip(3).take(3).collect_vec();
-        let path = HaplotypePath(vec![node_indices[0], node_indices[2]]);
-        let impact = path
-            .impact(&graph, 0, b"GGGAAATTTAAC", Strand::Forward)
-            .unwrap();
-        assert_eq!(impact, Impact::Moderate);
-    }
-
-    fn setup_variant_graph_with_nodes_2() -> VariantGraph {
-        let mut graph = Graph::<Node, Edge, Directed>::new();
-        let node1 = graph.add_node(Node::new(
-            NodeType::Variant,
-            1,
-            "T".to_string(),
-            "AA".to_string(),
-        ));
-        let node2 = graph.add_node(Node::new(
-            NodeType::Variant,
-            7,
-            "C".to_string(),
-            "".to_string(),
-        ));
-        VariantGraph {
-            graph,
-            start: 0,
-            end: 2,
-            target: "test".to_string(),
-        }
-    }
-
-    #[test]
-    fn impact_handles_phase_shift_caused_by_frameshift_3() {
-        let mut graph = setup_variant_graph_with_nodes_2();
-        let node_indices = graph.graph.node_indices().collect_vec();
-        let path = HaplotypePath(node_indices.clone());
-        let impact = path
-            .impact(&graph, 0, b"ATGAAATGGAT", Strand::Forward)
-            .unwrap();
-        assert_eq!(impact, Impact::High);
-    }
-
-    #[test]
-    fn impact_handles_phase_shift_caused_by_big_frameshift() {
-        let mut graph = Graph::<Node, Edge, Directed>::new();
-        let node1 = graph.add_node(Node::new(
-            NodeType::Variant,
-            1,
-            "T".to_string(),
-            "TTTTT".to_string(),
-        ));
-        let node2 = graph.add_node(Node::new(
-            NodeType::Variant,
-            7,
-            "C".to_string(),
-            "GG".to_string(),
-        ));
-        let graph = VariantGraph {
-            graph,
-            start: 0,
-            end: 20,
-            target: "test".to_string(),
-        };
-        let node_indices = graph.graph.node_indices().collect_vec();
-        let path = HaplotypePath(node_indices.clone());
-        let impact = path
-            .impact(&graph, 0, b"TGTTTTTAATTT", Strand::Forward)
-            .unwrap();
-        println!(
-            "{}",
-            path.display(&graph, 0, b"TGTTTTTAATTT", Strand::Forward)
-                .unwrap()
-        );
-        assert_eq!(impact, Impact::High);
-    }
-
-    #[test]
     fn is_variant_returns_true_for_variant_node() {
         let node_type = NodeType::Variant;
         assert!(node_type.is_variant());
@@ -1036,25 +875,6 @@ mod tests {
     fn is_variant_returns_false_for_reference_node() {
         let node_type = NodeType::Reference;
         assert!(!node_type.is_variant());
-    }
-
-    #[test]
-    fn display_returns_correct_protein_string_for_single_node() {
-        let graph = setup_variant_graph_with_nodes();
-        let path = HaplotypePath(vec![NodeIndex::new(0)]);
-        let result = path.display(&graph, 0, b"ATG", Strand::Forward).unwrap();
-        assert_eq!(result, "Some(Methionine) -> [Lysine] (High)\n");
-    }
-
-    #[test]
-    fn display_returns_correct_protein_string_for_multiple_nodes() {
-        let graph = setup_variant_graph_with_nodes();
-        let path = HaplotypePath(vec![NodeIndex::new(0), NodeIndex::new(2)]);
-        let result = path.display(&graph, 0, b"ATGCGT", Strand::Forward).unwrap();
-        assert_eq!(
-            result,
-            "Some(Methionine) -> [Lysine] (High)\nSome(Arginine) -> [Cysteine] (Moderate)\n"
-        );
     }
 
     #[test]

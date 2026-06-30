@@ -1,7 +1,6 @@
 use crate::graph::hgvs::hgvsc;
 use crate::graph::transcript::Transcript;
 use crate::graph::EventProbs;
-use crate::impact::Impact;
 use crate::transcription;
 use crate::translation::amino_acids::AminoAcid;
 use anyhow::anyhow;
@@ -253,51 +252,6 @@ impl Node {
             .iter()
             .join(", ");
         Ok(Some(format!("{ref_amino_acid} -> {alt_amino_acids}")))
-    }
-
-    pub(crate) fn impact(
-        &self,
-        ref_phase: u8,
-        phase: u8,
-        reference: &[u8],
-        strand: Strand,
-    ) -> anyhow::Result<Impact> {
-        match &self.node_type {
-            NodeType::Variant => {
-                let ref_amino_acid = self.reference_amino_acid(ref_phase, reference, strand)?;
-                match ref_amino_acid {
-                    None => Ok(Impact::None),
-                    Some(ref_amino_acid) => {
-                        let alt_amino_acids = self.variant_amino_acids(phase, reference, strand)?;
-                        match alt_amino_acids.len() {
-                            0 => Ok(Impact::Moderate),
-                            1 => {
-                                let alt_amino_acid = alt_amino_acids.first().unwrap();
-                                let impact = match (
-                                    ref_amino_acid == *alt_amino_acid,
-                                    ref_amino_acid,
-                                    alt_amino_acid,
-                                ) {
-                                    (true, _, _) => Ok(Impact::Low),
-                                    (false, _, AminoAcid::Stop) => Ok(Impact::High),
-                                    (false, AminoAcid::Stop, _) => Ok(Impact::High),
-                                    (false, AminoAcid::Methionine, _) => Ok(Impact::High), // TODO: Check if this is always automatic start lost or can Met occur anywhere in the protein?
-                                    (false, _, _) => Ok(Impact::Moderate),
-                                };
-                                for amino_acid in alt_amino_acids {
-                                    if amino_acid == AminoAcid::Stop {
-                                        return Ok(Impact::High);
-                                    }
-                                }
-                                impact
-                            }
-                            _ => Ok(Impact::Moderate),
-                        }
-                    }
-                }
-            }
-            NodeType::Reference => Ok(Impact::None),
-        }
     }
 }
 

@@ -1,6 +1,6 @@
 use crate::cli::{Command, GeneBeCredentials, Predictosaurus};
 use crate::graph::duck::{
-    create_paths, create_scores, feature_graph, read_scores, write_graphs, write_scores,
+    create_scores, feature_graph, read_scores, write_graphs, write_scores,
 };
 use crate::graph::paths::Cds;
 use crate::graph::peptide::write_peptides;
@@ -27,7 +27,6 @@ use std::sync::{Arc, Mutex};
 mod annotation;
 mod cli;
 mod graph;
-mod impact;
 mod show;
 mod transcription;
 mod translation;
