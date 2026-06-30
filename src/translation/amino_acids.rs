@@ -1,5 +1,5 @@
 use crate::cli::Interval;
-use crate::graph::node::{Node, NodeType};
+use crate::graph::node::Node;
 use crate::graph::transcript::Transcript;
 use crate::translation::distance::DistanceMetric;
 use crate::translation::dna_to_amino_acids;

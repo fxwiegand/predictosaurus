@@ -1,5 +1,4 @@
-use crate::graph::node::{Node, NodeType};
-use crate::graph::shift_phase;
+use crate::graph::node::Node;
 use crate::graph::transcript::Transcript;
 use crate::translation::amino_acids::AminoAcid;
 use crate::translation::amino_acids::Protein;

@@ -1,5 +1,4 @@
 use clap_derive::{Parser, Subcommand, ValueEnum};
-use genebears::GeneBears;
 use serde::{Deserialize, Deserializer};
 use std::fmt::Display;
 use std::path::PathBuf;

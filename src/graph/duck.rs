@@ -1,7 +1,6 @@
 use crate::annotation::Annotation;
 use crate::cli::HgvsNotation;
 use crate::graph::node::{Node, NodeType};
-use crate::graph::paths::Cds;
 use crate::graph::score::EffectScore;
 use crate::graph::score::HaplotypeFrequency;
 use crate::graph::transcript::Transcript;
@@ -10,7 +9,7 @@ use anyhow::Result;
 use duckdb::{params, Connection};
 use petgraph::matrix_graph::NodeIndex;
 use petgraph::Graph;
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
@@ -270,10 +269,10 @@ mod tests {
     use super::*;
     use crate::graph::node::{Node, NodeType};
     use crate::graph::Edge;
-    use crate::translation::amino_acids::{AminoAcid, Protein};
-    use crate::translation::distance::DistanceMetric;
-    use bio::bio_types::strand::Strand;
-    use itertools::Itertools;
+    
+    
+    
+    
     use petgraph::{Directed, Graph};
 
     pub(crate) fn setup_graph() -> VariantGraph {

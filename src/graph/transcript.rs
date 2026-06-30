@@ -7,27 +7,23 @@ use crate::graph::peptide::Peptide;
 use crate::graph::score::EffectScore;
 use crate::graph::score::HaplotypeFrequency;
 use crate::graph::score::HaplotypeMetric;
-use crate::graph::{shift_phase, EventProbs, VariantGraph};
-use crate::translation::amino_acids::{AminoAcid, Protein};
+use crate::graph::{EventProbs, VariantGraph};
+use crate::translation::amino_acids::Protein;
 use crate::translation::distance::DistanceMetric;
 use crate::utils::fasta::reverse_complement;
 use anyhow::{bail, Result};
-use bio::bio_types::genome;
 use bio::bio_types::strand::Strand;
-use bio::io::gff::{self, Phase};
+use bio::io::gff::{self};
 use bio::stats::LogProb;
 use genebears::GeneBears;
 use genebears::Genome;
 use itertools::Itertools;
-use log::{info, warn};
-use petgraph::adj::NodeIndex;
-use rust_htslib::bgzf::CompressionLevel::Default;
+use log::info;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use super::node;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub(crate) struct Transcript {

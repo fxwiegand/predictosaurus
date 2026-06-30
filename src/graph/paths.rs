@@ -1,19 +1,13 @@
-use crate::graph::duck::feature_graph;
-use crate::graph::{shift_phase, NodeType, VariantGraph};
-use crate::translation::amino_acids::{AminoAcid, Protein};
+use crate::graph::VariantGraph;
+use crate::translation::amino_acids::AminoAcid;
 use crate::translation::dna_to_amino_acids;
-use crate::utils;
 use crate::utils::fasta::reverse_complement;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use bio::bio_types::strand::Strand;
-use bio::io::gff;
 use itertools::Itertools;
-use log::info;
 use petgraph::graph::NodeIndex;
 use serde::{Deserialize, Serialize};
-use std::cmp::max;
 use std::collections::{BTreeSet, HashMap};
-use std::path::PathBuf;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct HaplotypePath(pub(crate) Vec<NodeIndex>);
@@ -114,12 +108,12 @@ impl HaplotypePath {
 
 mod tests {
     use crate::graph::node::{Node, NodeType};
-    use crate::graph::paths::{Cds, HaplotypePath};
+    
     use crate::graph::{Edge, EventProbs, VariantGraph};
-    use crate::translation::dna_to_amino_acids;
-    use bio::bio_types::strand::Strand;
+    
+    
     use petgraph::{Directed, Graph};
-    use std::collections::{BTreeSet, HashMap};
+    use std::collections::HashMap;
 
     fn setup_protein_graph() -> VariantGraph {
         let mut graph = Graph::<Node, Edge, Directed>::new();

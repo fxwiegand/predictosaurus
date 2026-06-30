@@ -7,14 +7,14 @@ pub(crate) mod score;
 pub(crate) mod transcript;
 
 use crate::cli::ObservationFile;
-use crate::graph::node::{node_distance, nodes_in_between, Node, NodeType};
+use crate::graph::node::{Node, NodeType};
 use crate::graph::paths::HaplotypePath;
 use crate::utils::bcf::extract_event_names;
 use crate::utils::NUMERICAL_EPSILON;
 use anyhow::Result;
 use bio::stats::bayesian::bayes_factors::evidence::KassRaftery;
 use bio::stats::bayesian::BayesFactor;
-use bio::stats::{LogProb, PHREDProb, Prob};
+use bio::stats::{LogProb, PHREDProb};
 use itertools::Itertools;
 use log::{info, warn};
 use petgraph::dot::{Config, Dot};
