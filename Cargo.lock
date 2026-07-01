@@ -2848,7 +2848,7 @@ dependencies = [
  "log",
  "petgraph 0.8.3",
  "rayon",
- "rust-htslib",
+ "rust-htslib 1.0.1",
  "serde",
  "serde_json",
  "tempfile",
@@ -3360,6 +3360,28 @@ name = "rust-htslib"
 version = "0.49.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "115ae57b89deb942275566eca8c31da053d8df0d8bda12e50c4c4aa994877068"
+dependencies = [
+ "bio-types",
+ "byteorder",
+ "custom_derive",
+ "derive-new 0.7.0",
+ "hts-sys",
+ "ieee754",
+ "lazy_static",
+ "libc",
+ "libz-sys",
+ "linear-map",
+ "newtype_derive",
+ "regex",
+ "thiserror 2.0.3",
+ "url",
+]
+
+[[package]]
+name = "rust-htslib"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2386a28563a1c0713d7901e5c6e07732ca46a844ec8ee08cd17c631e581988ad"
 dependencies = [
  "bio-types",
  "byteorder",
@@ -4388,7 +4410,7 @@ dependencies = [
  "rayon",
  "regex",
  "ring 0.16.20",
- "rust-htslib",
+ "rust-htslib 0.49.0",
  "rusty-machine",
  "serde",
  "serde_derive",
