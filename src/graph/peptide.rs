@@ -128,21 +128,21 @@ mod tests {
         };
         assert!(
             peptide
-                .prob(&vec!["A".to_string(), "B".to_string()])
+                .prob(&["A".to_string(), "B".to_string()])
                 .unwrap()
                 < LogProb::from(Prob(0.31))
                 && peptide
-                    .prob(&vec!["A".to_string(), "B".to_string()])
+                    .prob(&["A".to_string(), "B".to_string()])
                     .unwrap()
                     > LogProb::from(Prob(0.29)),
         );
         assert!(
             peptide
-                .prob(&vec!["A".to_string(), "B".to_string(), "C".to_string()])
+                .prob(&["A".to_string(), "B".to_string(), "C".to_string()])
                 .unwrap()
                 < LogProb::from(Prob(0.61))
                 && peptide
-                    .prob(&vec!["A".to_string(), "B".to_string(), "C".to_string()])
+                    .prob(&["A".to_string(), "B".to_string(), "C".to_string()])
                     .unwrap()
                     > LogProb::from(Prob(0.59)),
         );

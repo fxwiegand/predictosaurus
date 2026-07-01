@@ -425,6 +425,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::vec_init_then_push)]
     fn test_protein_from_transcript() {
         let mut reference = HashMap::new();
         reference.insert(

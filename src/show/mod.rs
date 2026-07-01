@@ -1,5 +1,4 @@
-use crate::annotation::Annotation;
-use crate::graph::score::HaplotypeFrequency;
+use crate::graph::score::ScoreRecord;
 use anyhow::anyhow;
 use anyhow::Result;
 use csv::WriterBuilder;
@@ -20,17 +19,7 @@ use std::path::{Path, PathBuf};
 /// * `report_protein` - Whether to include the alternative protein sequence as an additional column.
 pub(crate) fn render_scores(
     output_path: &PathBuf,
-    scores: &HashMap<
-        String,
-        Vec<(
-            f64,
-            HaplotypeFrequency,
-            String,
-            Vec<HashMap<String, u32>>,
-            Annotation,
-            String,
-        )>,
-    >,
+    scores: &HashMap<String, Vec<ScoreRecord>>,
     report_protein: bool,
 ) -> Result<()> {
     let mut wtr = WriterBuilder::new()
@@ -116,6 +105,7 @@ pub(crate) fn render_scores(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::annotation::Annotation;
 
     #[test]
     fn test_render_scores() {

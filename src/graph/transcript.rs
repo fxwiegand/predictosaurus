@@ -5,7 +5,7 @@ use crate::graph::node::{Node, NodeType};
 use crate::graph::paths::{Cds, HaplotypePath};
 use crate::graph::peptide::Peptide;
 use crate::graph::score::EffectScore;
-use crate::graph::score::HaplotypeFrequency;
+use crate::graph::score::HaplotypeScore;
 use crate::graph::score::HaplotypeMetric;
 use crate::graph::{EventProbs, VariantGraph};
 use crate::translation::amino_acids::Protein;
@@ -31,6 +31,8 @@ pub(crate) struct Transcript {
     pub(crate) strand: Strand,
     pub(crate) coding_sequences: Vec<Cds>,
 }
+
+type Haplotypes = Vec<(Vec<Node>, Vec<HashMap<String, u32>>)>;
 
 impl Transcript {
     pub(crate) fn new(
@@ -120,7 +122,7 @@ impl Transcript {
         &self,
         graph: &PathBuf,
         max_haplotypes: usize,
-    ) -> Result<(Vec<(Vec<Node>, Vec<HashMap<String, u32>>)>, HashSet<String>)> {
+    ) -> Result<(Haplotypes, HashSet<String>)> {
         let graph = match feature_graph(
             graph.to_owned(),
             self.target.clone(),
@@ -225,6 +227,7 @@ impl Transcript {
         Ok((haplotypes, samples))
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn scores(
         &self,
         graph: &PathBuf,
@@ -234,14 +237,7 @@ impl Transcript {
         distance_metric: DistanceMetric,
         genome_build: Genome,
         genebe_client: &Arc<Mutex<GeneBears>>,
-    ) -> Result<
-        Vec<(
-            EffectScore,
-            HaplotypeFrequency,
-            Vec<HashMap<String, u32>>,
-            Annotation,
-        )>,
-    > {
+    ) -> Result<Vec<HaplotypeScore>> {
         let (haplotypes, samples) = self.haplotypes(graph, max_haplotypes)?;
         let mut scores = Vec::with_capacity(haplotypes.len());
         let original_protein = Protein::from_transcript(reference, self)?;
@@ -263,6 +259,7 @@ impl Transcript {
         Ok(scores)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn peptides(
         &self,
         graph: &PathBuf,

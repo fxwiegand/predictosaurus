@@ -122,6 +122,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::needless_range_loop)]
     fn sneath_symmetry() {
         for i in 0..20 {
             for j in 0..20 {

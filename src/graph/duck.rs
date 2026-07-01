@@ -1,8 +1,6 @@
-use crate::annotation::Annotation;
 use crate::cli::HgvsNotation;
 use crate::graph::node::{Node, NodeType};
-use crate::graph::score::EffectScore;
-use crate::graph::score::HaplotypeFrequency;
+use crate::graph::score::{HaplotypeScore, ScoreRecord};
 use crate::graph::transcript::Transcript;
 use crate::graph::{Edge, VariantGraph};
 use anyhow::Result;
@@ -12,6 +10,8 @@ use petgraph::Graph;
 use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+
+type NodeRow = (usize, String, String, String, String, String, i64, u32);
 
 pub(crate) fn write_graphs(graphs: HashMap<String, VariantGraph>, path: &Path) -> Result<()> {
     let mut db = Connection::open(path)?;
@@ -80,7 +80,7 @@ pub(crate) fn feature_graph(
     let mut stmt = db.prepare(
     "SELECT node_index, node_type, reference_allele, alternative_allele, vaf, probs, pos, index FROM nodes WHERE target = ? AND pos >= ? AND pos <= ?"
     )?;
-    let nodes: Vec<(usize, String, String, String, String, String, i64, u32)> = stmt
+    let nodes: Vec<NodeRow> = stmt
         .query_map(
             params![target.to_string(), start as i64, end as i64],
             |row| {
@@ -185,12 +185,7 @@ pub(crate) fn create_scores(output_path: &Path) -> Result<()> {
 
 pub(crate) fn write_scores(
     path: &Path,
-    scores: Vec<(
-        EffectScore,
-        HaplotypeFrequency,
-        Vec<HashMap<String, u32>>,
-        Annotation,
-    )>,
+    scores: Vec<HaplotypeScore>,
     transcript: Transcript,
 ) -> Result<()> {
     let mut db = Connection::open(path)?;
@@ -218,19 +213,7 @@ pub(crate) fn write_scores(
 pub(crate) fn read_scores(
     path: &Path,
     notation: HgvsNotation,
-) -> Result<
-    HashMap<
-        String,
-        Vec<(
-            f64,
-            HaplotypeFrequency,
-            String,
-            Vec<HashMap<String, u32>>,
-            Annotation,
-            String,
-        )>,
-    >,
-> {
+) -> Result<HashMap<String, Vec<ScoreRecord>>> {
     let db = Connection::open(path)?;
     let mut scores = HashMap::new();
     let mut stmt = db.prepare(
@@ -269,6 +252,8 @@ pub(crate) fn read_scores(
 mod tests {
 
     use super::*;
+    use crate::annotation::Annotation;
+    use crate::graph::score::EffectScore;
     use crate::graph::node::{Node, NodeType};
     use crate::graph::paths::Cds;
     use crate::graph::Edge;
