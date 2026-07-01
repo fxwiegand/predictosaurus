@@ -127,13 +127,8 @@ mod tests {
             transcript: test_transcript(),
         };
         assert!(
-            peptide
-                .prob(&["A".to_string(), "B".to_string()])
-                .unwrap()
-                < LogProb::from(Prob(0.31))
-                && peptide
-                    .prob(&["A".to_string(), "B".to_string()])
-                    .unwrap()
+            peptide.prob(&["A".to_string(), "B".to_string()]).unwrap() < LogProb::from(Prob(0.31))
+                && peptide.prob(&["A".to_string(), "B".to_string()]).unwrap()
                     > LogProb::from(Prob(0.29)),
         );
         assert!(

@@ -253,9 +253,9 @@ mod tests {
 
     use super::*;
     use crate::annotation::Annotation;
-    use crate::graph::score::EffectScore;
     use crate::graph::node::{Node, NodeType};
     use crate::graph::paths::Cds;
+    use crate::graph::score::EffectScore;
     use crate::graph::Edge;
     use crate::translation::amino_acids::{AminoAcid, Protein};
     use crate::translation::distance::DistanceMetric;
