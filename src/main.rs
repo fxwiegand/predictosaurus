@@ -1,33 +1,24 @@
 use crate::cli::{Command, GeneBeCredentials, Predictosaurus};
-use crate::graph::duck::{
-    create_paths, create_scores, feature_graph, read_scores, write_graphs, write_scores,
-};
-use crate::graph::paths::Cds;
+use crate::graph::duck::{create_scores, read_scores, write_graphs, write_scores};
 use crate::graph::peptide::write_peptides;
 use crate::graph::transcript::transcripts;
 use crate::graph::VariantGraph;
 use crate::show::render_scores;
 use crate::utils::bcf::get_targets;
 use crate::utils::create_output_dir;
-use anyhow::{Context, Result};
-use bio::bio_types::strand::Strand;
-use bio::io::gff;
-use bio::io::gff::GffType;
+use anyhow::Result;
 use bio::stats::{LogProb, Prob};
 use clap::Parser;
 use env_logger::Env;
-use genebears::{ClientConfig, GeneBearError, GeneBears};
-use itertools::Itertools;
-use log::{debug, info};
+use genebears::{ClientConfig, GeneBears};
+use log::info;
 use rayon::prelude::*;
 use rayon::ThreadPoolBuilder;
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 mod annotation;
 mod cli;
 mod graph;
-mod impact;
 mod show;
 mod transcription;
 mod translation;
@@ -57,7 +48,7 @@ impl Command {
                 output,
             } => {
                 let targets = get_targets(calls)?;
-                let mut graphs = targets
+                let graphs = targets
                     .into_par_iter()
                     .filter_map(|target| {
                         info!("Building graph for target {target}");
@@ -157,7 +148,7 @@ impl Command {
                 min_event_prob,
                 background_events,
                 max_background_event_prob,
-                max_cds_length,
+                max_cds_length: _max_cds_length,
             } => {
                 info!("Reading reference genome from {reference:?}");
                 let reference_genome = utils::fasta::read_reference(reference);

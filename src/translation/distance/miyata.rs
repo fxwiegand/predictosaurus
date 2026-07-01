@@ -141,6 +141,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::needless_range_loop)]
     fn miyata_symmetry() {
         for i in 0..20 {
             for j in 0..20 {
@@ -166,7 +167,7 @@ mod tests {
         let d = DistanceMetric::Miyata;
         let tolerance = 0.001;
         for (a, b, expected) in cases {
-            assert!((d.compute(&a, &b) - (expected as f64 / 5.13)).abs() < tolerance);
+            assert!((d.compute(&a, &b) - (expected / 5.13)).abs() < tolerance);
         }
     }
 }

@@ -2,32 +2,27 @@ use crate::annotation::Annotation;
 use crate::cli::Interval;
 use crate::graph::duck::{feature_graph, variants_on_graph};
 use crate::graph::node::{Node, NodeType};
-use crate::graph::paths::{Cds, HaplotypePath, Weight};
+use crate::graph::paths::{Cds, HaplotypePath};
 use crate::graph::peptide::Peptide;
 use crate::graph::score::EffectScore;
-use crate::graph::score::HaplotypeFrequency;
 use crate::graph::score::HaplotypeMetric;
-use crate::graph::{shift_phase, EventProbs, VariantGraph};
-use crate::translation::amino_acids::{AminoAcid, Protein};
+use crate::graph::score::HaplotypeScore;
+use crate::graph::{EventProbs, VariantGraph};
+use crate::translation::amino_acids::Protein;
 use crate::translation::distance::DistanceMetric;
 use crate::utils::fasta::reverse_complement;
 use anyhow::{bail, Result};
-use bio::bio_types::genome;
 use bio::bio_types::strand::Strand;
-use bio::io::gff::{self, Phase};
+use bio::io::gff::{self};
 use bio::stats::LogProb;
 use genebears::GeneBears;
 use genebears::Genome;
 use itertools::Itertools;
-use log::{info, warn};
-use petgraph::adj::NodeIndex;
-use rust_htslib::bgzf::CompressionLevel::Default;
+use log::info;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-
-use super::node;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub(crate) struct Transcript {
@@ -36,6 +31,8 @@ pub(crate) struct Transcript {
     pub(crate) strand: Strand,
     pub(crate) coding_sequences: Vec<Cds>,
 }
+
+type Haplotypes = Vec<(Vec<Node>, Vec<HashMap<String, u32>>)>;
 
 impl Transcript {
     pub(crate) fn new(
@@ -87,11 +84,6 @@ impl Transcript {
         }
     }
 
-    // Returns the total length of all CDS of the transcript
-    pub(crate) fn length(&self) -> usize {
-        self.cds().map(|c| c.length()).sum()
-    }
-
     /// Returns the 0-based position of the variant from the transcript start,
     /// where "start" means the 5' end of the coding sequence — i.e. the highest
     /// genomic coordinate for reverse-strand transcripts.
@@ -115,12 +107,6 @@ impl Transcript {
         );
     }
 
-    /// Returns the CDS containing the given genomic position, or None if not found.
-    pub(crate) fn cds_for_position(&self, pos: i64) -> Option<&Cds> {
-        self.cds()
-            .find(|cds| (cds.start as i64..=cds.end as i64).contains(&pos))
-    }
-
     fn paths(&self, graph: &VariantGraph) -> Result<Vec<HaplotypePath>> {
         match self.strand {
             Strand::Forward => Ok(graph.paths()),
@@ -132,25 +118,11 @@ impl Transcript {
         }
     }
 
-    fn reference(&self, reference: &HashMap<String, Vec<u8>>) -> Result<Vec<u8>> {
-        let sequence = reference.get(&self.target).ok_or_else(|| {
-            anyhow::anyhow!("Reference sequence not found for target {}", self.target)
-        })?;
-        match self.strand {
-            Strand::Forward => Ok(sequence.to_vec()),
-            Strand::Reverse => Ok(reverse_complement(sequence)),
-            Strand::Unknown => Err(anyhow::anyhow!(
-                "Strand is unknown for transcript {}",
-                self.name()
-            )),
-        }
-    }
-
     fn haplotypes(
         &self,
         graph: &PathBuf,
         max_haplotypes: usize,
-    ) -> Result<(Vec<(Vec<Node>, Vec<HashMap<String, u32>>)>, HashSet<String>)> {
+    ) -> Result<(Haplotypes, HashSet<String>)> {
         let graph = match feature_graph(
             graph.to_owned(),
             self.target.clone(),
@@ -255,6 +227,7 @@ impl Transcript {
         Ok((haplotypes, samples))
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn scores(
         &self,
         graph: &PathBuf,
@@ -264,14 +237,7 @@ impl Transcript {
         distance_metric: DistanceMetric,
         genome_build: Genome,
         genebe_client: &Arc<Mutex<GeneBears>>,
-    ) -> Result<
-        Vec<(
-            EffectScore,
-            HaplotypeFrequency,
-            Vec<HashMap<String, u32>>,
-            Annotation,
-        )>,
-    > {
+    ) -> Result<Vec<HaplotypeScore>> {
         let (haplotypes, samples) = self.haplotypes(graph, max_haplotypes)?;
         let mut scores = Vec::with_capacity(haplotypes.len());
         let original_protein = Protein::from_transcript(reference, self)?;
@@ -293,92 +259,7 @@ impl Transcript {
         Ok(scores)
     }
 
-    pub(crate) fn weights(
-        &self,
-        graph: &PathBuf,
-        reference: &HashMap<String, Vec<u8>>,
-    ) -> Result<Vec<Vec<Weight>>> {
-        let mut weights = Vec::new();
-        for cds in self.cds() {
-            if let Ok(graph) = feature_graph(
-                graph.to_owned(),
-                self.target.to_string(),
-                cds.start,
-                cds.end,
-            ) {
-                info!(
-                    "Subgraph for CDS ({}-{}) of transcript {} has {} nodes",
-                    cds.start,
-                    cds.end,
-                    self.name(),
-                    graph.graph.node_count()
-                );
-                let paths = self.paths(&graph)?;
-                info!(
-                    "Found {} paths for CDS ({}-{}) of transcript {}",
-                    paths.len(),
-                    cds.start,
-                    cds.end,
-                    self.name()
-                );
-                if paths.is_empty() {
-                    continue;
-                }
-                let reference_sequence = self.reference(reference)?;
-                if weights.is_empty() {
-                    let cds_weights = paths
-                        .iter()
-                        .map(|path| {
-                            (
-                                path.weights(&graph, cds.phase, &reference_sequence, self.strand)
-                                    .unwrap(),
-                                path.frameshift(&graph),
-                            )
-                        })
-                        .collect_vec();
-                    for w in cds_weights {
-                        weights.push(w);
-                    }
-                } else {
-                    let mut new_weights = Vec::new();
-
-                    for (accumulated_weights, accumulated_fs) in &weights {
-                        let phase = shift_phase(cds.phase, (*accumulated_fs).rem_euclid(3) as u8);
-                        let cds_options = paths
-                            .iter()
-                            .map(|path| {
-                                (
-                                    path.weights(&graph, phase, &reference_sequence, self.strand)
-                                        .unwrap(),
-                                    path.frameshift(&graph),
-                                )
-                            })
-                            .collect_vec();
-
-                        // For each option from the current CDS,
-                        // create a new combination that appends its weights
-                        // and adds its frameshift to the accumulated one.
-                        // Offset weight index by max index in accumulated weights
-                        for (mut new_weights_option, delta_fs) in cds_options {
-                            let mut combined = accumulated_weights.clone();
-                            let offset = accumulated_weights.iter().map(|w| w.index).max().unwrap();
-                            for mut w in new_weights_option {
-                                w.index += offset + 1;
-                                combined.push(w);
-                            }
-                            new_weights.push((combined, *accumulated_fs + delta_fs));
-                        }
-                    }
-
-                    // Replace the old combinations with the newly computed ones.
-                    weights = new_weights;
-                }
-            }
-        }
-        let weights = weights.into_iter().map(|(w, _)| w).collect_vec();
-        Ok(weights)
-    }
-
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn peptides(
         &self,
         graph: &PathBuf,
@@ -614,7 +495,6 @@ pub(crate) fn transcripts(gff_file: &PathBuf, graph: &PathBuf) -> Result<Vec<Tra
         let target = record.seqname().to_string();
         let start = *record.start() - 1;
         let end = *record.end() - 1;
-        let length = end - start + 1;
         let phase = record.phase().clone().try_into().unwrap();
         let strand = record.strand().ok_or_else(|| {
             anyhow::anyhow!("No strand found for CDS in sequence {}", record.seqname())
@@ -828,32 +708,6 @@ chr1\tsource\tCDS\t400\t500\t.\t-\t0\tID=ENSP00000493377
     }
 
     #[test]
-    fn reference_returns_correct_sequence_for_forward_strand() {
-        let transcript = Transcript::new(
-            "ENSP00000493376".to_string(),
-            "test".to_string(),
-            Strand::Forward,
-            vec![Cds::new(1, 10, 0)],
-        );
-        let reference = HashMap::from([("test".to_string(), vec![b'A', b'T', b'G', b'C'])]);
-        let result = transcript.reference(&reference).unwrap();
-        assert_eq!(result, vec![b'A', b'T', b'G', b'C']);
-    }
-
-    #[test]
-    fn reference_returns_reverse_complement_for_reverse_strand() {
-        let transcript = Transcript::new(
-            "ENSP00000493376".to_string(),
-            "test".to_string(),
-            Strand::Reverse,
-            vec![Cds::new(1, 10, 0)],
-        );
-        let reference = HashMap::from([("test".to_string(), vec![b'A', b'T', b'G', b'C'])]);
-        let result = transcript.reference(&reference).unwrap();
-        assert_eq!(result, vec![b'G', b'C', b'A', b'T']);
-    }
-
-    #[test]
     fn start_returns_min_cds_start() {
         let transcript = Transcript::new(
             "ENSP00000493376".to_string(),
@@ -916,17 +770,6 @@ chr1\tsource\tCDS\t400\t500\t.\t-\t0\tID=ENSP00000493377
     }
 
     #[test]
-    fn test_transcript_length() {
-        let transcript = Transcript::new(
-            "ENSP00000493376".to_string(),
-            "test".to_string(),
-            Strand::Forward,
-            vec![Cds::new(10, 20, 0), Cds::new(30, 40, 0)],
-        );
-        assert_eq!(transcript.length(), 22)
-    }
-
-    #[test]
     fn paths_returns_paths_for_forward_strand() {
         let transcript = Transcript::new(
             "ENSP00000493376".to_string(),
@@ -970,48 +813,6 @@ chr1\tsource\tCDS\t400\t500\t.\t-\t0\tID=ENSP00000493377
     }
 
     #[test]
-    fn weights_returns_correct_weights_for_forward_strand() {
-        let transcript = Transcript::new(
-            "ENSP00000493376".to_string(),
-            "test".to_string(),
-            Strand::Forward,
-            vec![Cds::new(1, 10, 0)],
-        );
-        let graph = setup_graph();
-        let tmp = tempfile::tempdir().unwrap();
-        let graph_path = tmp.path().join("graph.duckdb");
-        write_graphs(HashMap::from([("test".to_string(), graph)]), &graph_path).unwrap();
-        let reference = HashMap::from([("test".to_string(), vec![b'A', b'T', b'G', b'C'])]);
-        let weights = transcript.weights(&graph_path, &reference).unwrap();
-        assert_eq!(weights.len(), 1);
-        assert_eq!(weights[0].len(), 2);
-    }
-
-    #[test]
-    fn weights_returns_correct_weights_for_reverse_strand() {
-        let transcript = Transcript::new(
-            "ENSP00000493376".to_string(),
-            "test".to_string(),
-            Strand::Reverse,
-            vec![Cds::new(1, 10, 0), Cds::new(12, 15, 0)],
-        );
-        let graph = setup_graph();
-        let tmp = tempfile::tempdir().unwrap();
-        let graph_path = tmp.path().join("graph.duckdb");
-        write_graphs(HashMap::from([("test".to_string(), graph)]), &graph_path).unwrap();
-        let reference = HashMap::from([(
-            "test".to_string(),
-            vec![
-                b'A', b'T', b'G', b'C', b'A', b'T', b'G', b'C', b'A', b'T', b'G', b'C', b'A', b'T',
-                b'G', b'C',
-            ],
-        )]);
-        let weights = transcript.weights(&graph_path, &reference).unwrap();
-        assert_eq!(weights.len(), 1);
-        assert_eq!(weights[0].len(), 4);
-    }
-
-    #[test]
     fn test_position_in_transcript() {
         let transcript = Transcript {
             feature: "Test".to_string(),
@@ -1036,41 +837,6 @@ chr1\tsource\tCDS\t400\t500\t.\t-\t0\tID=ENSP00000493377
         assert_eq!(transcript.position_in_transcript(200).unwrap(), 5);
         assert_eq!(transcript.position_in_transcript(202).unwrap(), 7);
         assert!(transcript.position_in_transcript(150).is_err());
-    }
-
-    #[test]
-    fn test_cds_for_position_option() {
-        let transcript = Transcript {
-            feature: "Test".to_string(),
-            target: "chr1".to_string(),
-            strand: Strand::Forward,
-            coding_sequences: vec![
-                Cds {
-                    start: 100,
-                    end: 199,
-                    phase: 0,
-                },
-                Cds {
-                    start: 300,
-                    end: 399,
-                    phase: 0,
-                },
-            ],
-        };
-
-        assert_eq!(
-            transcript
-                .cds_for_position(150)
-                .map(|cds| (cds.start, cds.end)),
-            Some((100, 199))
-        );
-        assert_eq!(
-            transcript
-                .cds_for_position(350)
-                .map(|cds| (cds.start, cds.end)),
-            Some((300, 399))
-        );
-        assert_eq!(transcript.cds_for_position(250), None);
     }
 
     #[test]

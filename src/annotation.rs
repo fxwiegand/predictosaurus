@@ -1,12 +1,9 @@
 use anyhow::Result;
 use bio::bio_types::strand::Strand;
-use genebears::{
-    AnnotateOptions, AnnotatedVariant, ClientConfig, GeneBearError, GeneBears, Genome, Variant,
-};
+use genebears::{AnnotateOptions, GeneBearError, GeneBears, Genome, Variant};
 use itertools::Itertools;
 use log::warn;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use crate::graph::node::Node;
@@ -55,7 +52,6 @@ impl Annotation {
                 )
             })
             .collect_vec();
-        let rt = tokio::runtime::Runtime::new()?;
 
         let results = {
             let client = genebe_client.lock().unwrap();

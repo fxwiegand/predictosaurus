@@ -1,5 +1,5 @@
-use crate::graph::node::{Node, NodeType};
-use crate::graph::shift_phase;
+use crate::annotation::Annotation;
+use crate::graph::node::Node;
 use crate::graph::transcript::Transcript;
 use crate::translation::amino_acids::AminoAcid;
 use crate::translation::amino_acids::Protein;
@@ -194,6 +194,22 @@ pub enum HaplotypeMetric {
 
 pub type HaplotypeFrequency = HashMap<String, f32>;
 
+pub(crate) type HaplotypeScore = (
+    EffectScore,
+    HaplotypeFrequency,
+    Vec<HashMap<String, u32>>,
+    Annotation,
+);
+
+pub(crate) type ScoreRecord = (
+    f64,
+    HaplotypeFrequency,
+    String,
+    Vec<HashMap<String, u32>>,
+    Annotation,
+    String,
+);
+
 impl HaplotypeMetric {
     pub fn calculate(&self, haplotype: &[Node], samples: &HashSet<String>) -> HaplotypeFrequency {
         let mut metrics = HashMap::new();
@@ -220,9 +236,9 @@ impl HaplotypeMetric {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::graph::node::NodeType;
     use crate::graph::EventProbs;
     use crate::translation::amino_acids::AminoAcid;
-    use crate::Cds;
 
     #[test]
     fn test_product_metric() {

@@ -1,19 +1,17 @@
-use crate::annotation::Annotation;
 use crate::cli::HgvsNotation;
 use crate::graph::node::{Node, NodeType};
-use crate::graph::paths::{Cds, Weight};
-use crate::graph::score::EffectScore;
-use crate::graph::score::HaplotypeFrequency;
+use crate::graph::score::{HaplotypeScore, ScoreRecord};
 use crate::graph::transcript::Transcript;
 use crate::graph::{Edge, VariantGraph};
-use crate::impact::Impact;
 use anyhow::Result;
 use duckdb::{params, Connection};
 use petgraph::matrix_graph::NodeIndex;
 use petgraph::Graph;
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+
+type NodeRow = (usize, String, String, String, String, String, i64, u32);
 
 pub(crate) fn write_graphs(graphs: HashMap<String, VariantGraph>, path: &Path) -> Result<()> {
     let mut db = Connection::open(path)?;
@@ -82,7 +80,7 @@ pub(crate) fn feature_graph(
     let mut stmt = db.prepare(
     "SELECT node_index, node_type, reference_allele, alternative_allele, vaf, probs, pos, index FROM nodes WHERE target = ? AND pos >= ? AND pos <= ?"
     )?;
-    let nodes: Vec<(usize, String, String, String, String, String, i64, u32)> = stmt
+    let nodes: Vec<NodeRow> = stmt
         .query_map(
             params![target.to_string(), start as i64, end as i64],
             |row| {
@@ -187,12 +185,7 @@ pub(crate) fn create_scores(output_path: &Path) -> Result<()> {
 
 pub(crate) fn write_scores(
     path: &Path,
-    scores: Vec<(
-        EffectScore,
-        HaplotypeFrequency,
-        Vec<HashMap<String, u32>>,
-        Annotation,
-    )>,
+    scores: Vec<HaplotypeScore>,
     transcript: Transcript,
 ) -> Result<()> {
     let mut db = Connection::open(path)?;
@@ -220,19 +213,7 @@ pub(crate) fn write_scores(
 pub(crate) fn read_scores(
     path: &Path,
     notation: HgvsNotation,
-) -> Result<
-    HashMap<
-        String,
-        Vec<(
-            f64,
-            HaplotypeFrequency,
-            String,
-            Vec<HashMap<String, u32>>,
-            Annotation,
-            String,
-        )>,
-    >,
-> {
+) -> Result<HashMap<String, Vec<ScoreRecord>>> {
     let db = Connection::open(path)?;
     let mut scores = HashMap::new();
     let mut stmt = db.prepare(
@@ -267,91 +248,20 @@ pub(crate) fn read_scores(
     Ok(scores)
 }
 
-pub(crate) fn create_paths(output_path: &Path) -> Result<()> {
-    let db = Connection::open(output_path)?;
-    db.execute("CREATE TABLE path_nodes (path_index INTEGER, target String, feature STRING, node_index INTEGER, vaf FLOAT, impact STRING, reason STRING, consequence STRING, sample STRING)", [])?;
-    db.close().unwrap();
-    Ok(())
-}
-
-pub(crate) fn write_paths(
-    path: &Path,
-    paths: Vec<Vec<Weight>>,
-    transcript: Transcript,
-) -> Result<()> {
-    let db = Connection::open(path)?;
-    for (index, path) in paths.iter().enumerate() {
-        for weight in path {
-            db.execute(
-                "INSERT INTO path_nodes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [
-                    index.to_string(),
-                    transcript.target.to_string(),
-                    transcript.feature.to_string(),
-                    weight.index.to_string(),
-                    weight.vaf.to_string(),
-                    weight.impact.to_raw_string().parse()?,
-                    weight.reason.as_deref().unwrap_or("None").to_string(),
-                    weight.consequence.as_deref().unwrap_or("None").to_string(),
-                    weight.sample.to_string(),
-                ],
-            )?;
-        }
-    }
-    db.close().unwrap();
-    Ok(())
-}
-
-/// Reads paths and their metadata from the database file and returns a HashMap
-/// where each feature is mapped to a HashMap of path indices and their corresponding
-/// vectors of Weight values.
-///
-/// # Arguments
-/// * `path` - The path to the DuckDB file to read from.
-///
-/// # Returns
-/// A Result containing a HashMap with the CDS ID as the key, and a HashMap of path indices
-/// mapped to vectors of Weight structs for each feature.
-pub(crate) fn read_paths(path: &Path) -> Result<HashMap<String, Vec<Weight>>> {
-    let db = Connection::open(path)?;
-    let mut stmt = db.prepare(
-        "SELECT path_index, feature, node_index, vaf, impact, reason, consequence, sample
-         FROM path_nodes",
-    )?;
-
-    let mut paths: HashMap<String, Vec<Weight>> = HashMap::new();
-    let rows = stmt.query_map([], |row| {
-        let transcript_id = row.get::<_, String>(1)?;
-        let weight = Weight {
-            index: row.get(2)?,
-            path: Some(row.get(0)?),
-            vaf: row.get(3)?,
-            impact: Impact::from_str(&row.get::<_, String>(4)?).unwrap(),
-            reason: row.get(5)?,
-            consequence: row.get(6)?,
-            sample: row.get(7)?,
-        };
-        Ok((transcript_id, weight))
-    })?;
-
-    for row in rows {
-        let (cds, weight) = row?;
-        let feature_entry = paths.entry(cds).or_default();
-        feature_entry.push(weight);
-    }
-
-    Ok(paths)
-}
-
+#[cfg(test)]
 mod tests {
+
     use super::*;
+    use crate::annotation::Annotation;
     use crate::graph::node::{Node, NodeType};
+    use crate::graph::paths::Cds;
+    use crate::graph::score::EffectScore;
     use crate::graph::Edge;
-    use crate::impact::Impact;
     use crate::translation::amino_acids::{AminoAcid, Protein};
     use crate::translation::distance::DistanceMetric;
     use bio::bio_types::strand::Strand;
     use itertools::Itertools;
+
     use petgraph::{Directed, Graph};
 
     pub(crate) fn setup_graph() -> VariantGraph {
@@ -519,118 +429,6 @@ mod tests {
         dbg!(&graph);
         assert_eq!(graph.start, 3);
         assert_eq!(graph.end, 10);
-    }
-
-    #[test]
-    fn test_create_paths() {
-        let temp_dir = tempfile::tempdir().unwrap();
-        let output_path = temp_dir.path().join("paths.duckdb");
-        assert!(create_paths(output_path.as_path()).is_ok());
-        assert!(Connection::open(output_path.as_path()).is_ok());
-    }
-
-    #[test]
-    fn test_write_paths_creates_database_and_inserts_paths() {
-        let temp_dir = tempfile::tempdir().unwrap();
-        let output_path = temp_dir.path().join("paths.duckdb");
-        create_paths(output_path.as_path()).unwrap();
-        let paths = vec![
-            vec![Weight {
-                index: 1,
-                path: None,
-                vaf: 0.5,
-                impact: Impact::High,
-                reason: Some("Ile -> Met".to_string()),
-                consequence: Some("loss".to_string()),
-                sample: "sample1".to_string(),
-            }],
-            vec![Weight {
-                index: 2,
-                path: None,
-                vaf: 0.3,
-                impact: Impact::Low,
-                reason: Some("Met -> Lys".to_string()),
-                consequence: Some("gain".to_string()),
-                sample: "sample2".to_string(),
-            }],
-        ];
-        let transcript = Transcript::new(
-            "1".to_string(),
-            "some feature".to_string(),
-            Strand::Forward,
-            vec![Cds::new(0, 100, 0)],
-        );
-        write_paths(output_path.as_path(), paths, transcript).unwrap();
-        let db = Connection::open(output_path.as_path()).unwrap();
-        let mut stmt = db.prepare("SELECT path_index, target, feature, node_index, vaf, impact, reason, consequence, sample FROM path_nodes").unwrap();
-        let path_nodes: Vec<(
-            i64,
-            String,
-            String,
-            i64,
-            f64,
-            String,
-            String,
-            String,
-            String,
-        )> = stmt
-            .query_map([], |row| {
-                Ok((
-                    row.get(0)?,
-                    row.get(1)?,
-                    row.get(2)?,
-                    row.get(3)?,
-                    row.get(4)?,
-                    row.get(5)?,
-                    row.get(6)?,
-                    row.get(7)?,
-                    row.get(8)?,
-                ))
-            })
-            .unwrap()
-            .map(Result::unwrap)
-            .collect();
-        assert_eq!(path_nodes.len(), 2);
-        db.close().unwrap();
-    }
-
-    #[test]
-    fn read_paths_returns_correct_structure() {
-        let temp_dir = tempfile::tempdir().unwrap();
-        let output_path = temp_dir.path().join("paths.duckdb");
-        create_paths(output_path.as_path()).unwrap();
-        let paths = vec![
-            vec![Weight {
-                index: 1,
-                path: None,
-                vaf: 0.5,
-                impact: Impact::High,
-                reason: Some("Ile -> Met".to_string()),
-                consequence: Some("loss".to_string()),
-                sample: "sample1".to_string(),
-            }],
-            vec![Weight {
-                index: 2,
-                path: None,
-                vaf: 0.3,
-                impact: Impact::Low,
-                reason: Some("Met -> Lys".to_string()),
-                consequence: Some("gain".to_string()),
-                sample: "sample2".to_string(),
-            }],
-        ];
-        let transcript = Transcript::new(
-            "some feature".to_string(),
-            "chr1".to_string(),
-            Strand::Forward,
-            vec![Cds::new(0, 100, 0)],
-        );
-        write_paths(output_path.as_path(), paths, transcript).unwrap();
-        let result = read_paths(output_path.as_path()).unwrap();
-        assert_eq!(result.len(), 1);
-        assert!(result.contains_key("some feature"));
-        let feature_paths = result.get("some feature").unwrap();
-        assert_eq!(feature_paths.len(), 2);
     }
 
     #[test]

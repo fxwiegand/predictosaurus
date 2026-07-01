@@ -1,5 +1,4 @@
 use clap_derive::{Parser, Subcommand, ValueEnum};
-use genebears::GeneBears;
 use serde::{Deserialize, Deserializer};
 use std::fmt::Display;
 use std::path::PathBuf;
@@ -265,7 +264,7 @@ mod tests {
     #[should_panic]
     fn from_str_fails_on_invalid_format() {
         let input = "invalid_format";
-        let result = ObservationFile::from_str(input);
+        let _result = ObservationFile::from_str(input);
     }
 
     #[test]
@@ -280,14 +279,14 @@ mod tests {
     #[should_panic]
     fn from_str_fails_on_invalid_interval() {
         let input = "10:20";
-        let result = Interval::from_str(input);
+        let _result = Interval::from_str(input);
     }
 
     #[test]
     #[should_panic]
     fn from_str_fails_when_start_greater_than_end() {
         let input = "20-10";
-        let result = Interval::from_str(input);
+        let _result = Interval::from_str(input);
     }
 
     #[test]
