@@ -46,7 +46,7 @@ impl Annotation {
             .map(|node| {
                 Variant::new(
                     transcript.target.to_string(),
-                    node.pos as u64,
+                    node.pos as u64 + 1, // GeneBe expects 1-based positions
                     node.reference_allele.to_string(),
                     node.alternative_allele.to_string(),
                 )
