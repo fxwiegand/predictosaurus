@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.2](https://github.com/fxwiegand/predictosaurus/compare/v0.14.1...v0.14.2) (2026-07-02)
+
+
+### Bug Fixes
+
+* Use 1-based position for GeneBe variant annotation ([7817e91](https://github.com/fxwiegand/predictosaurus/commit/7817e917588d862509ed0550e2a3f56e660a543b))
+
 ## [0.14.1](https://github.com/fxwiegand/predictosaurus/compare/v0.14.0...v0.14.1) (2026-06-30)
 
 
