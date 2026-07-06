@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/fxwiegand/predictosaurus/compare/v0.14.2...v0.15.0) (2026-07-06)
+
+
+### Features
+
+* Handle start lost consequence in scoring ([#289](https://github.com/fxwiegand/predictosaurus/issues/289)) ([6dfb76c](https://github.com/fxwiegand/predictosaurus/commit/6dfb76c7e73f5ffbf6153943c4c451f8e219bbb8))
+
 ## [0.14.2](https://github.com/fxwiegand/predictosaurus/compare/v0.14.1...v0.14.2) (2026-07-02)
 
 
