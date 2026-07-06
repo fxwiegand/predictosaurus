@@ -29,9 +29,13 @@ impl EffectScore {
         haplotype: &[Node],
         original_protein: Protein,
         distance_metric: DistanceMetric,
-        realign: bool,
+        mut realign: bool,
     ) -> Result<Self> {
-        let altered_protein = Protein::from_haplotype(reference, transcript, haplotype)?;
+        let mut altered_protein = Protein::from_haplotype(reference, transcript, haplotype)?;
+        if altered_protein.start_lost(&original_protein) {
+            altered_protein.apply_start_lost();
+            realign = true;
+        }
         let mut variants: Vec<_> = haplotype
             .iter()
             .filter(|n| n.node_type.is_variant())
@@ -93,10 +97,13 @@ impl EffectScore {
     pub fn score(&self) -> f64 {
         // Compare proteins:
         // If equal return 0
+        // If nothing is translated (e.g. a lost start codon without a downstream start) return the maximum penalty
         // If no frameshift occured in the changed protein, simply compare amino acid by amino acid based on the distance metric and divide by the length of the protein
         // If a frameshift occurs, re-align the proteins and compare amino acid by amino acid based on the distance metric and divide by the length of the protein
         if self.original_protein == self.altered_protein {
             0.0
+        } else if self.altered_protein.amino_acids().is_empty() {
+            1.0
         } else if !self.realign {
             // We can assume both proteins have the same length
             let mut total = 0.0;

@@ -93,6 +93,26 @@ impl Protein {
         Ok(Protein::new(dna_to_amino_acids(&cds_seq)?))
     }
 
+    /// Returns true if the protein has lost the start codon compared to the original protein sequence
+    pub(crate) fn start_lost(&self, original: &Protein) -> bool {
+        matches!(original.sequence.first(), Some(AminoAcid::Methionine))
+            && !matches!(self.sequence.first(), Some(AminoAcid::Methionine))
+    }
+
+    /// Applies the start lost effect to the protein sequence by removing all amino acids before the next methionine if present, otherwise retrunss an empty sequence
+    pub(crate) fn apply_start_lost(&mut self) {
+        let reinitiated = match self
+            .sequence
+            .iter()
+            .skip(1)
+            .position(|amino_acid| *amino_acid == AminoAcid::Methionine)
+        {
+            Some(offset) => self.sequence[offset + 1..].to_vec(),
+            None => Vec::new(),
+        };
+        self.sequence = reinitiated;
+    }
+
     pub fn as_bytes(&self) -> Vec<u8> {
         self.amino_acids()
             .iter()
@@ -578,6 +598,53 @@ mod tests {
                 sequence: vec![AminoAcid::Alanine, AminoAcid::Valine],
             }
         );
+    }
+
+    #[test]
+    fn start_lost_compares_first_residue_against_original() {
+        let original = Protein::new(vec![
+            AminoAcid::Methionine,
+            AminoAcid::Leucine,
+            AminoAcid::Valine,
+        ]);
+        assert!(Protein::new(vec![
+            AminoAcid::Threonine,
+            AminoAcid::Leucine,
+            AminoAcid::Valine
+        ])
+        .start_lost(&original));
+        assert!(!Protein::new(vec![
+            AminoAcid::Methionine,
+            AminoAcid::Tryptophan,
+            AminoAcid::Valine
+        ])
+        .start_lost(&original));
+        let without_annotated_start = Protein::new(vec![AminoAcid::Leucine, AminoAcid::Valine]);
+        assert!(!Protein::new(vec![AminoAcid::Threonine, AminoAcid::Valine])
+            .start_lost(&without_annotated_start));
+    }
+
+    #[test]
+    fn apply_start_lost_restarts_at_next_methionine() {
+        let mut protein = Protein::new(vec![
+            AminoAcid::Threonine,
+            AminoAcid::Leucine,
+            AminoAcid::Methionine,
+            AminoAcid::Valine,
+        ]);
+        protein.apply_start_lost();
+        assert_eq!(
+            protein.sequence,
+            vec![AminoAcid::Methionine, AminoAcid::Valine]
+        );
+
+        let mut without_downstream_start = Protein::new(vec![
+            AminoAcid::Threonine,
+            AminoAcid::Leucine,
+            AminoAcid::Valine,
+        ]);
+        without_downstream_start.apply_start_lost();
+        assert!(without_downstream_start.sequence.is_empty());
     }
 
     #[test]
