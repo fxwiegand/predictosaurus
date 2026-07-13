@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/fxwiegand/predictosaurus/compare/v0.15.0...v0.16.0) (2026-07-13)
+
+
+### Features
+
+* Use probabilistic or for score aggregation across haplotypes ([#291](https://github.com/fxwiegand/predictosaurus/issues/291)) ([907ab8c](https://github.com/fxwiegand/predictosaurus/commit/907ab8c22c9617bdddf6b200478ea12820f53b53))
+
 ## [0.15.0](https://github.com/fxwiegand/predictosaurus/compare/v0.14.2...v0.15.0) (2026-07-06)
 
 
