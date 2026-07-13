@@ -89,11 +89,10 @@ fn max_score(iter: impl Iterator<Item = Option<f64>>) -> Option<f64> {
 }
 
 fn probabilistic_or(iter: impl Iterator<Item = Option<f64>>) -> Option<f64> {
-    let scores: Vec<f64> = iter.flatten().collect();
-    if scores.is_empty() {
-        return None;
-    }
-    Some(1.0 - scores.iter().map(|score| 1.0 - score).product::<f64>())
+    iter.flatten()
+        .map(|score| 1.0 - score)
+        .reduce(|acc, complement| acc * complement)
+        .map(|product| 1.0 - product)
 }
 
 #[cfg(test)]
