@@ -98,6 +98,10 @@ fn probabilistic_or(iter: impl Iterator<Item = Option<f64>>) -> Option<f64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::graph::node::NodeType;
+    use crate::graph::EventProbs;
+    use genebears::ClientConfig;
+    use std::collections::HashMap;
 
     #[test]
     fn probabilistic_or_of_a_single_score_is_unchanged() {
@@ -120,5 +124,27 @@ mod tests {
     #[test]
     fn probabilistic_or_without_scores_is_none() {
         assert_eq!(probabilistic_or([None, None].into_iter()), None);
+    }
+
+    #[test]
+    fn from_haplotype_annotates_a_single_variant() {
+        let client = Arc::new(Mutex::new(GeneBears::new(ClientConfig::default()).unwrap()));
+        let transcript =
+            Transcript::new("test".to_string(), "1".to_string(), Strand::Forward, vec![]);
+        let haplotype = vec![Node {
+            node_type: NodeType::Variant,
+            reference_allele: "G".to_string(),
+            alternative_allele: "T".to_string(),
+            vaf: HashMap::new(),
+            probs: EventProbs(HashMap::new()),
+            pos: 11_796_320,
+            index: 0,
+        }];
+
+        let annotation =
+            Annotation::from_haplotype(&haplotype, &transcript, Genome::Hg38, &client).unwrap();
+
+        assert!(annotation.alphamissense_score.is_some());
+        assert!(annotation.revel_score.is_some());
     }
 }
