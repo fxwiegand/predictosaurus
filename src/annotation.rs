@@ -76,14 +76,49 @@ impl Annotation {
         };
 
         Ok(Self {
-            revel_score: max_score(results.iter().map(|r| r.revel_score)),
+            revel_score: probabilistic_or(results.iter().map(|r| r.revel_score)),
             acmg_score: max_score(results.iter().map(|r| r.acmg_score)),
-            spliceai_score: max_score(results.iter().map(|r| r.spliceai_max_score)),
-            alphamissense_score: max_score(results.iter().map(|r| r.alphamissense_score)),
+            spliceai_score: probabilistic_or(results.iter().map(|r| r.spliceai_max_score)),
+            alphamissense_score: probabilistic_or(results.iter().map(|r| r.alphamissense_score)),
         })
     }
 }
 
 fn max_score(iter: impl Iterator<Item = Option<f64>>) -> Option<f64> {
     iter.flatten().reduce(f64::max)
+}
+
+fn probabilistic_or(iter: impl Iterator<Item = Option<f64>>) -> Option<f64> {
+    iter.flatten()
+        .map(|score| 1.0 - score)
+        .reduce(|acc, complement| acc * complement)
+        .map(|product| 1.0 - product)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn probabilistic_or_of_a_single_score_is_unchanged() {
+        let result = probabilistic_or([Some(0.6)].into_iter()).unwrap();
+        assert!((result - 0.6).abs() < 1e-9);
+    }
+
+    #[test]
+    fn probabilistic_or_combines_as_complement_of_product() {
+        let result = probabilistic_or([Some(0.5), Some(0.5)].into_iter()).unwrap();
+        assert!((result - 0.75).abs() < 1e-9);
+    }
+
+    #[test]
+    fn probabilistic_or_ignores_absent_scores() {
+        let result = probabilistic_or([Some(0.5), None, Some(0.5)].into_iter()).unwrap();
+        assert!((result - 0.75).abs() < 1e-9);
+    }
+
+    #[test]
+    fn probabilistic_or_without_scores_is_none() {
+        assert_eq!(probabilistic_or([None, None].into_iter()), None);
+    }
 }
