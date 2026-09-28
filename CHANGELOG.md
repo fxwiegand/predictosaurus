@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.19.0](https://github.com/fxwiegand/haplodon/compare/v0.18.0...v0.19.0) (2026-09-28)
+
+
+### Features
+
+* Annotate gnomAD allele frequencies as INFO/GNOMAD_AF ([#308](https://github.com/fxwiegand/haplodon/issues/308)) ([6ee3fd9](https://github.com/fxwiegand/haplodon/commit/6ee3fd97861699920ef00981dde1c56481d62bd6))
+
+
+### Bug Fixes
+
+* Skip variants with non-ACGT alternative alleles ([#311](https://github.com/fxwiegand/haplodon/issues/311)) ([80677b4](https://github.com/fxwiegand/haplodon/commit/80677b45288f99f6273548c47b703d259ecdd255))
+
 ## [0.18.0](https://github.com/fxwiegand/haplodon/compare/v0.17.1...v0.18.0) (2026-09-21)
 
 

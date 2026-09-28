@@ -1488,9 +1488,9 @@ dependencies = [
 
 [[package]]
 name = "genebears"
-version = "0.3.0"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2fb9022ad7aa22d42c7fed4f6a822c1f4ac886bdfe8d4784ddc1e9e8106f583"
+checksum = "65e8a60d1df75e1ae3e88340f05c38081454cee51c5f7bdc44064e4326160408"
 dependencies = [
  "clap 4.6.7",
  "duckdb",
@@ -1567,7 +1567,7 @@ dependencies = [
 
 [[package]]
 name = "haplodon"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "anyhow",
  "bio",
