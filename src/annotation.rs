@@ -78,28 +78,25 @@ impl Annotation {
             Err(e) => return Err(anyhow::Error::from(e)),
         };
 
-        let frequency_by_variant: HashMap<(u64, String, String), Option<f64>> = results
+        let (tokens, results): (Vec<_>, Vec<_>) = in_phase
             .iter()
-            .filter_map(|r| {
-                Some((
-                    (r.pos?, r.ref_allele.clone()?, r.alt.clone()?),
-                    gnomad_af(r),
-                ))
+            .zip(results)
+            .filter(|(node, result)| {
+                if let Some(message) = &result.warning {
+                    warn!(
+                        "Ignoring GeneBe annotation for {} on {}: {}",
+                        node.hgvsg_token(),
+                        transcript.target,
+                        message
+                    );
+                }
+                result.warning.is_none()
             })
-            .collect();
-        let gnomad_frequencies = in_phase
-            .iter()
-            .map(|node| {
-                let frequency = frequency_by_variant
-                    .get(&(
-                        node.pos as u64 + 1,
-                        node.reference_allele.clone(),
-                        node.alternative_allele.clone(),
-                    ))
-                    .copied()
-                    .flatten();
-                (node.hgvsg_token(), frequency)
-            })
+            .map(|(node, result)| (node.hgvsg_token(), result))
+            .unzip();
+        let gnomad_frequencies = tokens
+            .into_iter()
+            .zip(results.iter().map(gnomad_af))
             .collect();
 
         Ok(Self {
@@ -178,5 +175,27 @@ mod tests {
 
         assert!(annotation.alphamissense_score.is_some());
         assert!(annotation.revel_score.is_some());
+    }
+
+    #[test]
+    fn from_haplotype_ignores_variants_with_mismatching_reference() {
+        let client = Arc::new(Mutex::new(GeneBears::new(ClientConfig::default()).unwrap()));
+        let transcript =
+            Transcript::new("test".to_string(), "1".to_string(), Strand::Forward, vec![]);
+        let haplotype = vec![Node {
+            node_type: NodeType::Variant,
+            reference_allele: "A".to_string(),
+            alternative_allele: "T".to_string(),
+            vaf: HashMap::new(),
+            probs: EventProbs(HashMap::new()),
+            pos: 11_796_320,
+            index: 0,
+        }];
+
+        let annotation =
+            Annotation::from_haplotype(&haplotype, &transcript, Genome::Hg38, &client).unwrap();
+
+        assert!(annotation.revel_score.is_none());
+        assert!(annotation.gnomad_frequencies.is_empty());
     }
 }
