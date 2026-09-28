@@ -1444,8 +1444,9 @@ dependencies = [
 
 [[package]]
 name = "genebears"
-version = "0.2.2"
-source = "git+https://github.com/koesterlab/genebears?branch=keep-order#3b05ff4957bfe700e6db2e9352eac447136897ef"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2fb9022ad7aa22d42c7fed4f6a822c1f4ac886bdfe8d4784ddc1e9e8106f583"
 dependencies = [
  "clap 4.6.6",
  "duckdb",
