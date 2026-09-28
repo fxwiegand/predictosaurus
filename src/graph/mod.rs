@@ -136,6 +136,16 @@ impl VariantGraph {
             if alt_allele == "*" {
                 continue;
             }
+            if !alt_allele
+                .bytes()
+                .all(|base| matches!(base, b'A' | b'C' | b'G' | b'T'))
+            {
+                warn!(
+                    "Skipping variant at {target}:{} with non-ACGT alternative allele {alt_allele}",
+                    position + 1
+                );
+                continue;
+            }
 
             let event_probs = EventProbs::from_record(&calls_record, &tags);
             if !event_probs.is_valid() {
