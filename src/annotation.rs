@@ -1,9 +1,10 @@
 use anyhow::Result;
 use bio::bio_types::strand::Strand;
-use genebears::{AnnotateOptions, GeneBearError, GeneBears, Genome, Variant};
+use genebears::{AnnotateOptions, AnnotatedVariant, GeneBearError, GeneBears, Genome, Variant};
 use itertools::Itertools;
 use log::warn;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::graph::node::Node;
@@ -15,6 +16,8 @@ pub(crate) struct Annotation {
     pub(crate) acmg_score: Option<f64>,
     pub(crate) spliceai_score: Option<f64>,
     pub(crate) alphamissense_score: Option<f64>,
+    #[serde(default)]
+    pub(crate) gnomad_frequencies: HashMap<String, Option<f64>>,
 }
 
 impl Annotation {
@@ -75,13 +78,39 @@ impl Annotation {
             Err(e) => return Err(anyhow::Error::from(e)),
         };
 
+        let (tokens, results): (Vec<_>, Vec<_>) = in_phase
+            .iter()
+            .zip(results)
+            .filter(|(node, result)| {
+                if let Some(message) = &result.warning {
+                    warn!(
+                        "Ignoring GeneBe annotation for {} on {}: {}",
+                        node.hgvsg_token(),
+                        transcript.target,
+                        message
+                    );
+                }
+                result.warning.is_none()
+            })
+            .map(|(node, result)| (node.hgvsg_token(), result))
+            .unzip();
+        let gnomad_frequencies = tokens
+            .into_iter()
+            .zip(results.iter().map(gnomad_af))
+            .collect();
+
         Ok(Self {
             revel_score: probabilistic_or(results.iter().map(|r| r.revel_score)),
             acmg_score: max_score(results.iter().map(|r| r.acmg_score)),
             spliceai_score: probabilistic_or(results.iter().map(|r| r.spliceai_max_score)),
             alphamissense_score: probabilistic_or(results.iter().map(|r| r.alphamissense_score)),
+            gnomad_frequencies,
         })
     }
+}
+
+fn gnomad_af(variant: &AnnotatedVariant) -> Option<f64> {
+    max_score([variant.gnomad_exomes_af, variant.gnomad_genomes_af].into_iter())
 }
 
 fn max_score(iter: impl Iterator<Item = Option<f64>>) -> Option<f64> {
@@ -146,5 +175,27 @@ mod tests {
 
         assert!(annotation.alphamissense_score.is_some());
         assert!(annotation.revel_score.is_some());
+    }
+
+    #[test]
+    fn from_haplotype_ignores_variants_with_mismatching_reference() {
+        let client = Arc::new(Mutex::new(GeneBears::new(ClientConfig::default()).unwrap()));
+        let transcript =
+            Transcript::new("test".to_string(), "1".to_string(), Strand::Forward, vec![]);
+        let haplotype = vec![Node {
+            node_type: NodeType::Variant,
+            reference_allele: "A".to_string(),
+            alternative_allele: "T".to_string(),
+            vaf: HashMap::new(),
+            probs: EventProbs(HashMap::new()),
+            pos: 11_796_320,
+            index: 0,
+        }];
+
+        let annotation =
+            Annotation::from_haplotype(&haplotype, &transcript, Genome::Hg38, &client).unwrap();
+
+        assert!(annotation.revel_score.is_none());
+        assert!(annotation.gnomad_frequencies.is_empty());
     }
 }
