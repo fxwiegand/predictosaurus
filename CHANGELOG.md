@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.1](https://github.com/fxwiegand/haplodon/compare/v0.19.0...v0.19.1) (2026-09-28)
+
+
+### Bug Fixes
+
+* Restore genebears 0.3.0 ([#313](https://github.com/fxwiegand/haplodon/issues/313)) ([6a35eb3](https://github.com/fxwiegand/haplodon/commit/6a35eb304a2b71621ce57a32976cfbb43b3d3f5e))
+
 ## [0.19.0](https://github.com/fxwiegand/haplodon/compare/v0.18.0...v0.19.0) (2026-09-28)
 
 
