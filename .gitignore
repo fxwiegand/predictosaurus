@@ -1,1 +1,15 @@
 /target
+.DS_Store
+.idea/
+.pixi/
+/*.duckdb
+/*.tsv
+/*.svg
+/*.log
+/*.gz
+/*.tbi
+*.fa
+*.fasta
+*.fai
+SRR*
+tests/resources/Homo_sapiens.GRCh38.*.gff3
