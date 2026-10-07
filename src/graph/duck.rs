@@ -5,7 +5,6 @@ use crate::graph::transcript::Transcript;
 use crate::graph::{Edge, VariantGraph};
 use anyhow::Result;
 use duckdb::{params, Connection};
-use petgraph::matrix_graph::NodeIndex;
 use petgraph::Graph;
 use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
@@ -78,7 +77,7 @@ pub(crate) fn feature_graph(
     let db = Connection::open(path)?;
     let mut graph = Graph::<Node, Edge, petgraph::Directed>::new();
     let mut stmt = db.prepare(
-    "SELECT node_index, node_type, reference_allele, alternative_allele, vaf, probs, pos, index FROM nodes WHERE target = ? AND pos >= ? AND pos <= ?"
+    "SELECT node_index, node_type, reference_allele, alternative_allele, vaf, probs, pos, index FROM nodes WHERE target = ? AND pos >= ? AND pos <= ? ORDER BY node_index"
     )?;
     let nodes: Vec<NodeRow> = stmt
         .query_map(
@@ -98,19 +97,8 @@ pub(crate) fn feature_graph(
         )?
         .map(Result::unwrap)
         .collect();
-    let max_index = *nodes
-        .iter()
-        .map(|(index, _, _, _, _, _, _, _)| index)
-        .max()
-        .unwrap_or(&0);
-    for _ in 0..=max_index {
-        graph.add_node(Node::new(
-            NodeType::Reference,
-            -1,
-            "".to_string(),
-            "".to_string(),
-        )); // Add placeholder nodes
-    }
+    // Edges refer to nodes by the index they had in the full graph.
+    let mut node_indices = HashMap::new();
     for (node_index, node_type, reference_allele, alternative_allele, vaf, probs, pos, index) in
         nodes
     {
@@ -123,32 +111,35 @@ pub(crate) fn feature_graph(
             pos,
             index,
         };
-        graph[NodeIndex::new(node_index)] = node;
+        node_indices.insert(node_index, graph.add_node(node));
     }
-    let mut stmt =
-        db.prepare("SELECT from_node, to_node, supporting_reads FROM edges WHERE target = ?")?;
+    let mut stmt = db.prepare(
+        "SELECT edges.from_node, edges.to_node, edges.supporting_reads FROM edges \
+         JOIN nodes source ON source.target = edges.target AND source.node_index = edges.from_node \
+         JOIN nodes sink ON sink.target = edges.target AND sink.node_index = edges.to_node \
+         WHERE edges.target = ? AND source.pos BETWEEN ? AND ? AND sink.pos BETWEEN ? AND ?",
+    )?;
     let edges: Vec<(usize, usize, String)> = stmt
-        .query_map(params![target.to_string()], |row| {
-            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
-        })?
+        .query_map(
+            params![
+                target.to_string(),
+                start as i64,
+                end as i64,
+                start as i64,
+                end as i64
+            ],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )?
         .collect::<Result<Vec<_>, _>>()?;
     for (from_node, to_node, supporting_reads) in edges {
-        if graph.node_indices().nth(from_node).is_none()
-            || graph.node_indices().nth(to_node).is_none()
-        {
-            continue;
-        }
-        let edge_weight: HashMap<String, u32> = serde_json::from_str(&supporting_reads).unwrap();
         graph.add_edge(
-            graph.node_indices().nth(from_node).unwrap(),
-            graph.node_indices().nth(to_node).unwrap(),
+            node_indices[&from_node],
+            node_indices[&to_node],
             Edge {
-                supporting_reads: edge_weight,
+                supporting_reads: serde_json::from_str(&supporting_reads)?,
             },
         );
     }
-    let temp_graph = graph.clone();
-    graph.retain_nodes(|_, node| temp_graph.node_weight(node).unwrap().pos != -1);
     Ok(VariantGraph {
         graph,
         start: start as i64,
@@ -456,6 +447,125 @@ mod tests {
         dbg!(&graph);
         assert_eq!(graph.start, 3);
         assert_eq!(graph.end, 10);
+    }
+
+    fn write(graphs: Vec<(&str, VariantGraph)>) -> (tempfile::TempDir, PathBuf) {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let path = temp_dir.path().join("graphs.duckdb");
+        let graphs = graphs
+            .into_iter()
+            .map(|(target, graph)| (target.to_string(), graph))
+            .collect();
+        write_graphs(graphs, &path).unwrap();
+        (temp_dir, path)
+    }
+
+    /// Nodes keyed by position, type and alleles, and edges keyed by their endpoints.
+    type Content = (
+        Vec<(i64, String, String, String, u32)>,
+        Vec<(
+            (i64, String, String),
+            (i64, String, String),
+            Vec<(String, u32)>,
+        )>,
+    );
+
+    fn content(graph: &VariantGraph) -> Content {
+        let key = |node: &Node| {
+            (
+                node.pos,
+                node.node_type.to_string(),
+                node.alternative_allele.clone(),
+            )
+        };
+        let nodes = graph
+            .graph
+            .node_weights()
+            .map(|node| {
+                (
+                    node.pos,
+                    node.node_type.to_string(),
+                    node.reference_allele.clone(),
+                    node.alternative_allele.clone(),
+                    node.index,
+                )
+            })
+            .sorted()
+            .collect();
+        let edges = graph
+            .graph
+            .edge_indices()
+            .map(|edge| {
+                let (from, to) = graph.graph.edge_endpoints(edge).unwrap();
+                let reads = graph.graph[edge]
+                    .supporting_reads
+                    .iter()
+                    .map(|(sample, reads)| (sample.clone(), *reads))
+                    .sorted()
+                    .collect();
+                (key(&graph.graph[from]), key(&graph.graph[to]), reads)
+            })
+            .sorted()
+            .collect();
+        (nodes, edges)
+    }
+
+    #[test]
+    fn feature_graph_drops_edges_leaving_the_range() {
+        let (_dir, path) = write(vec![("graph1", setup_graph())]);
+        let graph = feature_graph(path, "graph1".to_string(), 3, 8).unwrap();
+        assert_eq!(graph.graph.node_count(), 3);
+        assert_eq!(graph.graph.edge_count(), 1);
+    }
+
+    #[test]
+    fn feature_graph_of_the_whole_range_restores_the_built_graph() {
+        let observations = vec![crate::cli::ObservationFile {
+            path: PathBuf::from("tests/resources/test_observations.vcf"),
+            sample: "sample".to_string(),
+        }];
+        let built = VariantGraph::build(
+            &PathBuf::from("tests/resources/test_calls.vcf"),
+            &observations,
+            "OX512233.1",
+            bio::stats::LogProb::from(bio::stats::Prob(0.0)),
+            0.0,
+        )
+        .unwrap();
+        assert!(built.graph.edge_count() > 0);
+        let expected = content(&built);
+        let (_dir, path) = write(vec![("OX512233.1", built)]);
+        let graph = feature_graph(path, "OX512233.1".to_string(), 0, 30_000).unwrap();
+        assert_eq!(content(&graph), expected);
+    }
+
+    #[test]
+    fn feature_graph_ignores_edges_of_other_targets() {
+        let (_dir, path) = write(vec![("graph1", setup_graph()), ("graph2", setup_graph())]);
+        let graph = feature_graph(path, "graph1".to_string(), 0, 10).unwrap();
+        assert_eq!(graph.graph.node_count(), 6);
+        assert_eq!(graph.graph.edge_count(), 4);
+        assert_eq!(content(&graph), content(&setup_graph()));
+    }
+
+    #[test]
+    fn feature_graph_keeps_the_stored_node_order() {
+        let (_dir, path) = write(vec![("graph1", setup_graph())]);
+        let graph = feature_graph(path, "graph1".to_string(), 0, 10).unwrap();
+        let positions = graph
+            .graph
+            .node_weights()
+            .map(|node| node.pos)
+            .collect_vec();
+        assert_eq!(positions, vec![1, 2, 3, 4, 8, 9]);
+    }
+
+    #[test]
+    fn feature_graph_of_a_range_without_variants_is_empty() {
+        let (_dir, path) = write(vec![("graph1", setup_graph())]);
+        let graph = feature_graph(path, "graph1".to_string(), 5, 7).unwrap();
+        assert_eq!(graph.graph.node_count(), 0);
+        assert_eq!(graph.graph.edge_count(), 0);
     }
 
     #[test]
